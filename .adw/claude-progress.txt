@@ -540,3 +540,46 @@ Status: 18/111 Features (16.2%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #19 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #62: Functional - Send Message Flow
+  - API Client (src/lib/api.ts):
+    - streamChat() für SSE-basiertes Streaming zu /api/chat
+    - fetchModels() und checkHealth() Helper-Funktionen
+    - TypeScript-Typen für ChatRequest, StreamChunk, StreamMetadata
+  - useChatStream Hook (src/hooks/useChatStream.ts):
+    - Nachrichten-State-Management mit useState
+    - Streaming-Response-Handling (onToken, onComplete, onError)
+    - stopStream() mit AbortController
+    - Konversationskontext wird automatisch mitgesendet
+  - UI-Komponenten:
+    - ChatContainer: Hauptcontainer mit Message-Liste, Auto-Scroll
+    - ChatInput: Textarea mit Send/Stop-Button, Enter-to-Send, Shift+Enter für Newline
+    - MessageBubble: Nachrichtenblase für User (blau, rechts) / AI (grau, links)
+    - Loading-Indikator "Denke nach..." während Streaming
+    - Error-State Anzeige
+  - App.tsx komplett überarbeitet:
+    - Neue Chat-UI mit Header und Ollama-Status
+    - Health-Check alle 30 Sekunden
+    - Fehlerbildschirm wenn Ollama nicht erreichbar
+  - TypeScript strict mode Fixes (exactOptionalPropertyTypes)
+  - npm run build erfolgreich
+  - npm run lint erfolgreich
+  - npm run test:run: 10/10 Tests bestanden
+  - Browser-Verifikation:
+    - User-Nachricht wird angezeigt
+    - AI streamt Antwort mit Loading-Indikator
+    - Konversationskontext bleibt erhalten (2 Nachrichten getestet)
+    - Enter-Taste sendet Nachricht
+    - Stoppen-Button während Streaming sichtbar
+  - Screenshot: .adw/screenshots/feature_62_send_message_flow.png
+  - Git Commit: 3459e94
+
+Status: 19/111 Features (17.1%)
+
+Nächstes Feature:
+- adw features next
+

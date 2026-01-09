@@ -4,12 +4,7 @@ import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { env } from './config/env.js'
 import { errorHandler, asyncHandler, notFoundHandler } from './middleware/index.js'
-import {
-  ValidationError,
-  OllamaConnectionError,
-  OllamaError,
-  BadGatewayError,
-} from './errors/index.js'
+import { ValidationError } from './errors/index.js'
 import {
   chatRequestSchema,
   modelQuerySchema,
@@ -18,6 +13,7 @@ import {
   type ChatRequest,
   type ModelQuery,
 } from './validation/index.js'
+import { ollamaService } from './services/index.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -44,10 +40,16 @@ app.use(
 // JSON body parser
 app.use(express.json())
 
-// Health check endpoint - checks backend and Ollama connectivity
+// ============================================
+// Health Check Endpoint
+// ============================================
+
 app.get('/api/health', asyncHandler(async (_req: Request, res: Response) => {
+  // Use OllamaService for health check
+  const ollamaHealth = await ollamaService.healthCheck(5000)
+
   const healthStatus = {
-    status: 'ok' as 'ok' | 'degraded' | 'error',
+    status: ollamaHealth.status === 'ok' ? 'ok' : 'degraded' as 'ok' | 'degraded',
     timestamp: new Date().toISOString(),
     version: '0.1.0',
     services: {
@@ -60,37 +62,13 @@ app.get('/api/health', asyncHandler(async (_req: Request, res: Response) => {
         connections: io.engine.clientsCount,
       },
       ollama: {
-        status: 'unknown' as 'ok' | 'error' | 'unknown',
-        url: env.OLLAMA_API_URL,
-        default_model: env.OLLAMA_DEFAULT_MODEL,
-        available_models: [] as string[],
-        error: undefined as string | undefined,
+        status: ollamaHealth.status,
+        url: ollamaHealth.url,
+        default_model: ollamaHealth.defaultModel,
+        available_models: ollamaHealth.availableModels,
+        error: ollamaHealth.error,
       },
     },
-  }
-
-  // Check Ollama connectivity
-  try {
-    const ollamaResponse = await fetch(`${env.OLLAMA_API_URL}/api/tags`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(5000), // 5 second timeout
-    })
-
-    if (ollamaResponse.ok) {
-      const data = (await ollamaResponse.json()) as { models?: Array<{ name: string }> }
-      healthStatus.services.ollama.status = 'ok'
-      healthStatus.services.ollama.available_models =
-        data.models?.map((m) => m.name) || []
-    } else {
-      healthStatus.services.ollama.status = 'error'
-      healthStatus.services.ollama.error = `HTTP ${ollamaResponse.status}`
-      healthStatus.status = 'degraded'
-    }
-  } catch (error) {
-    healthStatus.services.ollama.status = 'error'
-    healthStatus.services.ollama.error =
-      error instanceof Error ? error.message : 'Connection failed'
-    healthStatus.status = 'degraded'
   }
 
   // Set appropriate HTTP status
@@ -98,7 +76,10 @@ app.get('/api/health', asyncHandler(async (_req: Request, res: Response) => {
   res.status(httpStatus).json(healthStatus)
 }))
 
-// Root endpoint
+// ============================================
+// Root Endpoint
+// ============================================
+
 app.get('/', (_req: Request, res: Response) => {
   res.json({
     name: 'Qwen Chat API',
@@ -114,10 +95,9 @@ app.get('/', (_req: Request, res: Response) => {
 })
 
 // ============================================
-// Types are now imported from ./validation/index.js
+// Chat Endpoint
 // ============================================
 
-// POST /api/chat - Chat completion with Ollama (supports streaming)
 app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
   // Validate request body with Zod schema
   const validation = validate(chatRequestSchema, req.body)
@@ -129,155 +109,91 @@ app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
   }
 
   const chatRequest: ChatRequest = validation.data
-  const model = chatRequest.model ?? env.OLLAMA_DEFAULT_MODEL
   const stream = chatRequest.stream // Zod sets default to true
 
-  // Prepare Ollama request
-  const ollamaRequest = {
-    model,
-    messages: chatRequest.messages,
-    stream,
-    options: chatRequest.options || {},
-  }
+  if (stream) {
+    // Set up streaming response with SSE headers
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('X-Accel-Buffering', 'no') // Disable nginx buffering
 
-  try {
-    const ollamaResponse = await fetch(`${env.OLLAMA_API_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ollamaRequest),
+    // Get streaming response from OllamaService
+    const ollamaResponse = await ollamaService.chatStream({
+      messages: chatRequest.messages,
+      model: chatRequest.model,
+      options: chatRequest.options,
     })
 
-    if (!ollamaResponse.ok) {
-      const errorText = await ollamaResponse.text()
-      let errorMessage = `Ollama error: HTTP ${ollamaResponse.status}`
-      try {
-        const errorJson = JSON.parse(errorText)
-        if (errorJson.error) {
-          errorMessage = errorJson.error
-        }
-      } catch {
-        // Use status text if JSON parsing fails
-      }
-      const statusCode = ollamaResponse.status >= 500 ? 502 : ollamaResponse.status
-      throw new OllamaError(errorMessage, statusCode, {
-        ollamaStatus: ollamaResponse.status,
-      })
+    const reader = ollamaResponse.body?.getReader()
+    if (!reader) {
+      res.status(500).json({ error: 'Failed to get response stream' })
+      return
     }
 
-    if (stream) {
-      // Set up streaming response with SSE headers
-      res.setHeader('Content-Type', 'text/event-stream')
-      res.setHeader('Cache-Control', 'no-cache')
-      res.setHeader('Connection', 'keep-alive')
-      res.setHeader('X-Accel-Buffering', 'no') // Disable nginx buffering
+    const decoder = new TextDecoder()
+    let clientDisconnected = false
 
-      const reader = ollamaResponse.body?.getReader()
-      if (!reader) {
-        res.status(500).json({ error: 'Failed to get response stream' })
-        return
-      }
-
-      const decoder = new TextDecoder()
-      let clientDisconnected = false
-
-      // Handle client disconnect - cancel the stream to Ollama
-      req.on('close', () => {
-        clientDisconnected = true
-        reader.cancel().catch(() => {
-          // Ignore cancel errors
-        })
-        console.log('🔌 Client disconnected, stream cancelled')
+    // Handle client disconnect - cancel the stream to Ollama
+    req.on('close', () => {
+      clientDisconnected = true
+      reader.cancel().catch(() => {
+        // Ignore cancel errors
       })
+      console.log('🔌 Client disconnected, stream cancelled')
+    })
 
-      try {
-        while (!clientDisconnected) {
-          const { done, value } = await reader.read()
-          if (done) break
+    try {
+      while (!clientDisconnected) {
+        const { done, value } = await reader.read()
+        if (done) break
 
-          const chunk = decoder.decode(value, { stream: true })
-          // Ollama sends NDJSON (newline-delimited JSON)
-          // Each line is a separate JSON object
-          const lines = chunk.split('\n').filter((line) => line.trim())
+        const chunk = decoder.decode(value, { stream: true })
+        // Ollama sends NDJSON (newline-delimited JSON)
+        const lines = chunk.split('\n').filter((line) => line.trim())
 
-          for (const line of lines) {
-            if (clientDisconnected) break
+        for (const line of lines) {
+          if (clientDisconnected) break
 
-            try {
-              const parsed = JSON.parse(line)
-              // Send as SSE format
-              res.write(`data: ${JSON.stringify(parsed)}\n\n`)
-            } catch {
-              // Skip malformed JSON lines
-            }
+          try {
+            const parsed = JSON.parse(line)
+            // Send as SSE format
+            res.write(`data: ${JSON.stringify(parsed)}\n\n`)
+          } catch {
+            // Skip malformed JSON lines
           }
         }
-
-        // End the stream (only if client still connected)
-        if (!clientDisconnected) {
-          res.write('data: [DONE]\n\n')
-          res.end()
-        }
-      } catch (streamError) {
-        // Only log and respond if not caused by client disconnect
-        if (!clientDisconnected) {
-          console.error('Stream error:', streamError)
-          res.write(
-            `data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`
-          )
-          res.end()
-        }
       }
-    } else {
-      // Non-streaming response
-      const data = await ollamaResponse.json()
-      res.json(data)
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
-    if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch failed')) {
-      throw new OllamaConnectionError(env.OLLAMA_API_URL)
+      // End the stream (only if client still connected)
+      if (!clientDisconnected) {
+        res.write('data: [DONE]\n\n')
+        res.end()
+      }
+    } catch (streamError) {
+      // Only log and respond if not caused by client disconnect
+      if (!clientDisconnected) {
+        console.error('Stream error:', streamError)
+        res.write(
+          `data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`
+        )
+        res.end()
+      }
     }
-
-    // Re-throw if already an AppError (e.g., OllamaError, ValidationError)
-    throw error
+  } else {
+    // Non-streaming response using OllamaService
+    const response = await ollamaService.chat({
+      messages: chatRequest.messages,
+      model: chatRequest.model,
+      options: chatRequest.options,
+    })
+    res.json(response)
   }
 }))
 
-// List available models from Ollama
-interface OllamaModelDetails {
-  parent_model?: string
-  format: string
-  family: string
-  families?: string[]
-  parameter_size: string
-  quantization_level: string
-}
-
-interface OllamaModel {
-  name: string
-  model?: string
-  modified_at: string
-  size: number
-  digest: string
-  details: OllamaModelDetails
-}
-
-interface OllamaTagsResponse {
-  models: OllamaModel[]
-}
-
-// Formatted model for API response
-interface FormattedModel {
-  id: string
-  name: string
-  family: string
-  parameterSize: string
-  quantization: string
-  sizeGB: number
-  modifiedAt: string
-  isDefault: boolean
-}
+// ============================================
+// Models Endpoint
+// ============================================
 
 app.get('/api/models', asyncHandler(async (req: Request, res: Response) => {
   // Validate query parameters (optional filters)
@@ -290,70 +206,23 @@ app.get('/api/models', asyncHandler(async (req: Request, res: Response) => {
   }
   const query: ModelQuery = queryValidation.data
 
-  const ollamaResponse = await fetch(`${env.OLLAMA_API_URL}/api/tags`, {
-    method: 'GET',
-    signal: AbortSignal.timeout(10000), // 10 second timeout
-  }).catch((error) => {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch failed')) {
-      throw new OllamaConnectionError(env.OLLAMA_API_URL)
-    }
-    throw error
-  })
-
-  if (!ollamaResponse.ok) {
-    throw new BadGatewayError('Failed to fetch models from Ollama', {
-      ollamaStatus: ollamaResponse.status,
-    })
-  }
-
-  const data = (await ollamaResponse.json()) as OllamaTagsResponse
-
-  // Format models for the frontend
-  let models: FormattedModel[] = (data.models || []).map((model) => {
-    const nameParts = model.name.split(':')
-    return {
-      id: model.name,
-      name: nameParts[0] ?? model.name, // Base name without tag, fallback to full name
-      family: model.details.family,
-      parameterSize: model.details.parameter_size,
-      quantization: model.details.quantization_level,
-      sizeGB: Math.round((model.size / 1024 / 1024 / 1024) * 100) / 100, // Convert to GB with 2 decimals
-      modifiedAt: model.modified_at,
-      isDefault: model.name === env.OLLAMA_DEFAULT_MODEL,
-    }
-  })
-
-  // Apply filters from query parameters
-  if (query.search) {
-    const searchLower = query.search.toLowerCase()
-    models = models.filter(
-      (m) =>
-        m.id.toLowerCase().includes(searchLower) ||
-        m.name.toLowerCase().includes(searchLower)
-    )
-  }
-
-  if (query.family) {
-    const familyLower = query.family.toLowerCase()
-    models = models.filter((m) => m.family.toLowerCase() === familyLower)
-  }
-
-  // Sort: default model first, then alphabetically
-  models.sort((a, b) => {
-    if (a.isDefault && !b.isDefault) return -1
-    if (!a.isDefault && b.isDefault) return 1
-    return a.id.localeCompare(b.id)
+  // Use OllamaService to get models
+  const result = await ollamaService.getModels({
+    search: query.search,
+    family: query.family,
   })
 
   res.json({
-    models,
-    defaultModel: env.OLLAMA_DEFAULT_MODEL,
-    totalCount: models.length,
+    models: result.models,
+    defaultModel: ollamaService.getDefaultModel(),
+    totalCount: result.totalCount,
   })
 }))
 
-// Socket.io connection handling
+// ============================================
+// Socket.io Connection Handling
+// ============================================
+
 io.on('connection', (socket) => {
   console.log(`🔌 Client connected: ${socket.id}`)
 
