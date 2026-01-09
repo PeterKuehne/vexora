@@ -26,10 +26,6 @@ export { DEFAULT_SETTINGS, DEFAULT_GENERATION_PARAMS } from './settings';
 export type {
   ApiResponse,
   HealthCheckResponse,
-  OllamaModel,
-  ListModelsResponse,
-  ChatCompletionRequest,
-  ChatCompletionResponse,
   ChatMessageEvent,
   ChatMessageAckEvent,
   StreamStartEvent,
@@ -39,3 +35,24 @@ export type {
   ClientToServerEvents,
   ServerToClientEvents,
 } from './api';
+
+// Ollama API types
+export type {
+  OllamaModel,
+  OllamaModelDetails,
+  OllamaTagsResponse,
+  OllamaChatMessage,
+  OllamaGenerationOptions,
+  OllamaChatRequest,
+  OllamaChatResponse,
+  OllamaChatStreamChunk,
+  OllamaChatStreamFinal,
+  OllamaGenerateRequest,
+  OllamaGenerateResponse,
+  OllamaPullRequest,
+  OllamaPullResponse,
+  OllamaShowRequest,
+  OllamaShowResponse,
+  OllamaErrorResponse,
+} from './ollama';
+export { isOllamaError, calculateTokensPerSecond } from './ollama';

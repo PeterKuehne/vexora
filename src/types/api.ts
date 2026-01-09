@@ -32,63 +32,8 @@ export interface HealthCheckResponse {
   default_model: string;
 }
 
-/**
- * Ollama model info from /api/tags
- */
-export interface OllamaModel {
-  name: string;
-  modified_at: string;
-  size: number;
-  digest: string;
-  details?: {
-    format: string;
-    family: string;
-    parameter_size: string;
-    quantization_level: string;
-  };
-}
-
-/**
- * Response from list models endpoint
- */
-export interface ListModelsResponse {
-  models: OllamaModel[];
-}
-
-/**
- * Chat completion request
- */
-export interface ChatCompletionRequest {
-  model: string;
-  messages: Array<{
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-  }>;
-  stream?: boolean;
-  options?: {
-    temperature?: number;
-    top_p?: number;
-    max_tokens?: number;
-    stop?: string[];
-  };
-}
-
-/**
- * Chat completion response (non-streaming)
- */
-export interface ChatCompletionResponse {
-  model: string;
-  created_at: string;
-  message: {
-    role: 'assistant';
-    content: string;
-  };
-  done: boolean;
-  total_duration?: number;
-  load_duration?: number;
-  prompt_eval_count?: number;
-  eval_count?: number;
-}
+// Note: Ollama-specific types are now in ./ollama.ts
+// Import from there or from the central ./index.ts export
 
 // ============================================
 // WebSocket Event Types

@@ -244,3 +244,26 @@ Status: 8/111 Features (7.2%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #9 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #9: Types - Define Core TypeScript Types
+  - Types in separate Dateien aufgeteilt (gemäß Implementierungsschritte):
+    - types/message.ts: Message, MessageRole, MessageStatus, CreateMessageInput, MessageWithMeta
+    - types/conversation.ts: Conversation, ConversationSummary, ConversationState, ConversationFilterOptions
+    - types/settings.ts: AppSettings, ModelConfig, GenerationParams + DEFAULT_SETTINGS, DEFAULT_GENERATION_PARAMS
+    - types/api.ts: ApiResponse, HealthCheckResponse, OllamaModel, Socket.io Events
+  - types/index.ts als zentraler Barrel-Export aktualisiert
+  - npm run build erfolgreich
+  - npm run lint erfolgreich
+  - Browser-Verifikation: App funktioniert weiterhin, Socket connected
+  - Screenshot: .adw/screenshots/feature_9_types.png
+  - Git Commit: a83a376
+
+Status: 9/111 Features (8.1%)
+
+Nächstes Feature:
+- adw features next
+
