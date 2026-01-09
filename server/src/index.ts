@@ -217,7 +217,7 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     }
 
     if (stream) {
-      // Set up streaming response
+      // Set up streaming response with SSE headers
       res.setHeader('Content-Type', 'text/event-stream')
       res.setHeader('Cache-Control', 'no-cache')
       res.setHeader('Connection', 'keep-alive')
@@ -230,9 +230,19 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       }
 
       const decoder = new TextDecoder()
+      let clientDisconnected = false
+
+      // Handle client disconnect - cancel the stream to Ollama
+      req.on('close', () => {
+        clientDisconnected = true
+        reader.cancel().catch(() => {
+          // Ignore cancel errors
+        })
+        console.log('🔌 Client disconnected, stream cancelled')
+      })
 
       try {
-        while (true) {
+        while (!clientDisconnected) {
           const { done, value } = await reader.read()
           if (done) break
 
@@ -242,6 +252,8 @@ app.post('/api/chat', async (req: Request, res: Response) => {
           const lines = chunk.split('\n').filter((line) => line.trim())
 
           for (const line of lines) {
+            if (clientDisconnected) break
+
             try {
               const parsed = JSON.parse(line)
               // Send as SSE format
@@ -252,15 +264,20 @@ app.post('/api/chat', async (req: Request, res: Response) => {
           }
         }
 
-        // End the stream
-        res.write('data: [DONE]\n\n')
-        res.end()
+        // End the stream (only if client still connected)
+        if (!clientDisconnected) {
+          res.write('data: [DONE]\n\n')
+          res.end()
+        }
       } catch (streamError) {
-        console.error('Stream error:', streamError)
-        res.write(
-          `data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`
-        )
-        res.end()
+        // Only log and respond if not caused by client disconnect
+        if (!clientDisconnected) {
+          console.error('Stream error:', streamError)
+          res.write(
+            `data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`
+          )
+          res.end()
+        }
       }
     } else {
       // Non-streaming response

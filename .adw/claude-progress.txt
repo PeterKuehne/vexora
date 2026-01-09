@@ -384,3 +384,34 @@ Status: 13/111 Features (11.7%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #14 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #15: Backend API - Chat Completion Endpoint
+  - POST /api/chat Endpoint für Chat-Anfragen an Ollama
+  - Request Body Validierung:
+    - messages Array (required, min 1)
+    - role: system | user | assistant
+    - content: string
+    - model: optional (default: qwen3:8b)
+    - stream: optional boolean (default: true)
+    - options: temperature, top_p, top_k, num_predict, stop
+  - Streaming via Server-Sent Events (SSE)
+    - Format: data: {...}\n\n
+    - Abschluss: data: [DONE]\n\n
+  - Non-Streaming Fallback (stream: false)
+  - Error Handling für Ollama Connection Failures
+  - Validierungs-Fehlermeldungen bei ungültigen Requests
+  - npm run build (Frontend + Backend) erfolgreich
+  - curl Tests bestanden (streaming + non-streaming)
+  - Browser-Verifikation: API funktioniert, Chat-Response korrekt
+  - Screenshot: .adw/screenshots/feature_15_chat_endpoint.png
+  - Git Commit: f06b6ea
+
+Status: 14/111 Features (12.6%)
+
+Nächstes Feature:
+- adw features next
+
