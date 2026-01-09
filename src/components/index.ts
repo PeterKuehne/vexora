@@ -8,9 +8,9 @@ export { ChatContainer } from './ChatContainer';
 export { ChatInput } from './ChatInput';
 export { MessageBubble } from './MessageBubble';
 
-// Layout components will be exported here
+// Layout components
+export { ConversationSidebar } from './ConversationSidebar';
 // export { Layout } from './Layout';
-// export { Sidebar } from './Sidebar';
 // export { ChatArea } from './ChatArea';
 
 // UI components will be exported here

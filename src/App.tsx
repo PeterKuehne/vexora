@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
-import { ChatContainer } from './components';
+import { Plus, Menu } from 'lucide-react';
+import { ChatContainer, ConversationSidebar } from './components';
 import { checkHealth } from './lib/api';
 import { ConversationProvider, useConversations } from './contexts';
 
 function AppContent() {
   const [isOllamaConnected, setIsOllamaConnected] = useState<boolean | null>(null);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const {
     activeConversation,
@@ -44,11 +45,24 @@ function AppContent() {
     createConversation();
   };
 
+  const handleToggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => !prev);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-white/10">
         <div className="flex items-center gap-3">
+          {/* Mobile Menu Button */}
+          <button
+            onClick={handleToggleSidebar}
+            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors lg:hidden"
+            title="Sidebar umschalten"
+          >
+            <Menu size={20} />
+          </button>
+
           <h1 className="text-lg font-semibold text-white">Qwen Chat</h1>
 
           {/* New Conversation Button */}
@@ -83,8 +97,18 @@ function AppContent() {
         </div>
       </header>
 
-      {/* Main Chat Area */}
-      <main className="flex-1 overflow-hidden">
+      {/* Main Layout with Sidebar */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Sidebar - hidden on mobile when collapsed */}
+        <div className={`${isSidebarCollapsed ? 'hidden' : 'flex'} lg:flex`}>
+          <ConversationSidebar
+            isCollapsed={false}
+            onToggleCollapse={handleToggleSidebar}
+          />
+        </div>
+
+        {/* Main Chat Area */}
+        <main className="flex-1 overflow-hidden">
         {isOllamaConnected === false ? (
           // Ollama not connected - show error
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -117,7 +141,8 @@ function AppContent() {
           // Show chat interface with active conversation
           <ChatContainer key={activeConversation.id} />
         ) : null}
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

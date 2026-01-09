@@ -694,3 +694,37 @@ Status: 23/111 Features (20.7%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #23 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #21: Storage - LocalStorage Service
+  - Neue StorageService Klasse in src/lib/storage.ts:
+    - Type-safe get<T>/set<T>/remove Methoden
+    - JSON Serialization/Deserialization mit Error Handling
+    - Optional TTL (Time-to-Live) für gecachte Werte
+    - has(), keys(), clear(), getSize() Methoden
+    - subscribe() für Cross-Tab Sync via Storage Events
+    - isAvailable() Check für SSR-Kompatibilität
+  - Singleton-Instanz `storage` mit 'qwen-chat' Prefix
+  - STORAGE_KEYS Konstanten für Type-Safe Key Usage:
+    - CONVERSATIONS, ACTIVE_CONVERSATION_ID, SETTINGS, THEME, MODEL_CONFIG
+  - Barrel-Export in src/lib/index.ts aktualisiert
+  - 20 Unit-Tests in src/lib/storage.test.ts:
+    - get/set für verschiedene Typen (string, number, object, array)
+    - TTL Expiry-Tests mit vi.useFakeTimers()
+    - remove, has, keys, clear Tests
+    - STORAGE_KEYS Konstanten-Tests
+  - npm run build erfolgreich
+  - npm run lint erfolgreich (nur bekannte Warning)
+  - npm run test:run: 30/30 Tests bestanden (10 alte + 20 neue)
+  - Browser-Verifikation: LocalStorage funktioniert, qwen-chat-* Keys vorhanden
+  - Screenshot: .adw/screenshots/feature_21_storage_service.png
+  - Git Commit: 5983dd9
+
+Status: 24/111 Features (21.6%)
+
+Nächstes Feature:
+- adw features next
+
