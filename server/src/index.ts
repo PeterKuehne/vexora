@@ -2,18 +2,15 @@ import express, { type Request, type Response } from 'express'
 import cors from 'cors'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
+import { env } from './config/env.js'
 
 const app = express()
 const httpServer = createServer(app)
-const PORT = process.env.PORT ?? 3001
-
-// CORS origins
-const CORS_ORIGINS = ['http://localhost:5173', 'http://localhost:4173']
 
 // Socket.io setup with CORS
 const io = new Server(httpServer, {
   cors: {
-    origin: CORS_ORIGINS,
+    origin: env.CORS_ORIGINS,
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -22,7 +19,7 @@ const io = new Server(httpServer, {
 // Express CORS configuration
 app.use(
   cors({
-    origin: CORS_ORIGINS,
+    origin: env.CORS_ORIGINS,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -39,6 +36,8 @@ app.get('/api/health', (_req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
     version: '0.1.0',
     websocket: 'enabled',
+    ollama_url: env.OLLAMA_API_URL,
+    default_model: env.OLLAMA_DEFAULT_MODEL,
   })
 })
 
@@ -47,9 +46,10 @@ app.get('/', (_req: Request, res: Response) => {
   res.json({
     name: 'Qwen Chat API',
     version: '0.1.0',
+    environment: env.NODE_ENV,
     endpoints: {
       health: '/api/health',
-      websocket: 'ws://localhost:' + PORT,
+      websocket: `ws://localhost:${env.PORT}`,
     },
   })
 })
@@ -91,10 +91,10 @@ io.on('connection', (socket) => {
 })
 
 // Start server with HTTP server (for both Express and Socket.io)
-httpServer.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
-  console.log(`📋 Health check: http://localhost:${PORT}/api/health`)
-  console.log(`🔌 WebSocket ready on ws://localhost:${PORT}`)
+httpServer.listen(env.PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${env.PORT}`)
+  console.log(`📋 Health check: http://localhost:${env.PORT}/api/health`)
+  console.log(`🔌 WebSocket ready on ws://localhost:${env.PORT}`)
 })
 
 export { io }

@@ -1,7 +1,8 @@
 import { io, Socket } from 'socket.io-client'
+import { env } from './env'
 
 // Server URL - configurable via environment variable
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:3001'
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? env.WS_URL
 
 // Socket.io client instance (singleton)
 let socket: Socket | null = null
