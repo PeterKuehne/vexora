@@ -29,16 +29,58 @@ app.use(
 // JSON body parser
 app.use(express.json())
 
-// Health check endpoint
-app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
+// Health check endpoint - checks backend and Ollama connectivity
+app.get('/api/health', async (_req: Request, res: Response) => {
+  const healthStatus = {
+    status: 'ok' as 'ok' | 'degraded' | 'error',
     timestamp: new Date().toISOString(),
     version: '0.1.0',
-    websocket: 'enabled',
-    ollama_url: env.OLLAMA_API_URL,
-    default_model: env.OLLAMA_DEFAULT_MODEL,
-  })
+    services: {
+      backend: {
+        status: 'ok' as const,
+        uptime: process.uptime(),
+      },
+      websocket: {
+        status: 'ok' as const,
+        connections: io.engine.clientsCount,
+      },
+      ollama: {
+        status: 'unknown' as 'ok' | 'error' | 'unknown',
+        url: env.OLLAMA_API_URL,
+        default_model: env.OLLAMA_DEFAULT_MODEL,
+        available_models: [] as string[],
+        error: undefined as string | undefined,
+      },
+    },
+  }
+
+  // Check Ollama connectivity
+  try {
+    const ollamaResponse = await fetch(`${env.OLLAMA_API_URL}/api/tags`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(5000), // 5 second timeout
+    })
+
+    if (ollamaResponse.ok) {
+      const data = (await ollamaResponse.json()) as { models?: Array<{ name: string }> }
+      healthStatus.services.ollama.status = 'ok'
+      healthStatus.services.ollama.available_models =
+        data.models?.map((m) => m.name) || []
+    } else {
+      healthStatus.services.ollama.status = 'error'
+      healthStatus.services.ollama.error = `HTTP ${ollamaResponse.status}`
+      healthStatus.status = 'degraded'
+    }
+  } catch (error) {
+    healthStatus.services.ollama.status = 'error'
+    healthStatus.services.ollama.error =
+      error instanceof Error ? error.message : 'Connection failed'
+    healthStatus.status = 'degraded'
+  }
+
+  // Set appropriate HTTP status
+  const httpStatus = healthStatus.status === 'ok' ? 200 : 503
+  res.status(httpStatus).json(healthStatus)
 })
 
 // Root endpoint
