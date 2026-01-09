@@ -106,3 +106,30 @@ Status: 3/111 Features (2.7%)
 Nächstes Feature:
 - #4: Project Setup - Express Backend Initialize
 
+=== Session: Coding #4 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #4: Project Setup - Express Backend Initialize
+  - server/ Ordner mit src/ Struktur erstellt
+  - Express 5.2.1, cors installiert
+  - @types/express, @types/cors, @types/node, tsx (dev runner)
+  - server/tsconfig.json mit ES2022, NodeNext, strict mode
+  - server/src/index.ts: Express Server mit CORS Setup
+    - Port 3001 (via env oder default)
+    - CORS erlaubt localhost:5173 und 4173
+    - GET / - API Info Endpoint
+    - GET /api/health - Health Check mit status, timestamp, version
+  - npm scripts: dev:server, build:server, start:server
+  - npm run build:server erfolgreich
+  - npm run build erfolgreich
+  - Browser-Verifikation: API läuft, Health Check gibt JSON zurück
+  - Screenshot: .adw/screenshots/feature_4_express_backend.png
+  - Git Commit: 4e83bbb
+
+Status: 4/111 Features (3.6%)
+
+Nächstes Feature:
+- #5: Project Setup - Socket.io Integration
+
