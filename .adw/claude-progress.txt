@@ -60,3 +60,23 @@ Status: 1/111 Features (0.9%)
 Nächstes Feature:
 - #2: Project Setup - Install Core Dependencies (Tailwind, Lucide, etc.)
 
+=== Session: Coding #2 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #2: Project Setup - Install Core Dependencies
+  - Tailwind CSS 4.1.18, PostCSS, Autoprefixer
+  - Headless UI 2.2.9, Lucide React 0.562.0
+  - react-markdown 10.1.0, prismjs 1.30.0 (mit @types)
+  - socket.io-client 4.8.3
+  - npm run build erfolgreich
+  - Browser-Verifikation: App läuft weiterhin korrekt
+  - Screenshot: .adw/screenshots/feature_2_dependencies.png
+  - Git Commit: 5473c9b
+
+Status: 2/111 Features (1.8%)
+
+Nächstes Feature:
+- #3: Tailwind CSS Configuration (tailwind.config, CSS directives)
+
