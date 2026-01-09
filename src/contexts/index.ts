@@ -11,5 +11,12 @@ export {
   applyTheme,
 } from './ThemeContext';
 
-// Future contexts:
-// export { SettingsProvider, useSettings } from './SettingsContext';
+export {
+  SettingsProvider,
+  useSettings,
+  useSetting,
+  useFontSize,
+  useFeatureEnabled,
+} from './SettingsContext';
+
+export type { SettingsContextValue } from './SettingsContext';

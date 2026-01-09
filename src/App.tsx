@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { Plus, Menu, Sun, Moon, Monitor } from 'lucide-react';
 import { ChatContainer, ConversationSidebar, OllamaConnectionError } from './components';
 import { checkHealth } from './lib/api';
-import { ConversationProvider, useConversations, ThemeProvider, useTheme } from './contexts';
+import { ConversationProvider, useConversations, ThemeProvider, useTheme, SettingsProvider } from './contexts';
 import type { Theme } from './types/settings';
 
 function AppContent() {
@@ -196,11 +196,13 @@ function AppContent() {
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="dark">
-      <ConversationProvider>
-        <AppContent />
-      </ConversationProvider>
-    </ThemeProvider>
+    <SettingsProvider>
+      <ThemeProvider defaultTheme="dark">
+        <ConversationProvider>
+          <AppContent />
+        </ConversationProvider>
+      </ThemeProvider>
+    </SettingsProvider>
   );
 }
 
