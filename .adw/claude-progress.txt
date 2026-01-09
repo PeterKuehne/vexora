@@ -331,3 +331,56 @@ Status: 11/111 Features (9.9%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #12 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #13: Backend API - Health Check Endpoint
+  - Health-Check erweitert um echte Ollama-Verbindungsprüfung
+  - GET /api/health liefert jetzt detaillierten Service-Status:
+    - backend: status + uptime (in Sekunden)
+    - websocket: status + aktive Verbindungen
+    - ollama: status + url + default_model + available_models
+  - Ollama-Check ruft /api/tags auf (5s Timeout)
+  - Bei Ollama-Fehler: status=degraded, HTTP 503
+  - Bei Erfolg: status=ok, HTTP 200, Liste verfügbarer Modelle
+  - npm run build (Frontend + Backend) erfolgreich
+  - npm run lint erfolgreich
+  - npm run test:run: 10/10 Tests bestanden
+  - Browser-Verifikation: Health-Endpoint zeigt alle Services
+  - Screenshot: .adw/screenshots/feature_13_health_check.png
+  - Git Commit: 02d9df2
+
+Status: 12/111 Features (10.8%)
+
+Nächstes Feature:
+- adw features next
+
+=== Session: Coding #13 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #14: Backend API - List Models Endpoint
+  - Neuer Endpoint GET /api/models erstellt
+  - Ruft Ollama /api/tags auf und formatiert Modelle
+  - Formatierte Response mit:
+    - id: vollständiger Modellname (z.B. "qwen3:8b")
+    - name: Basis-Name ohne Tag (z.B. "qwen3")
+    - family, parameterSize, quantization, sizeGB, modifiedAt
+    - isDefault: true wenn Modell dem Default entspricht
+  - Sortierung: Default-Modell zuerst, dann alphabetisch
+  - Error-Handling für Ollama-Verbindungsfehler (503)
+  - TypeScript strict mode kompatibel
+  - npm run build (Frontend + Backend) erfolgreich
+  - npm run lint erfolgreich
+  - Browser-Verifikation: 2 Modelle (qwen3:8b, llama3.2:latest) korrekt angezeigt
+  - Screenshot: .adw/screenshots/feature_14_models_endpoint.png
+  - Git Commit: b6270fb
+
+Status: 13/111 Features (11.7%)
+
+Nächstes Feature:
+- adw features next
+

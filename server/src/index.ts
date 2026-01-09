@@ -91,9 +91,109 @@ app.get('/', (_req: Request, res: Response) => {
     environment: env.NODE_ENV,
     endpoints: {
       health: '/api/health',
+      models: '/api/models',
       websocket: `ws://localhost:${env.PORT}`,
     },
   })
+})
+
+// List available models from Ollama
+interface OllamaModelDetails {
+  parent_model?: string
+  format: string
+  family: string
+  families?: string[]
+  parameter_size: string
+  quantization_level: string
+}
+
+interface OllamaModel {
+  name: string
+  model?: string
+  modified_at: string
+  size: number
+  digest: string
+  details: OllamaModelDetails
+}
+
+interface OllamaTagsResponse {
+  models: OllamaModel[]
+}
+
+// Formatted model for API response
+interface FormattedModel {
+  id: string
+  name: string
+  family: string
+  parameterSize: string
+  quantization: string
+  sizeGB: number
+  modifiedAt: string
+  isDefault: boolean
+}
+
+app.get('/api/models', async (_req: Request, res: Response) => {
+  try {
+    const ollamaResponse = await fetch(`${env.OLLAMA_API_URL}/api/tags`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(10000), // 10 second timeout
+    })
+
+    if (!ollamaResponse.ok) {
+      res.status(502).json({
+        error: 'Failed to fetch models from Ollama',
+        details: `Ollama returned HTTP ${ollamaResponse.status}`,
+      })
+      return
+    }
+
+    const data = (await ollamaResponse.json()) as OllamaTagsResponse
+
+    // Format models for the frontend
+    const models: FormattedModel[] = (data.models || []).map((model) => {
+      const nameParts = model.name.split(':')
+      return {
+        id: model.name,
+        name: nameParts[0] ?? model.name, // Base name without tag, fallback to full name
+        family: model.details.family,
+        parameterSize: model.details.parameter_size,
+        quantization: model.details.quantization_level,
+        sizeGB: Math.round((model.size / 1024 / 1024 / 1024) * 100) / 100, // Convert to GB with 2 decimals
+        modifiedAt: model.modified_at,
+        isDefault: model.name === env.OLLAMA_DEFAULT_MODEL,
+      }
+    })
+
+    // Sort: default model first, then alphabetically
+    models.sort((a, b) => {
+      if (a.isDefault && !b.isDefault) return -1
+      if (!a.isDefault && b.isDefault) return 1
+      return a.id.localeCompare(b.id)
+    })
+
+    res.json({
+      models,
+      defaultModel: env.OLLAMA_DEFAULT_MODEL,
+      totalCount: models.length,
+    })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+    // Check if it's a connection error
+    if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch failed')) {
+      res.status(503).json({
+        error: 'Ollama is not running',
+        details: 'Please start Ollama with: ollama serve',
+        url: env.OLLAMA_API_URL,
+      })
+      return
+    }
+
+    res.status(500).json({
+      error: 'Failed to fetch models',
+      details: errorMessage,
+    })
+  }
 })
 
 // Socket.io connection handling
