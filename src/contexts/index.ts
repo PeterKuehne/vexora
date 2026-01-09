@@ -3,7 +3,8 @@
  * Central export point for all contexts
  */
 
-// Contexts will be exported here as they are created
+export { ConversationProvider, useConversations } from './ConversationContext';
+
+// Future contexts:
 // export { ThemeProvider, useTheme } from './ThemeContext';
-// export { ChatProvider, useChat } from './ChatContext';
 // export { SettingsProvider, useSettings } from './SettingsContext';

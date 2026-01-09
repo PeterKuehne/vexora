@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { ChatContainer } from './components';
 import { checkHealth } from './lib/api';
+import { ConversationProvider, useConversations } from './contexts';
 
-function App() {
+function AppContent() {
   const [isOllamaConnected, setIsOllamaConnected] = useState<boolean | null>(null);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
+
+  const {
+    activeConversation,
+    createConversation,
+    isLoading: isLoadingConversations,
+  } = useConversations();
 
   // Check backend and Ollama connectivity on mount
   useEffect(() => {
@@ -25,11 +33,34 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Auto-create first conversation if none exists
+  useEffect(() => {
+    if (!isLoadingConversations && !activeConversation) {
+      createConversation();
+    }
+  }, [isLoadingConversations, activeConversation, createConversation]);
+
+  const handleNewConversation = () => {
+    createConversation();
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-        <h1 className="text-lg font-semibold text-white">Qwen Chat</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold text-white">Qwen Chat</h1>
+
+          {/* New Conversation Button */}
+          <button
+            onClick={handleNewConversation}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            title="Neue Unterhaltung"
+          >
+            <Plus size={16} />
+            <span className="hidden sm:inline">Neu</span>
+          </button>
+        </div>
 
         {/* Connection Status */}
         <div className="flex items-center gap-2 text-sm">
@@ -77,12 +108,25 @@ function App() {
               </code>
             </div>
           </div>
-        ) : (
-          // Show chat interface
-          <ChatContainer />
-        )}
+        ) : isLoadingConversations ? (
+          // Loading state
+          <div className="flex items-center justify-center h-full">
+            <div className="text-gray-400">Lade Unterhaltungen...</div>
+          </div>
+        ) : activeConversation ? (
+          // Show chat interface with active conversation
+          <ChatContainer key={activeConversation.id} />
+        ) : null}
       </main>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <ConversationProvider>
+      <AppContent />
+    </ConversationProvider>
   );
 }
 
