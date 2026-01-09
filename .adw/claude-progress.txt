@@ -193,3 +193,28 @@ Status: 6/111 Features (5.4%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #7 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #7: Project Setup - Environment Variables
+  - .env.example erstellt (Root + Server) mit allen Konfigurationsvariablen
+  - dotenv für Backend installiert und konfiguriert
+  - server/src/config/env.ts: Zentrale env-Konfiguration mit ESM-Kompatibilität
+  - Variablen: PORT, NODE_ENV, OLLAMA_API_URL, OLLAMA_DEFAULT_MODEL, CORS_ORIGINS
+  - src/lib/env.ts: Frontend Environment-Wrapper für VITE_* Variablen
+  - src/vite-env.d.ts: TypeScript-Typen für import.meta.env
+  - server/src/index.ts aktualisiert: Nutzt jetzt env.* statt hardcoded values
+  - Health-Endpoint gibt ollama_url und default_model zurück
+  - npm run build (Frontend + Backend) erfolgreich
+  - npm run lint erfolgreich
+  - Browser-Verifikation: Console zeigt Environment Config, Socket connected
+  - Screenshot: .adw/screenshots/feature_7_env_variables.png
+  - Git Commit: 62fbacc
+
+Status: 7/111 Features (6.3%)
+
+Nächstes Feature:
+- adw features next
+
