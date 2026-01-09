@@ -1,0 +1,43 @@
+# Claude Progress - Qwen Chat
+
+## Project Overview
+Modern, minimalistic chat interface for local LLMs powered by Ollama.
+Claude-inspired design with conversation management, streaming responses, and markdown support.
+
+**Tech Stack:**
+- Frontend: React + Vite + TypeScript + Tailwind CSS
+- Backend: Express + TypeScript + Socket.io
+- Storage: LocalStorage
+- AI: Qwen 3:8B via Ollama API
+
+## Initial Setup
+- Created: 2026-01-09T22:04:07.360941
+- Initial Features: 111
+- Config: adw_config.yaml
+
+## Session History
+
+=== Session: Initializer ===
+Datum: 2026-01-09
+Agent: Initializer
+
+Erledigt:
+- [X] Projekt-Spec analysiert (adw_config.yaml)
+- [X] 111 Features erstellt und priorisiert
+- [X] Features in Datenbank eingefügt
+
+Feature-Übersicht nach Kategorie:
+- setup: 13 Features (Projekt-Setup, Types, DevOps)
+- api: 8 Features (Backend Endpoints, Services)
+- functional: 29 Features (Storage, Contexts, Hooks, Core Logic)
+- ui: 31 Features (Layout, Components, Settings)
+- integration: 9 Features (Markdown, Error Handling)
+- polish: 13 Features (Animations, Accessibility, Docs)
+- performance: 4 Features (Virtualization, Code Splitting)
+- testing: 4 Features (Unit, Component, E2E Tests)
+
+Nächste Session:
+- Coding Agent übernimmt
+- Erstes Feature: "Project Setup - Initialize Vite + React + TypeScript"
+- Priorität 100 (höchste)
+

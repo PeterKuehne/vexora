@@ -4,7 +4,7 @@ description: "Modern, minimalistic chat interface for local LLMs powered by Olla
 apps:
   - name: qwen-chat
     path: "."
-    type: fullstack
+    type: frontend
     default_port: 3000
 
 technology_stack:
