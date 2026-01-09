@@ -3,6 +3,13 @@ import cors from 'cors'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { env } from './config/env.js'
+import { errorHandler, asyncHandler, notFoundHandler } from './middleware/index.js'
+import {
+  ValidationError,
+  OllamaConnectionError,
+  OllamaError,
+  BadGatewayError,
+} from './errors/index.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -30,7 +37,7 @@ app.use(
 app.use(express.json())
 
 // Health check endpoint - checks backend and Ollama connectivity
-app.get('/api/health', async (_req: Request, res: Response) => {
+app.get('/api/health', asyncHandler(async (_req: Request, res: Response) => {
   const healthStatus = {
     status: 'ok' as 'ok' | 'degraded' | 'error',
     timestamp: new Date().toISOString(),
@@ -81,7 +88,7 @@ app.get('/api/health', async (_req: Request, res: Response) => {
   // Set appropriate HTTP status
   const httpStatus = healthStatus.status === 'ok' ? 200 : 503
   res.status(httpStatus).json(healthStatus)
-})
+}))
 
 // Root endpoint
 app.get('/', (_req: Request, res: Response) => {
@@ -172,12 +179,13 @@ function validateChatRequest(body: unknown): ChatRequestValidationResult {
 }
 
 // POST /api/chat - Chat completion with Ollama (supports streaming)
-app.post('/api/chat', async (req: Request, res: Response) => {
+app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
   // Validate request body
   const validation = validateChatRequest(req.body)
   if (!validation.valid) {
-    res.status(400).json({ error: validation.error })
-    return
+    throw new ValidationError(validation.error || 'Invalid request', {
+      field: 'body',
+    })
   }
 
   const chatRequest = req.body as ChatRequest
@@ -210,10 +218,10 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       } catch {
         // Use status text if JSON parsing fails
       }
-      res.status(ollamaResponse.status >= 500 ? 502 : ollamaResponse.status).json({
-        error: errorMessage,
+      const statusCode = ollamaResponse.status >= 500 ? 502 : ollamaResponse.status
+      throw new OllamaError(errorMessage, statusCode, {
+        ollamaStatus: ollamaResponse.status,
       })
-      return
     }
 
     if (stream) {
@@ -288,20 +296,13 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
     if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch failed')) {
-      res.status(503).json({
-        error: 'Ollama is not running',
-        details: 'Please start Ollama with: ollama serve',
-        url: env.OLLAMA_API_URL,
-      })
-      return
+      throw new OllamaConnectionError(env.OLLAMA_API_URL)
     }
 
-    res.status(500).json({
-      error: 'Chat request failed',
-      details: errorMessage,
-    })
+    // Re-throw if already an AppError (e.g., OllamaError, ValidationError)
+    throw error
   }
-})
+}))
 
 // List available models from Ollama
 interface OllamaModelDetails {
@@ -338,69 +339,54 @@ interface FormattedModel {
   isDefault: boolean
 }
 
-app.get('/api/models', async (_req: Request, res: Response) => {
-  try {
-    const ollamaResponse = await fetch(`${env.OLLAMA_API_URL}/api/tags`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(10000), // 10 second timeout
-    })
-
-    if (!ollamaResponse.ok) {
-      res.status(502).json({
-        error: 'Failed to fetch models from Ollama',
-        details: `Ollama returned HTTP ${ollamaResponse.status}`,
-      })
-      return
-    }
-
-    const data = (await ollamaResponse.json()) as OllamaTagsResponse
-
-    // Format models for the frontend
-    const models: FormattedModel[] = (data.models || []).map((model) => {
-      const nameParts = model.name.split(':')
-      return {
-        id: model.name,
-        name: nameParts[0] ?? model.name, // Base name without tag, fallback to full name
-        family: model.details.family,
-        parameterSize: model.details.parameter_size,
-        quantization: model.details.quantization_level,
-        sizeGB: Math.round((model.size / 1024 / 1024 / 1024) * 100) / 100, // Convert to GB with 2 decimals
-        modifiedAt: model.modified_at,
-        isDefault: model.name === env.OLLAMA_DEFAULT_MODEL,
-      }
-    })
-
-    // Sort: default model first, then alphabetically
-    models.sort((a, b) => {
-      if (a.isDefault && !b.isDefault) return -1
-      if (!a.isDefault && b.isDefault) return 1
-      return a.id.localeCompare(b.id)
-    })
-
-    res.json({
-      models,
-      defaultModel: env.OLLAMA_DEFAULT_MODEL,
-      totalCount: models.length,
-    })
-  } catch (error) {
+app.get('/api/models', asyncHandler(async (_req: Request, res: Response) => {
+  const ollamaResponse = await fetch(`${env.OLLAMA_API_URL}/api/tags`, {
+    method: 'GET',
+    signal: AbortSignal.timeout(10000), // 10 second timeout
+  }).catch((error) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-
-    // Check if it's a connection error
     if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch failed')) {
-      res.status(503).json({
-        error: 'Ollama is not running',
-        details: 'Please start Ollama with: ollama serve',
-        url: env.OLLAMA_API_URL,
-      })
-      return
+      throw new OllamaConnectionError(env.OLLAMA_API_URL)
     }
+    throw error
+  })
 
-    res.status(500).json({
-      error: 'Failed to fetch models',
-      details: errorMessage,
+  if (!ollamaResponse.ok) {
+    throw new BadGatewayError('Failed to fetch models from Ollama', {
+      ollamaStatus: ollamaResponse.status,
     })
   }
-})
+
+  const data = (await ollamaResponse.json()) as OllamaTagsResponse
+
+  // Format models for the frontend
+  const models: FormattedModel[] = (data.models || []).map((model) => {
+    const nameParts = model.name.split(':')
+    return {
+      id: model.name,
+      name: nameParts[0] ?? model.name, // Base name without tag, fallback to full name
+      family: model.details.family,
+      parameterSize: model.details.parameter_size,
+      quantization: model.details.quantization_level,
+      sizeGB: Math.round((model.size / 1024 / 1024 / 1024) * 100) / 100, // Convert to GB with 2 decimals
+      modifiedAt: model.modified_at,
+      isDefault: model.name === env.OLLAMA_DEFAULT_MODEL,
+    }
+  })
+
+  // Sort: default model first, then alphabetically
+  models.sort((a, b) => {
+    if (a.isDefault && !b.isDefault) return -1
+    if (!a.isDefault && b.isDefault) return 1
+    return a.id.localeCompare(b.id)
+  })
+
+  res.json({
+    models,
+    defaultModel: env.OLLAMA_DEFAULT_MODEL,
+    totalCount: models.length,
+  })
+}))
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
@@ -437,6 +423,16 @@ io.on('connection', (socket) => {
     console.error(`❌ Socket error for ${socket.id}:`, error)
   })
 })
+
+// ============================================
+// Error Handling Middleware (must be last)
+// ============================================
+
+// 404 handler for undefined routes
+app.use(notFoundHandler)
+
+// Central error handler
+app.use(errorHandler)
 
 // Start server with HTTP server (for both Express and Socket.io)
 httpServer.listen(env.PORT, () => {

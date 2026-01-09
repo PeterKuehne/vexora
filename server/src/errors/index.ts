@@ -1,0 +1,16 @@
+export {
+  AppError,
+  ValidationError,
+  NotFoundError,
+  UnauthorizedError,
+  ForbiddenError,
+  ConflictError,
+  ServiceUnavailableError,
+  BadGatewayError,
+  OllamaConnectionError,
+  OllamaError,
+  StreamError,
+  isAppError,
+  toAppError,
+  type ErrorCode,
+} from './AppError.js'
