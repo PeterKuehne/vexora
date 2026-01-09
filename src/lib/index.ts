@@ -38,3 +38,7 @@ export type {
   StreamCallbacks,
   StreamMetadata,
 } from './api';
+
+// Storage Service
+export { StorageService, storage, STORAGE_KEYS } from './storage';
+export type { StorageKey } from './storage';

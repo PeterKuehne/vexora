@@ -652,3 +652,45 @@ Status: 21/111 Features (18.9%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #22 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #20: Backend API - CORS Configuration
+  - War bereits in früheren Features implementiert (Zeilen 30-38 in server/src/index.ts)
+  - Verifiziert: Access-Control-Allow-Origin, Allow-Credentials, Allow-Methods, Allow-Headers
+  - Preflight-Request Test erfolgreich
+  - Screenshot: .adw/screenshots/feature_20_cors_config.png
+
+- [X] Feature #64: Functional - Create New Conversation
+  - Neuer ConversationContext (src/contexts/ConversationContext.tsx):
+    - Multi-Conversation Management
+    - LocalStorage-Persistenz für Conversations und aktive ID
+    - createConversation, deleteConversation, setActiveConversation
+    - addMessageToActive, updateMessageInActive für Chat-Integration
+    - Lazy useState Initializer (kein useEffect für Initialisierung)
+  - App.tsx aktualisiert:
+    - ConversationProvider wraps AppContent
+    - "Neu" Button im Header für neue Conversations
+    - Auto-create erste Conversation wenn keine existiert
+  - ChatContainer refaktoriert:
+    - Nutzt jetzt useConversations statt useChatStream
+    - Messages werden im Context gespeichert (Persistenz!)
+    - Streaming direkt implementiert (API-Client Call)
+  - Auto-Titel: Erste User-Nachricht wird zum Conversation-Titel
+  - npm run build erfolgreich
+  - npm run lint erfolgreich (nur Warning für Hook-Export)
+  - Browser-Verifikation:
+    - Nachricht senden → Conversation bekommt Titel
+    - "Neu" klicken → Neue leere Conversation
+    - 2 Conversations im LocalStorage gespeichert
+    - Daten bleiben nach Page-Reload erhalten
+  - Screenshot: .adw/screenshots/feature_64_create_conversation.png
+  - Git Commit: 0bae98c
+
+Status: 23/111 Features (20.7%)
+
+Nächstes Feature:
+- adw features next
+
