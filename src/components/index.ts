@@ -10,6 +10,9 @@ export { MessageBubble } from './MessageBubble';
 
 // Layout components
 export { ConversationSidebar } from './ConversationSidebar';
+
+// Error components
+export { OllamaConnectionError } from './OllamaConnectionError';
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 

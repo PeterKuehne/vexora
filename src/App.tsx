@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Plus, Menu } from 'lucide-react';
-import { ChatContainer, ConversationSidebar } from './components';
+import { ChatContainer, ConversationSidebar, OllamaConnectionError } from './components';
 import { checkHealth } from './lib/api';
 import { ConversationProvider, useConversations } from './contexts';
 
@@ -8,6 +8,10 @@ function AppContent() {
   const [isOllamaConnected, setIsOllamaConnected] = useState<boolean | null>(null);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  // Ref to store the checkConnectivity function for use in handleRetry
+  const checkConnectivityRef = useRef<(() => Promise<boolean>) | null>(null);
 
   const {
     activeConversation,
@@ -22,16 +26,29 @@ function AppContent() {
         const health = await checkHealth();
         setIsOllamaConnected(health.services.ollama.status === 'ok');
         setAvailableModels(health.services.ollama.available_models || []);
+        return health.services.ollama.status === 'ok';
       } catch {
         setIsOllamaConnected(false);
+        return false;
       }
     };
+
+    // Store in ref for retry button
+    checkConnectivityRef.current = checkConnectivity;
 
     checkConnectivity();
 
     // Check every 30 seconds
     const interval = setInterval(checkConnectivity, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Handle retry button click
+  const handleRetry = useCallback(async () => {
+    if (!checkConnectivityRef.current) return;
+    setIsRetrying(true);
+    await checkConnectivityRef.current();
+    setIsRetrying(false);
   }, []);
 
   // Auto-create first conversation if none exists
@@ -110,28 +127,11 @@ function AppContent() {
         {/* Main Chat Area */}
         <main className="flex-1 overflow-hidden">
         {isOllamaConnected === false ? (
-          // Ollama not connected - show error
-          <div className="flex flex-col items-center justify-center h-full text-center p-8">
-            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
-              <span className="text-3xl">⚠️</span>
-            </div>
-            <h2 className="text-xl font-medium text-white mb-2">
-              Ollama nicht erreichbar
-            </h2>
-            <p className="text-gray-400 max-w-md mb-4">
-              Stelle sicher, dass Ollama läuft und auf{' '}
-              <code className="px-1 py-0.5 rounded bg-white/10 text-sm">
-                localhost:11434
-              </code>{' '}
-              erreichbar ist.
-            </p>
-            <div className="text-sm text-gray-500">
-              <p className="mb-1">Starte Ollama mit:</p>
-              <code className="block px-3 py-2 rounded bg-white/5 text-gray-300">
-                ollama serve
-              </code>
-            </div>
-          </div>
+          // Ollama not connected - show error with retry
+          <OllamaConnectionError
+            onRetry={handleRetry}
+            isRetrying={isRetrying}
+          />
         ) : isLoadingConversations ? (
           // Loading state
           <div className="flex items-center justify-center h-full">
