@@ -500,3 +500,43 @@ Status: 17/111 Features (15.3%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #18 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #18: Backend API - Request Validation
+  - Zod 4.3.5 für typsichere Schema-Validierung
+  - Neuer Ordner server/src/validation/ erstellt:
+    - schemas.ts: Alle Zod-Schemas
+    - index.ts: Barrel-Export
+  - chatRequestSchema:
+    - messages Array (required, min 1, max 100)
+    - role: enum ['system', 'user', 'assistant']
+    - content: string (min 1)
+    - model: optional, regex-validiert (z.B. "qwen3:8b")
+    - stream: boolean, default true
+    - options: temperature, top_p, top_k, num_predict, stop
+  - modelQuerySchema: search und family Query-Parameter
+  - generationOptionsSchema: Numerische Limits für LLM-Parameter
+  - validate() Helper mit strukturierten Fehlermeldungen
+  - formatValidationErrors() für lesbare Error-Messages
+  - Alte manuelle validateChatRequest() Funktion entfernt
+  - /api/models: Jetzt mit search= und family= Filterung
+  - npm run build (Frontend + Backend) erfolgreich
+  - npm run lint erfolgreich
+  - npm run test:run: 10/10 Tests bestanden
+  - Validierungstests via curl:
+    - Leerer Body → "messages must be an array"
+    - Leere messages → "messages array cannot be empty"
+    - Ungültige role → "role must be 'system', 'user', or 'assistant'"
+    - Ungültiger Model → "Invalid model name format..."
+  - Browser-Verifikation: App läuft, Socket connected, API funktioniert
+  - Screenshot: .adw/screenshots/feature_18_request_validation.png
+  - Git Commit: f729e79
+
+Status: 18/111 Features (16.2%)
+
+Nächstes Feature:
+- adw features next
+
