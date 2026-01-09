@@ -92,9 +92,198 @@ app.get('/', (_req: Request, res: Response) => {
     endpoints: {
       health: '/api/health',
       models: '/api/models',
+      chat: '/api/chat',
       websocket: `ws://localhost:${env.PORT}`,
     },
   })
+})
+
+// ============================================
+// Chat Completion Types
+// ============================================
+
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
+interface ChatRequest {
+  model?: string
+  messages: ChatMessage[]
+  stream?: boolean
+  options?: {
+    temperature?: number
+    top_p?: number
+    top_k?: number
+    num_predict?: number
+    stop?: string[]
+  }
+}
+
+interface ChatRequestValidationResult {
+  valid: boolean
+  error?: string
+}
+
+function validateChatRequest(body: unknown): ChatRequestValidationResult {
+  if (!body || typeof body !== 'object') {
+    return { valid: false, error: 'Request body must be an object' }
+  }
+
+  const request = body as Record<string, unknown>
+
+  // messages is required
+  if (!request.messages || !Array.isArray(request.messages)) {
+    return { valid: false, error: 'messages is required and must be an array' }
+  }
+
+  if (request.messages.length === 0) {
+    return { valid: false, error: 'messages array cannot be empty' }
+  }
+
+  // Validate each message
+  for (let i = 0; i < request.messages.length; i++) {
+    const msg = request.messages[i] as Record<string, unknown>
+    if (!msg || typeof msg !== 'object') {
+      return { valid: false, error: `messages[${i}] must be an object` }
+    }
+    if (!msg.role || !['system', 'user', 'assistant'].includes(msg.role as string)) {
+      return {
+        valid: false,
+        error: `messages[${i}].role must be 'system', 'user', or 'assistant'`,
+      }
+    }
+    if (typeof msg.content !== 'string') {
+      return { valid: false, error: `messages[${i}].content must be a string` }
+    }
+  }
+
+  // model is optional (will use default)
+  if (request.model !== undefined && typeof request.model !== 'string') {
+    return { valid: false, error: 'model must be a string' }
+  }
+
+  // stream is optional boolean
+  if (request.stream !== undefined && typeof request.stream !== 'boolean') {
+    return { valid: false, error: 'stream must be a boolean' }
+  }
+
+  return { valid: true }
+}
+
+// POST /api/chat - Chat completion with Ollama (supports streaming)
+app.post('/api/chat', async (req: Request, res: Response) => {
+  // Validate request body
+  const validation = validateChatRequest(req.body)
+  if (!validation.valid) {
+    res.status(400).json({ error: validation.error })
+    return
+  }
+
+  const chatRequest = req.body as ChatRequest
+  const model = chatRequest.model || env.OLLAMA_DEFAULT_MODEL
+  const stream = chatRequest.stream !== false // Default to streaming
+
+  // Prepare Ollama request
+  const ollamaRequest = {
+    model,
+    messages: chatRequest.messages,
+    stream,
+    options: chatRequest.options || {},
+  }
+
+  try {
+    const ollamaResponse = await fetch(`${env.OLLAMA_API_URL}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ollamaRequest),
+    })
+
+    if (!ollamaResponse.ok) {
+      const errorText = await ollamaResponse.text()
+      let errorMessage = `Ollama error: HTTP ${ollamaResponse.status}`
+      try {
+        const errorJson = JSON.parse(errorText)
+        if (errorJson.error) {
+          errorMessage = errorJson.error
+        }
+      } catch {
+        // Use status text if JSON parsing fails
+      }
+      res.status(ollamaResponse.status >= 500 ? 502 : ollamaResponse.status).json({
+        error: errorMessage,
+      })
+      return
+    }
+
+    if (stream) {
+      // Set up streaming response
+      res.setHeader('Content-Type', 'text/event-stream')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('Connection', 'keep-alive')
+      res.setHeader('X-Accel-Buffering', 'no') // Disable nginx buffering
+
+      const reader = ollamaResponse.body?.getReader()
+      if (!reader) {
+        res.status(500).json({ error: 'Failed to get response stream' })
+        return
+      }
+
+      const decoder = new TextDecoder()
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const chunk = decoder.decode(value, { stream: true })
+          // Ollama sends NDJSON (newline-delimited JSON)
+          // Each line is a separate JSON object
+          const lines = chunk.split('\n').filter((line) => line.trim())
+
+          for (const line of lines) {
+            try {
+              const parsed = JSON.parse(line)
+              // Send as SSE format
+              res.write(`data: ${JSON.stringify(parsed)}\n\n`)
+            } catch {
+              // Skip malformed JSON lines
+            }
+          }
+        }
+
+        // End the stream
+        res.write('data: [DONE]\n\n')
+        res.end()
+      } catch (streamError) {
+        console.error('Stream error:', streamError)
+        res.write(
+          `data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`
+        )
+        res.end()
+      }
+    } else {
+      // Non-streaming response
+      const data = await ollamaResponse.json()
+      res.json(data)
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+    if (errorMessage.includes('ECONNREFUSED') || errorMessage.includes('fetch failed')) {
+      res.status(503).json({
+        error: 'Ollama is not running',
+        details: 'Please start Ollama with: ollama serve',
+        url: env.OLLAMA_API_URL,
+      })
+      return
+    }
+
+    res.status(500).json({
+      error: 'Chat request failed',
+      details: errorMessage,
+    })
+  }
 })
 
 // List available models from Ollama
