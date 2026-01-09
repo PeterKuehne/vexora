@@ -168,3 +168,28 @@ Status: 5/111 Features (4.5%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #6 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #6: Project Setup - ESLint & Prettier
+  - ESLint Config erweitert für Frontend (React) und Backend (Node.js)
+  - eslint-config-prettier integriert (deaktiviert Konflikte)
+  - .prettierrc mit konsistenten Code-Style Settings
+  - .prettierignore für Build-Artefakte
+  - npm Scripts hinzugefügt: lint:fix, format, format:check
+  - React hooks Lint-Warning in useSocket.ts gefixt
+  - Alle Source-Dateien mit Prettier formatiert
+  - npm run build erfolgreich
+  - npm run lint erfolgreich
+  - npm run format:check erfolgreich
+  - Browser-Verifikation: App funktioniert weiterhin, Socket connected
+  - Screenshot: .adw/screenshots/feature_6_eslint_prettier.png
+  - Git Commit: 90d8fd9
+
+Status: 6/111 Features (5.4%)
+
+Nächstes Feature:
+- adw features next
+
