@@ -133,3 +133,38 @@ Status: 4/111 Features (3.6%)
 Nächstes Feature:
 - #5: Project Setup - Socket.io Integration
 
+=== Session: Coding #5 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #5: Project Setup - Socket.io Integration
+  - socket.io (Server) zu dependencies hinzugefügt
+  - server/src/index.ts: Socket.io Server mit HTTP Server
+    - CORS für localhost:5173/4173
+    - Event: chat:message - empfängt Nachrichten
+    - Event: chat:message:ack - Bestätigung
+    - Event: chat:stream:start/token/end - Streaming-Events
+  - src/lib/socket.ts: Client-Wrapper mit TypeScript Types
+    - Singleton-Pattern für Socket-Instanz
+    - Reconnection-Logik
+    - Event-Subscriber mit Cleanup-Functions
+  - src/hooks/useSocket.ts: React Hook
+    - autoConnect Option
+    - isConnected Status
+    - Callbacks für alle Chat-Events
+  - App.tsx: UI für Socket-Test
+    - Grüner/Roter Connection-Indikator
+    - "Test Socket.io" Button
+    - Response-Anzeige mit Stream-Text
+  - npm run build:server erfolgreich
+  - npm run build erfolgreich (Frontend)
+  - Browser-Verifikation: Connection funktioniert, Test-Message liefert Response
+  - Screenshot: .adw/screenshots/feature_5_socketio.png
+  - Git Commit: ce6248a
+
+Status: 5/111 Features (4.5%)
+
+Nächstes Feature:
+- adw features next
+

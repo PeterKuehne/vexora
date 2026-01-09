@@ -27,21 +27,38 @@ function App() {
   const handleTestSocket = () => {
     sendMessage({
       conversationId: 'test-conv-1',
-      message: 'Hello from the frontend!'
+      message: 'Hello from the frontend!',
     })
   }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8">
       <div className="flex gap-8 mb-8">
-        <a href="https://vite.dev" target="_blank" rel="noopener noreferrer" className="transition-transform hover:scale-110">
+        <a
+          href="https://vite.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="transition-transform hover:scale-110"
+        >
           <img src={viteLogo} className="h-24 w-24" alt="Vite logo" />
         </a>
-        <a href="https://react.dev" target="_blank" rel="noopener noreferrer" className="transition-transform hover:scale-110">
-          <img src={reactLogo} className="h-24 w-24 animate-spin" style={{ animationDuration: '20s' }} alt="React logo" />
+        <a
+          href="https://react.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="transition-transform hover:scale-110"
+        >
+          <img
+            src={reactLogo}
+            className="h-24 w-24 animate-spin"
+            style={{ animationDuration: '20s' }}
+            alt="React logo"
+          />
         </a>
       </div>
-      <h1 className="text-4xl font-bold mb-8" style={{ color: 'var(--primary)' }}>Qwen Chat</h1>
+      <h1 className="text-4xl font-bold mb-8" style={{ color: 'var(--primary)' }}>
+        Qwen Chat
+      </h1>
 
       {/* Socket.io Connection Status */}
       <div className="mb-6 flex items-center gap-2">
@@ -77,19 +94,14 @@ function App() {
         )}
 
         {/* Show last acknowledgment */}
-        {lastAck && (
-          <div className="text-xs text-secondary">
-            {lastAck}
-          </div>
-        )}
+        {lastAck && <div className="text-xs text-secondary">{lastAck}</div>}
 
         <p className="mt-4 text-secondary">
-          Edit <code className="px-2 py-1 rounded text-sm bg-code font-code">src/App.tsx</code> and save to test HMR
+          Edit <code className="px-2 py-1 rounded text-sm bg-code font-code">src/App.tsx</code> and
+          save to test HMR
         </p>
       </div>
-      <p className="mt-8 text-sm text-secondary">
-        Click on the Vite and React logos to learn more
-      </p>
+      <p className="mt-8 text-sm text-secondary">Click on the Vite and React logos to learn more</p>
     </div>
   )
 }
