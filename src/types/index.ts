@@ -1,75 +1,41 @@
 /**
  * Types - TypeScript Type Definitions
  * Central export point for all types
+ *
+ * Import types from this file:
+ * import type { Message, Conversation, AppSettings } from '@/types';
  */
 
-// Chat message types
-export interface Message {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: Date;
-  isStreaming?: boolean;
-}
+// Message types
+export type { Message, MessageRole, MessageStatus, CreateMessageInput, MessageWithMeta } from './message';
 
 // Conversation types
-export interface Conversation {
-  id: string;
-  title: string;
-  messages: Message[];
-  createdAt: Date;
-  updatedAt: Date;
-  model?: string;
-}
+export type {
+  Conversation,
+  CreateConversationInput,
+  ConversationSummary,
+  ConversationState,
+  ConversationFilterOptions,
+} from './conversation';
 
-// Model configuration
-export interface ModelConfig {
-  name: string;
-  displayName: string;
-  contextLength: number;
-  temperature: number;
-  topP: number;
-}
+// Settings types
+export type { Theme, FontSize, AppSettings, ModelConfig, GenerationParams } from './settings';
+export { DEFAULT_SETTINGS, DEFAULT_GENERATION_PARAMS } from './settings';
 
-// App settings
-export interface AppSettings {
-  theme: 'light' | 'dark' | 'system';
-  fontSize: 'small' | 'medium' | 'large';
-  sendOnEnter: boolean;
-  showTimestamps: boolean;
-  defaultModel: string;
-}
-
-// Socket events
-export interface ChatMessageEvent {
-  conversationId: string;
-  message: Message;
-}
-
-export interface StreamTokenEvent {
-  conversationId: string;
-  messageId: string;
-  token: string;
-}
-
-export interface StreamEndEvent {
-  conversationId: string;
-  messageId: string;
-  fullContent: string;
-}
-
-// API response types
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
-
-export interface HealthCheckResponse {
-  status: 'ok' | 'error';
-  timestamp: string;
-  version: string;
-  websocket: string;
-  ollama_url: string;
-  default_model: string;
-}
+// API types
+export type {
+  ApiResponse,
+  HealthCheckResponse,
+  OllamaModel,
+  ListModelsResponse,
+  ChatCompletionRequest,
+  ChatCompletionResponse,
+  ChatMessageEvent,
+  ChatMessageAckEvent,
+  StreamStartEvent,
+  StreamTokenEvent,
+  StreamEndEvent,
+  StreamErrorEvent,
+  ClientToServerEvents,
+  ServerToClientEvents,
+} from './api';
