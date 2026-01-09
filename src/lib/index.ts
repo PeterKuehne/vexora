@@ -42,3 +42,10 @@ export type {
 // Storage Service
 export { StorageService, storage, STORAGE_KEYS } from './storage';
 export type { StorageKey } from './storage';
+
+// Conversation Storage
+export {
+  ConversationStorage,
+  conversationStorage,
+} from './conversationStorage';
+export type { ConversationUpdate } from './conversationStorage';
