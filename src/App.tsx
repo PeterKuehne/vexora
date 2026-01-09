@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { Plus, Menu, Sun, Moon, Monitor } from 'lucide-react';
 import { ChatContainer, ConversationSidebar, OllamaConnectionError } from './components';
 import { checkHealth } from './lib/api';
-import { ConversationProvider, useConversations, ThemeProvider, useTheme, SettingsProvider } from './contexts';
+import { ConversationProvider, useConversations, ThemeProvider, useTheme, SettingsProvider, ChatProvider } from './contexts';
 import type { Theme } from './types/settings';
 
 function AppContent() {
@@ -186,7 +186,9 @@ function AppContent() {
           </div>
         ) : activeConversation ? (
           // Show chat interface with active conversation
-          <ChatContainer key={activeConversation.id} />
+          <ChatProvider key={activeConversation.id}>
+            <ChatContainer />
+          </ChatProvider>
         ) : null}
         </main>
       </div>

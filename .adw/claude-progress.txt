@@ -891,3 +891,31 @@ Status: 29/111 Features (26.1%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #29 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #25: Context - Settings Context
+  - Neue SettingsContext.tsx erstellt
+  - SettingsProvider Komponente für App-weite Settings
+  - useSettings Hook für vollständigen Context-Zugriff
+  - useSetting Hook für einzelne Setting-Werte (TypeScript-typisiert)
+  - useFontSize Hook mit CSS-Klassen-Helper (small/medium/large → text-sm/base/lg)
+  - useFeatureEnabled Hook für Boolean-Feature-Flags
+  - Cross-Tab Synchronization via settingsStorage.subscribe()
+  - LocalStorage Persistenz mit Schema-Version
+  - App.tsx: SettingsProvider als äußerster Context-Provider integriert
+  - contexts/index.ts: Barrel-Export aktualisiert
+  - npm run build erfolgreich
+  - npm run lint: 0 Errors (8 Warnings für Fast Refresh - bekannt)
+  - npm run test:run: 76/76 Tests bestanden
+  - Browser-Verifikation: Theme-Toggle aktualisiert Settings in LocalStorage
+  - Screenshot: .adw/screenshots/feature_25_settings_context.png
+  - Git Commit: fa739dd
+
+Status: 30/111 Features (27.0%)
+
+Nächstes Feature:
+- adw features next
+

@@ -19,4 +19,14 @@ export {
   useFeatureEnabled,
 } from './SettingsContext';
 
+export {
+  ChatProvider,
+  useChat,
+  useChatMessages,
+  useChatStreaming,
+  useChatError,
+  useChatActions,
+} from './ChatContext';
+
 export type { SettingsContextValue } from './SettingsContext';
+export type { ChatContextValue } from './ChatContext';
