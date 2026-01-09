@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:server": "tsx watch server/src/index.ts",
+    "dev:all": "concurrently --names \"frontend,backend\" --prefix-colors \"cyan,yellow\" \"npm run dev\" \"npm run dev:server\"",
     "build": "tsc -b && vite build",
     "build:server": "tsc -p server/tsconfig.json",
     "build:all": "npm run build && npm run build:server",
@@ -49,6 +50,7 @@
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
+    "concurrently": "^9.2.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
