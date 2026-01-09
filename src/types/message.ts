@@ -26,15 +26,15 @@ export interface Message {
   /** When the message was created */
   timestamp: Date;
   /** Whether the message is currently streaming */
-  isStreaming?: boolean;
+  isStreaming?: boolean | undefined;
   /** Current status of the message */
-  status?: MessageStatus;
+  status?: MessageStatus | undefined;
   /** Model used to generate the response (for assistant messages) */
-  model?: string;
+  model?: string | undefined;
   /** Token count for the message */
-  tokenCount?: number;
+  tokenCount?: number | undefined;
   /** Error message if status is 'error' */
-  error?: string;
+  error?: string | undefined;
 }
 
 /**
@@ -43,7 +43,7 @@ export interface Message {
 export interface CreateMessageInput {
   role: MessageRole;
   content: string;
-  model?: string;
+  model?: string | undefined;
 }
 
 /**

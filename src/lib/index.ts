@@ -22,3 +22,19 @@ export type {
   ChatStreamToken,
   ChatStreamEvent,
 } from './socket';
+
+// API Client
+export {
+  streamChat,
+  fetchModels,
+  checkHealth,
+} from './api';
+
+export type {
+  ChatMessage,
+  ChatOptions,
+  ChatRequest,
+  StreamChunk,
+  StreamCallbacks,
+  StreamMetadata,
+} from './api';

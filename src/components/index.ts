@@ -3,6 +3,11 @@
  * Central export point for all components
  */
 
+// Chat components
+export { ChatContainer } from './ChatContainer';
+export { ChatInput } from './ChatInput';
+export { MessageBubble } from './MessageBubble';
+
 // Layout components will be exported here
 // export { Layout } from './Layout';
 // export { Sidebar } from './Sidebar';

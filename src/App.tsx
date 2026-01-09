@@ -1,109 +1,89 @@
-import { useState, useCallback } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import { useSocket } from './hooks/useSocket'
+import { useEffect, useState } from 'react';
+import { ChatContainer } from './components';
+import { checkHealth } from './lib/api';
 
 function App() {
-  const [count, setCount] = useState(0)
-  const [streamedText, setStreamedText] = useState('')
-  const [lastAck, setLastAck] = useState<string | null>(null)
+  const [isOllamaConnected, setIsOllamaConnected] = useState<boolean | null>(null);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
 
-  const { isConnected, sendMessage } = useSocket({
-    autoConnect: true,
-    onMessageAck: useCallback((data) => {
-      setLastAck(`Received at ${data.timestamp}`)
-    }, []),
-    onStreamStart: useCallback(() => {
-      setStreamedText('')
-    }, []),
-    onStreamToken: useCallback((data) => {
-      setStreamedText(data.token)
-    }, []),
-    onStreamEnd: useCallback(() => {
-      console.log('Stream ended')
-    }, []),
-  })
+  // Check backend and Ollama connectivity on mount
+  useEffect(() => {
+    const checkConnectivity = async () => {
+      try {
+        const health = await checkHealth();
+        setIsOllamaConnected(health.services.ollama.status === 'ok');
+        setAvailableModels(health.services.ollama.available_models || []);
+      } catch {
+        setIsOllamaConnected(false);
+      }
+    };
 
-  const handleTestSocket = () => {
-    sendMessage({
-      conversationId: 'test-conv-1',
-      message: 'Hello from the frontend!',
-    })
-  }
+    checkConnectivity();
+
+    // Check every 30 seconds
+    const interval = setInterval(checkConnectivity, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-8">
-      <div className="flex gap-8 mb-8">
-        <a
-          href="https://vite.dev"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="transition-transform hover:scale-110"
-        >
-          <img src={viteLogo} className="h-24 w-24" alt="Vite logo" />
-        </a>
-        <a
-          href="https://react.dev"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="transition-transform hover:scale-110"
-        >
-          <img
-            src={reactLogo}
-            className="h-24 w-24 animate-spin"
-            style={{ animationDuration: '20s' }}
-            alt="React logo"
+    <div className="h-screen flex flex-col bg-background">
+      {/* Header */}
+      <header className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+        <h1 className="text-lg font-semibold text-white">Qwen Chat</h1>
+
+        {/* Connection Status */}
+        <div className="flex items-center gap-2 text-sm">
+          <div
+            className={`w-2 h-2 rounded-full ${
+              isOllamaConnected === null
+                ? 'bg-yellow-500'
+                : isOllamaConnected
+                  ? 'bg-green-500'
+                  : 'bg-red-500'
+            }`}
           />
-        </a>
-      </div>
-      <h1 className="text-4xl font-bold mb-8" style={{ color: 'var(--primary)' }}>
-        Qwen Chat
-      </h1>
+          <span className="text-gray-400">
+            {isOllamaConnected === null
+              ? 'Verbinde...'
+              : isOllamaConnected
+                ? `Ollama (${availableModels.length} Modelle)`
+                : 'Ollama nicht verbunden'}
+          </span>
+        </div>
+      </header>
 
-      {/* Socket.io Connection Status */}
-      <div className="mb-6 flex items-center gap-2">
-        <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-        <span className="text-secondary">
-          Socket.io: {isConnected ? 'Connected' : 'Disconnected'}
-        </span>
-      </div>
-
-      <div className="p-6 rounded-xl shadow-lg bg-surface space-y-4">
-        <button
-          onClick={() => setCount((count) => count + 1)}
-          className="text-white px-6 py-3 rounded-lg font-medium transition-all cursor-pointer hover:opacity-90 bg-primary w-full"
-        >
-          count is {count}
-        </button>
-
-        {/* Socket.io Test Button */}
-        <button
-          onClick={handleTestSocket}
-          disabled={!isConnected}
-          className="w-full px-6 py-3 rounded-lg font-medium transition-all cursor-pointer border-2 border-primary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary hover:text-white"
-          style={{ color: 'var(--primary)' }}
-        >
-          Test Socket.io
-        </button>
-
-        {/* Show streamed text if any */}
-        {streamedText && (
-          <div className="p-3 rounded-lg text-sm bg-green-500/10 text-green-400">
-            Response: {streamedText}
+      {/* Main Chat Area */}
+      <main className="flex-1 overflow-hidden">
+        {isOllamaConnected === false ? (
+          // Ollama not connected - show error
+          <div className="flex flex-col items-center justify-center h-full text-center p-8">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <h2 className="text-xl font-medium text-white mb-2">
+              Ollama nicht erreichbar
+            </h2>
+            <p className="text-gray-400 max-w-md mb-4">
+              Stelle sicher, dass Ollama läuft und auf{' '}
+              <code className="px-1 py-0.5 rounded bg-white/10 text-sm">
+                localhost:11434
+              </code>{' '}
+              erreichbar ist.
+            </p>
+            <div className="text-sm text-gray-500">
+              <p className="mb-1">Starte Ollama mit:</p>
+              <code className="block px-3 py-2 rounded bg-white/5 text-gray-300">
+                ollama serve
+              </code>
+            </div>
           </div>
+        ) : (
+          // Show chat interface
+          <ChatContainer />
         )}
-
-        {/* Show last acknowledgment */}
-        {lastAck && <div className="text-xs text-secondary">{lastAck}</div>}
-
-        <p className="mt-4 text-secondary">
-          Edit <code className="px-2 py-1 rounded text-sm bg-code font-code">src/App.tsx</code> and
-          save to test HMR
-        </p>
-      </div>
-      <p className="mt-8 text-sm text-secondary">Click on the Vite and React logos to learn more</p>
+      </main>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
