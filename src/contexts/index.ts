@@ -4,7 +4,12 @@
  */
 
 export { ConversationProvider, useConversations } from './ConversationContext';
+export {
+  ThemeProvider,
+  useTheme,
+  getSystemTheme,
+  applyTheme,
+} from './ThemeContext';
 
 // Future contexts:
-// export { ThemeProvider, useTheme } from './ThemeContext';
 // export { SettingsProvider, useSettings } from './SettingsContext';

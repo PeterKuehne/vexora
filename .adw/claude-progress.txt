@@ -831,3 +831,33 @@ Status: 27/111 Features (24.3%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #27 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #75: Error Handling - Ollama Not Running
+  - Neue OllamaConnectionError Komponente (src/components/OllamaConnectionError.tsx)
+  - Ansprechendes Error-UI mit Lucide Icons (AlertCircle, RefreshCw, Terminal, etc.)
+  - "Erneut versuchen" Button mit Loading-State und Spinner
+  - Schnellstart-Sektion: `ollama serve` Befehl zum Kopieren
+  - Expandierbare "Vollständige Anleitung":
+    - Schritt 1: Ollama installieren (Link zu ollama.ai)
+    - Schritt 2: Modell herunterladen (`ollama pull qwen3:8b`)
+    - Schritt 3: Server starten (`ollama serve`)
+    - Troubleshooting: Port, Firewall, macOS Menüleiste
+  - Animierte fadeIn-Transition für bessere UX
+  - Health Check beim App-Start + automatischer 30s-Refresh
+  - useRef Pattern für Retry-Funktion (ESLint kompatibel)
+  - npm run build erfolgreich
+  - npm run lint erfolgreich (nur bekannte Warning)
+  - npm run test:run: 76/76 Tests bestanden
+  - Browser-Verifikation: Error-Screen erscheint bei Backend-Stop, verschwindet bei Reconnect
+  - Screenshot: .adw/screenshots/feature_75_ollama_error.png
+  - Git Commit: 0d29ee4
+
+Status: 28/111 Features (25.2%)
+
+Nächstes Feature:
+- adw features next
+

@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Plus, Menu } from 'lucide-react';
+import { Plus, Menu, Sun, Moon, Monitor } from 'lucide-react';
 import { ChatContainer, ConversationSidebar, OllamaConnectionError } from './components';
 import { checkHealth } from './lib/api';
-import { ConversationProvider, useConversations } from './contexts';
+import { ConversationProvider, useConversations, ThemeProvider, useTheme } from './contexts';
+import type { Theme } from './types/settings';
 
 function AppContent() {
   const [isOllamaConnected, setIsOllamaConnected] = useState<boolean | null>(null);
@@ -18,6 +19,31 @@ function AppContent() {
     createConversation,
     isLoading: isLoadingConversations,
   } = useConversations();
+
+  const { theme, setTheme, isDark } = useTheme();
+
+  // Cycle through themes: dark -> light -> system -> dark
+  const cycleTheme = () => {
+    const themeOrder: Theme[] = ['dark', 'light', 'system'];
+    const currentIndex = themeOrder.indexOf(theme);
+    const nextIndex = (currentIndex + 1) % themeOrder.length;
+    setTheme(themeOrder[nextIndex]);
+  };
+
+  // Get theme icon and label
+  const getThemeInfo = () => {
+    switch (theme) {
+      case 'light':
+        return { icon: Sun, label: 'Hell' };
+      case 'system':
+        return { icon: Monitor, label: 'System' };
+      case 'dark':
+      default:
+        return { icon: Moon, label: 'Dunkel' };
+    }
+  };
+
+  const themeInfo = getThemeInfo();
 
   // Check backend and Ollama connectivity on mount
   useEffect(() => {
@@ -67,25 +93,31 @@ function AppContent() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className={`h-screen flex flex-col ${isDark ? 'bg-background' : 'bg-white'}`}>
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+      <header className={`flex items-center justify-between px-4 py-3 border-b ${
+        isDark ? 'border-white/10' : 'border-gray-200'
+      }`}>
         <div className="flex items-center gap-3">
           {/* Mobile Menu Button */}
           <button
             onClick={handleToggleSidebar}
-            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors lg:hidden"
+            className={`p-1.5 ${
+              isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
+            } rounded-lg transition-colors lg:hidden`}
             title="Sidebar umschalten"
           >
             <Menu size={20} />
           </button>
 
-          <h1 className="text-lg font-semibold text-white">Qwen Chat</h1>
+          <h1 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Qwen Chat</h1>
 
           {/* New Conversation Button */}
           <button
             onClick={handleNewConversation}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm ${
+              isDark ? 'text-gray-300 hover:text-white hover:bg-white/10' : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
+            } rounded-lg transition-colors`}
             title="Neue Unterhaltung"
           >
             <Plus size={16} />
@@ -93,24 +125,39 @@ function AppContent() {
           </button>
         </div>
 
-        {/* Connection Status */}
-        <div className="flex items-center gap-2 text-sm">
-          <div
-            className={`w-2 h-2 rounded-full ${
-              isOllamaConnected === null
-                ? 'bg-yellow-500'
+        {/* Theme Toggle & Connection Status */}
+        <div className="flex items-center gap-4">
+          {/* Theme Toggle */}
+          <button
+            onClick={cycleTheme}
+            className={`flex items-center gap-1.5 px-2 py-1.5 text-sm ${
+              isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
+            } rounded-lg transition-colors`}
+            title={`Theme: ${themeInfo.label}`}
+          >
+            <themeInfo.icon size={16} />
+            <span className="hidden sm:inline">{themeInfo.label}</span>
+          </button>
+
+          {/* Connection Status */}
+          <div className="flex items-center gap-2 text-sm">
+            <div
+              className={`w-2 h-2 rounded-full ${
+                isOllamaConnected === null
+                  ? 'bg-yellow-500'
+                  : isOllamaConnected
+                    ? 'bg-green-500'
+                    : 'bg-red-500'
+              }`}
+            />
+            <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+              {isOllamaConnected === null
+                ? 'Verbinde...'
                 : isOllamaConnected
-                  ? 'bg-green-500'
-                  : 'bg-red-500'
-            }`}
-          />
-          <span className="text-gray-400">
-            {isOllamaConnected === null
-              ? 'Verbinde...'
-              : isOllamaConnected
-                ? `Ollama (${availableModels.length} Modelle)`
-                : 'Ollama nicht verbunden'}
-          </span>
+                  ? `Ollama (${availableModels.length} Modelle)`
+                  : 'Ollama nicht verbunden'}
+            </span>
+          </div>
         </div>
       </header>
 
@@ -149,9 +196,11 @@ function AppContent() {
 
 function App() {
   return (
-    <ConversationProvider>
-      <AppContent />
-    </ConversationProvider>
+    <ThemeProvider defaultTheme="dark">
+      <ConversationProvider>
+        <AppContent />
+      </ConversationProvider>
+    </ThemeProvider>
   );
 }
 
