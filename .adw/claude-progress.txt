@@ -444,3 +444,37 @@ Status: 15/111 Features (13.5%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #16 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #17: Backend API - Error Handling Middleware
+  - server/src/errors/AppError.ts: Custom Error Classes erstellt
+    - AppError (Base), ValidationError, NotFoundError, UnauthorizedError
+    - ForbiddenError, ConflictError, ServiceUnavailableError, BadGatewayError
+    - OllamaConnectionError, OllamaError, StreamError
+    - Type Guards: isAppError, toAppError Helper
+  - server/src/middleware/errorHandler.ts: Central Error Middleware
+    - errorHandler: Konvertiert alle Errors zu strukturierten JSON Responses
+    - asyncHandler: Wrapper für async Route Handler (eliminiert try/catch)
+    - notFoundHandler: Fängt undefined Routes ab
+    - Structured Logging (JSON in Production, readable in Development)
+    - Stack traces nur im Development Mode
+  - server/src/index.ts: Alle Routes mit asyncHandler wrapped
+    - ValidationError für ungültige Chat Requests
+    - OllamaConnectionError wenn Ollama nicht läuft
+    - OllamaError für API-Fehler
+    - BadGatewayError für Models-Endpoint
+  - npm run build (Frontend + Backend) erfolgreich
+  - npm run lint erfolgreich
+  - npm run test:run: 10/10 Tests bestanden
+  - Browser-Verifikation: 404 Error, ValidationError, Health + Models API funktionieren
+  - Screenshot: .adw/screenshots/feature_17_error_handling.png
+  - Git Commit: e88a82d
+
+Status: 16/111 Features (14.4%)
+
+Nächstes Feature:
+- adw features next
+
