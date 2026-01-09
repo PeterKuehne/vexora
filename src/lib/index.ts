@@ -49,3 +49,7 @@ export {
   conversationStorage,
 } from './conversationStorage';
 export type { ConversationUpdate } from './conversationStorage';
+
+// Settings Storage
+export { SettingsStorage, settingsStorage } from './settingsStorage';
+export type { SerializedSettings } from './settingsStorage';
