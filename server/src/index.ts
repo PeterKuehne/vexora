@@ -10,6 +10,14 @@ import {
   OllamaError,
   BadGatewayError,
 } from './errors/index.js'
+import {
+  chatRequestSchema,
+  modelQuerySchema,
+  validate,
+  formatValidationErrors,
+  type ChatRequest,
+  type ModelQuery,
+} from './validation/index.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -106,91 +114,23 @@ app.get('/', (_req: Request, res: Response) => {
 })
 
 // ============================================
-// Chat Completion Types
+// Types are now imported from ./validation/index.js
 // ============================================
-
-interface ChatMessage {
-  role: 'system' | 'user' | 'assistant'
-  content: string
-}
-
-interface ChatRequest {
-  model?: string
-  messages: ChatMessage[]
-  stream?: boolean
-  options?: {
-    temperature?: number
-    top_p?: number
-    top_k?: number
-    num_predict?: number
-    stop?: string[]
-  }
-}
-
-interface ChatRequestValidationResult {
-  valid: boolean
-  error?: string
-}
-
-function validateChatRequest(body: unknown): ChatRequestValidationResult {
-  if (!body || typeof body !== 'object') {
-    return { valid: false, error: 'Request body must be an object' }
-  }
-
-  const request = body as Record<string, unknown>
-
-  // messages is required
-  if (!request.messages || !Array.isArray(request.messages)) {
-    return { valid: false, error: 'messages is required and must be an array' }
-  }
-
-  if (request.messages.length === 0) {
-    return { valid: false, error: 'messages array cannot be empty' }
-  }
-
-  // Validate each message
-  for (let i = 0; i < request.messages.length; i++) {
-    const msg = request.messages[i] as Record<string, unknown>
-    if (!msg || typeof msg !== 'object') {
-      return { valid: false, error: `messages[${i}] must be an object` }
-    }
-    if (!msg.role || !['system', 'user', 'assistant'].includes(msg.role as string)) {
-      return {
-        valid: false,
-        error: `messages[${i}].role must be 'system', 'user', or 'assistant'`,
-      }
-    }
-    if (typeof msg.content !== 'string') {
-      return { valid: false, error: `messages[${i}].content must be a string` }
-    }
-  }
-
-  // model is optional (will use default)
-  if (request.model !== undefined && typeof request.model !== 'string') {
-    return { valid: false, error: 'model must be a string' }
-  }
-
-  // stream is optional boolean
-  if (request.stream !== undefined && typeof request.stream !== 'boolean') {
-    return { valid: false, error: 'stream must be a boolean' }
-  }
-
-  return { valid: true }
-}
 
 // POST /api/chat - Chat completion with Ollama (supports streaming)
 app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
-  // Validate request body
-  const validation = validateChatRequest(req.body)
-  if (!validation.valid) {
-    throw new ValidationError(validation.error || 'Invalid request', {
+  // Validate request body with Zod schema
+  const validation = validate(chatRequestSchema, req.body)
+  if (!validation.success) {
+    throw new ValidationError(formatValidationErrors(validation.errors), {
       field: 'body',
+      details: validation.errors,
     })
   }
 
-  const chatRequest = req.body as ChatRequest
-  const model = chatRequest.model || env.OLLAMA_DEFAULT_MODEL
-  const stream = chatRequest.stream !== false // Default to streaming
+  const chatRequest: ChatRequest = validation.data
+  const model = chatRequest.model ?? env.OLLAMA_DEFAULT_MODEL
+  const stream = chatRequest.stream // Zod sets default to true
 
   // Prepare Ollama request
   const ollamaRequest = {
@@ -339,7 +279,17 @@ interface FormattedModel {
   isDefault: boolean
 }
 
-app.get('/api/models', asyncHandler(async (_req: Request, res: Response) => {
+app.get('/api/models', asyncHandler(async (req: Request, res: Response) => {
+  // Validate query parameters (optional filters)
+  const queryValidation = validate(modelQuerySchema, req.query)
+  if (!queryValidation.success) {
+    throw new ValidationError(formatValidationErrors(queryValidation.errors), {
+      field: 'query',
+      details: queryValidation.errors,
+    })
+  }
+  const query: ModelQuery = queryValidation.data
+
   const ollamaResponse = await fetch(`${env.OLLAMA_API_URL}/api/tags`, {
     method: 'GET',
     signal: AbortSignal.timeout(10000), // 10 second timeout
@@ -360,7 +310,7 @@ app.get('/api/models', asyncHandler(async (_req: Request, res: Response) => {
   const data = (await ollamaResponse.json()) as OllamaTagsResponse
 
   // Format models for the frontend
-  const models: FormattedModel[] = (data.models || []).map((model) => {
+  let models: FormattedModel[] = (data.models || []).map((model) => {
     const nameParts = model.name.split(':')
     return {
       id: model.name,
@@ -373,6 +323,21 @@ app.get('/api/models', asyncHandler(async (_req: Request, res: Response) => {
       isDefault: model.name === env.OLLAMA_DEFAULT_MODEL,
     }
   })
+
+  // Apply filters from query parameters
+  if (query.search) {
+    const searchLower = query.search.toLowerCase()
+    models = models.filter(
+      (m) =>
+        m.id.toLowerCase().includes(searchLower) ||
+        m.name.toLowerCase().includes(searchLower)
+    )
+  }
+
+  if (query.family) {
+    const familyLower = query.family.toLowerCase()
+    models = models.filter((m) => m.family.toLowerCase() === familyLower)
+  }
 
   // Sort: default model first, then alphabetically
   models.sort((a, b) => {
