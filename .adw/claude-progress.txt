@@ -218,3 +218,29 @@ Status: 7/111 Features (6.3%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #8 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #8: Project Setup - Folder Structure
+  - src/components/ erstellt mit index.ts (vorbereitet für UI-Komponenten)
+  - src/utils/ erstellt mit Utility-Funktionen:
+    - truncate, formatDate, generateId, debounce, cn (classnames helper)
+  - src/types/ erstellt mit TypeScript Interfaces:
+    - Message, Conversation, ModelConfig, AppSettings
+    - ChatMessageEvent, StreamTokenEvent, StreamEndEvent
+    - ApiResponse, HealthCheckResponse
+  - src/contexts/ erstellt mit index.ts (vorbereitet für React Contexts)
+  - index.ts Barrel-Exports für bestehende hooks/ und lib/ Ordner hinzugefügt
+  - npm run build erfolgreich
+  - npm run lint erfolgreich
+  - Browser-Verifikation: App funktioniert weiterhin, Socket connected
+  - Screenshot: .adw/screenshots/feature_8_folder_structure.png
+  - Git Commit: 396c3f2
+
+Status: 8/111 Features (7.2%)
+
+Nächstes Feature:
+- adw features next
+
