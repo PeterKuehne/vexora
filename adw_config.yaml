@@ -1,0 +1,265 @@
+project_name: "Qwen Chat"
+description: "Modern, minimalistic chat interface for local LLMs powered by Ollama. Claude-inspired design with conversation management, streaming responses, and markdown support."
+
+apps:
+  - name: qwen-chat
+    path: "."
+    type: fullstack
+    default_port: 3000
+
+technology_stack:
+  frontend:
+    framework: "React"
+    build_tool: "Vite"
+    styling: "Tailwind CSS"
+    language: "TypeScript"
+    ui_components: "Headless UI"
+    markdown: "react-markdown"
+    code_highlighting: "Prism.js"
+    icons: "Lucide React"
+  backend:
+    framework: "Express"
+    language: "TypeScript"
+    websockets: "Socket.io"
+    api: "Ollama API (localhost:11434)"
+  storage:
+    type: "LocalStorage"
+    purpose: "Conversations"
+  ai_ml:
+    model: "Qwen 3:8B (via Ollama)"
+    api: "Ollama REST API"
+    streaming: "Server-Sent Events (SSE) or WebSocket"
+
+ui_layout:
+  main_structure:
+    - "Sidebar (left, 280px) - Conversation list and navigation"
+    - "Header (top, fixed) - Model selector, settings, theme toggle"
+    - "Main Chat Area (center) - Message list with streaming"
+    - "Input Area (bottom, fixed) - Textarea and send button"
+
+  header:
+    position: "top"
+    fixed: true
+    components:
+      - "Logo/Title (Qwen Chat)"
+      - "Model Dropdown (current model: Qwen 3:8B)"
+      - "Settings Button (opens modal)"
+      - "Theme Toggle (Dark/Light)"
+      - "Hamburger Menu (mobile)"
+
+  sidebar:
+    position: "left"
+    width: "280px"
+    collapsible: true
+    mobile: "slide-over"
+    components:
+      - "New Chat Button (prominent)"
+      - "Search Input (filter conversations)"
+      - "Conversation Groups (Today, Yesterday, Last 7 Days, Older)"
+      - "Conversation Items (title, preview, timestamp)"
+      - "Settings Link (bottom)"
+
+  main_content:
+    layout: "flex-column"
+    components:
+      - "Welcome Screen (empty state)"
+      - "Message List (scrollable)"
+      - "User Message Bubble (right-aligned, blue)"
+      - "AI Message Bubble (left-aligned, gray)"
+      - "Timestamp (below message)"
+      - "Copy Button (for AI messages)"
+      - "Typing Indicator (when AI responding)"
+
+  input_area:
+    position: "bottom"
+    fixed: true
+    components:
+      - "Textarea (auto-resize, max 4 lines)"
+      - "Send Button (disabled when empty)"
+      - "Attachment Icon (future)"
+      - "Token Counter (bottom-right)"
+
+  settings_modal:
+    tabs:
+      - "General (theme, auto-save, clear all)"
+      - "Model (list, temperature, system prompt, max tokens)"
+      - "Advanced (API URL, export/import, keyboard shortcuts)"
+
+design_system:
+  color_palette:
+    dark_mode:
+      primary: "#3b82f6"
+      background: "#0a0a0a"
+      surface: "#1a1a1a"
+      surface_secondary: "#2a2a2a"
+      border: "#333333"
+      text_primary: "#e5e5e5"
+      text_secondary: "#a0a0a0"
+      user_bubble: "#3b82f6"
+      ai_bubble: "#2a2a2a"
+      code_background: "#1e1e1e"
+    light_mode:
+      primary: "#2563eb"
+      background: "#ffffff"
+      surface: "#f5f5f5"
+      surface_secondary: "#e5e5e5"
+      border: "#d4d4d4"
+      text_primary: "#171717"
+      text_secondary: "#737373"
+      user_bubble: "#2563eb"
+      ai_bubble: "#f5f5f5"
+      code_background: "#f9f9f9"
+
+  typography:
+    font_family:
+      ui: "Inter, system-ui, sans-serif"
+      code: "JetBrains Mono, monospace"
+    heading_sizes:
+      h1: "text-3xl (30px)"
+      h2: "text-2xl (24px)"
+      h3: "text-xl (20px)"
+    body: "text-base (16px)"
+    small: "text-sm (14px)"
+    code: "text-sm"
+
+  spacing:
+    unit: "px"
+    base: 4
+    scale: [4, 8, 12, 16, 20, 24, 32, 40, 48, 64]
+    message_padding: 16
+    section_padding: 24
+    page_padding: 32
+
+  components:
+    message_bubble:
+      padding: "12px 16px"
+      border_radius: "16px"
+      max_width_desktop: "70%"
+      max_width_mobile: "85%"
+      shadow: "0 1px 2px rgba(0,0,0,0.1)"
+
+    button:
+      variants:
+        - "Primary: Blue background, white text"
+        - "Secondary: Gray background, white text"
+        - "Ghost: Transparent, hover background"
+      height: "40px (default), 36px (small)"
+      padding: "12px 20px"
+      border_radius: "8px"
+
+    input_textarea:
+      border: "1px solid"
+      padding: "12px 16px"
+      border_radius: "12px"
+      focus: "Blue ring"
+
+    sidebar_item:
+      height: "48px"
+      padding: "12px 16px"
+      hover: "Subtle background change"
+      active: "Blue accent on left border"
+
+data_models:
+  conversation:
+    id: "string (UUID)"
+    title: "string (auto-generated from first message)"
+    created_at: "Date"
+    updated_at: "Date"
+    messages: "Message[]"
+    model: "string (e.g., qwen2.5:8b)"
+    system_prompt: "string (optional)"
+    temperature: "number (optional)"
+
+  message:
+    id: "string (UUID)"
+    role: "user | assistant | system"
+    content: "string"
+    timestamp: "Date"
+    tokens: "number (optional)"
+
+  settings:
+    theme: "dark | light | system"
+    default_model: "string"
+    default_system_prompt: "string"
+    default_temperature: "number"
+    ollama_api_url: "string"
+    auto_save: "boolean"
+
+api_integration:
+  ollama_endpoints:
+    - "GET /api/tags - List available models"
+    - "POST /api/generate - Generate completion (streaming)"
+    - "POST /api/chat - Chat completion (streaming)"
+
+  backend_routes:
+    - "GET /api/models - Proxy to Ollama, list models"
+    - "POST /api/chat - Proxy to Ollama, handle streaming"
+    - "GET /api/health - Check if Ollama is running"
+
+  frontend_backend:
+    - "POST /chat - Send message, receive stream"
+    - "GET /models - Get available models"
+    - "GET /health - Check backend/Ollama status"
+
+quality_criteria:
+  performance:
+    streaming: "Sub-100ms first token"
+    ui: "60fps animations"
+    storage: "Efficient LocalStorage usage (max 5MB)"
+    lazy_loading: "Virtualized conversation list for 100+ chats"
+
+  browser_support:
+    - "Chrome, Firefox, Safari, Edge (last 2 versions)"
+    - "Modern JavaScript (ES2020+)"
+    - "No IE11 support"
+
+  accessibility:
+    keyboard_navigation: "Tab through UI elements"
+    screen_reader: "ARIA labels for buttons/inputs"
+    contrast: "WCAG AA compliance"
+    focus_indicators: "Clear focus states"
+
+  mobile:
+    touch_targets: "Minimum 44x44px"
+    viewport: "Responsive down to 320px"
+    sidebar: "Slide-over on mobile"
+    input: "Native keyboard handling"
+
+  error_handling:
+    ollama_down: "Clear error message + retry button"
+    network_errors: "Toast notifications"
+    invalid_models: "Fallback to default"
+    storage_full: "Warning + cleanup option"
+
+  developer_experience:
+    typescript: "Strict mode, full type coverage"
+    eslint: "Standard config"
+    prettier: "Consistent formatting"
+    hot_reload: "Fast development iteration"
+
+features_summary:
+  total: 25
+  categories:
+    core_chat: 6
+    conversation_management: 6
+    model_settings: 4
+    ui_ux: 5
+    advanced: 4
+  note: "Features will be generated by Initializer Agent from this config"
+
+edge_cases:
+  - "Empty Conversation: Show welcome screen with example prompts"
+  - "Very Long Messages: Truncate in sidebar, full in chat"
+  - "Code Blocks Without Language: Auto-detect or default to plaintext"
+  - "Ollama Not Running: Show setup instructions"
+  - "Streaming Interrupted: Resume or error gracefully"
+  - "LocalStorage Full: Warn user, offer to delete old conversations"
+  - "No Internet: Works fully offline (Ollama is local)"
+  - "Model Deleted: Detect and switch to available model"
+
+notes:
+  - "Ollama Setup: User must have Ollama installed and running"
+  - "Default Model: Qwen 3:8B, but support any Ollama model"
+  - "Conversations: Stored client-side only (no backend DB)"
+  - "Privacy: All data stays local, no external API calls"
+  - "Future: File uploads, voice input, multi-modal support"
