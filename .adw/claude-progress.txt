@@ -583,3 +583,38 @@ Status: 19/111 Features (17.1%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #20 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #19: Backend API - Ollama Connection Service
+  - Neue OllamaService Klasse erstellt (server/src/services/OllamaService.ts):
+    - healthCheck(timeout) - Prüft Ollama-Konnektivität, liefert verfügbare Modelle
+    - getModels(options) - Holt alle Modelle mit optionaler search/family-Filterung
+    - chat(request) - Non-Streaming Chat-Completion
+    - chatStream(request) - Streaming Chat mit SSE Response
+    - getDefaultModel(), getBaseUrl() - Getter für Konfiguration
+  - Umfassende TypeScript-Interfaces:
+    - OllamaModel, OllamaModelDetails, OllamaTagsResponse
+    - FormattedModel, OllamaHealthStatus
+    - OllamaChatMessage, OllamaChatOptions, OllamaChatRequest
+    - OllamaChatResponse, OllamaChatStreamChunk
+  - Singleton-Instanz (ollamaService) mit Environment-Konfiguration
+  - server/src/services/index.ts: Barrel-Export
+  - server/src/index.ts refaktoriert:
+    - Alle Ollama fetch-Aufrufe durch OllamaService ersetzt
+    - ~90 Zeilen duplizierten Code entfernt
+    - /api/health, /api/models, /api/chat nutzen jetzt den Service
+  - npm run build (Frontend + Backend) erfolgreich
+  - npm run lint erfolgreich
+  - npm run test:run: 10/10 Tests bestanden
+  - Browser-Verifikation: Chat funktioniert mit neuem OllamaService
+  - Screenshot: .adw/screenshots/feature_19_ollama_service.png
+  - Git Commit: 2ab3bec
+
+Status: 20/111 Features (18.0%)
+
+Nächstes Feature:
+- adw features next
+

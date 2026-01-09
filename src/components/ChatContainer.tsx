@@ -11,7 +11,7 @@ import { useRef, useEffect } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { useChatStream } from '../hooks/useChatStream';
-import { Bot } from 'lucide-react';
+import { Bot, Zap, Timer } from 'lucide-react';
 
 export interface ChatContainerProps {
   /** Model to use for chat */
@@ -27,12 +27,20 @@ export function ChatContainer({ model }: ChatContainerProps) {
     error,
     sendMessage,
     stopStream,
+    streamProgress,
+    lastMetadata,
   } = useChatStream({
     model,
     onError: (err) => {
       console.error('Chat error:', err);
     },
   });
+
+  // Format milliseconds to readable time
+  const formatTime = (ms: number): string => {
+    if (ms < 1000) return `${ms}ms`;
+    return `${(ms / 1000).toFixed(1)}s`;
+  };
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -67,6 +75,42 @@ export function ChatContainer({ model }: ChatContainerProps) {
           </div>
         )}
       </div>
+
+      {/* Streaming Stats Display */}
+      {isStreaming && streamProgress && (
+        <div className="mx-4 mb-2 flex items-center gap-4 text-xs text-gray-400">
+          <div className="flex items-center gap-1.5">
+            <Zap size={12} className="text-yellow-500" />
+            <span>{streamProgress.tokensPerSecond} tokens/s</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Timer size={12} className="text-blue-400" />
+            <span>{formatTime(streamProgress.elapsedMs)}</span>
+          </div>
+          <div className="text-gray-500">
+            {streamProgress.tokenCount} tokens
+          </div>
+        </div>
+      )}
+
+      {/* Last Response Stats */}
+      {!isStreaming && lastMetadata && lastMetadata.tokensPerSecond && (
+        <div className="mx-4 mb-2 flex items-center gap-4 text-xs text-gray-500">
+          <div className="flex items-center gap-1.5">
+            <Zap size={12} className="text-gray-500" />
+            <span>{lastMetadata.tokensPerSecond} tokens/s</span>
+          </div>
+          {lastMetadata.streamDuration && (
+            <div className="flex items-center gap-1.5">
+              <Timer size={12} className="text-gray-500" />
+              <span>{formatTime(lastMetadata.streamDuration)}</span>
+            </div>
+          )}
+          {lastMetadata.completionTokens && (
+            <span>{lastMetadata.completionTokens} tokens generiert</span>
+          )}
+        </div>
+      )}
 
       {/* Error Display */}
       {error && (

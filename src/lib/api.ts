@@ -48,12 +48,25 @@ export interface StreamCallbacks {
   onToken: (token: string) => void;
   onComplete: (fullResponse: string, metadata?: StreamMetadata) => void;
   onError: (error: Error) => void;
+  /** Optional callback for streaming progress updates */
+  onProgress?: (progress: StreamProgress) => void;
 }
 
 export interface StreamMetadata {
   totalDuration?: number | undefined;
   promptTokens?: number | undefined;
   completionTokens?: number | undefined;
+  tokensPerSecond?: number | undefined;
+  streamDuration?: number | undefined;
+}
+
+export interface StreamProgress {
+  /** Number of tokens received so far */
+  tokenCount: number;
+  /** Time elapsed since stream started (ms) */
+  elapsedMs: number;
+  /** Current tokens per second */
+  tokensPerSecond: number;
 }
 
 // ============================================
@@ -75,7 +88,7 @@ export async function streamChat(
     signal?: AbortSignal | null | undefined;
   }
 ): Promise<void> {
-  const { onToken, onComplete, onError } = callbacks;
+  const { onToken, onComplete, onError, onProgress } = callbacks;
   const { model, chatOptions, signal } = options ?? {};
 
   // Convert Message[] to ChatMessage[] (API format)
@@ -119,21 +132,45 @@ export async function streamChat(
     let fullResponse = '';
     let metadata: StreamMetadata = {};
 
+    // Buffer for handling partial SSE chunks
+    // SSE data can be split across multiple read() calls
+    let buffer = '';
+
+    // Progress tracking
+    const streamStartTime = Date.now();
+    let tokenCount = 0;
+
     try {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        // Append decoded chunk to buffer
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete lines from buffer
+        const lines = buffer.split('\n');
+        // Keep the last incomplete line in buffer
+        buffer = lines.pop() ?? '';
 
         for (const line of lines) {
+          // Skip empty lines (SSE uses double newlines as separators)
+          if (!line.trim()) continue;
+
           // SSE format: "data: {...}"
           if (line.startsWith('data: ')) {
             const data = line.slice(6); // Remove "data: " prefix
 
             if (data === '[DONE]') {
-              // Stream complete
+              // Stream complete - calculate final stats
+              const streamDuration = Date.now() - streamStartTime;
+              const tokensPerSecond = streamDuration > 0
+                ? (tokenCount / streamDuration) * 1000
+                : 0;
+
+              metadata.streamDuration = streamDuration;
+              metadata.tokensPerSecond = Math.round(tokensPerSecond * 10) / 10;
+
               onComplete(fullResponse, metadata);
               return;
             }
@@ -144,23 +181,66 @@ export async function streamChat(
               if (parsed.message?.content) {
                 const token = parsed.message.content;
                 fullResponse += token;
+                tokenCount++;
+
+                // Call token callback
                 onToken(token);
+
+                // Report progress if callback provided
+                if (onProgress) {
+                  const elapsedMs = Date.now() - streamStartTime;
+                  const tokensPerSecond = elapsedMs > 0
+                    ? (tokenCount / elapsedMs) * 1000
+                    : 0;
+
+                  onProgress({
+                    tokenCount,
+                    elapsedMs,
+                    tokensPerSecond: Math.round(tokensPerSecond * 10) / 10,
+                  });
+                }
               }
 
               // Capture metadata from final chunk
               if (parsed.done) {
                 metadata = {
+                  ...metadata,
                   totalDuration: parsed.total_duration,
                   promptTokens: parsed.prompt_eval_count,
                   completionTokens: parsed.eval_count,
                 };
               }
             } catch {
-              // Skip malformed JSON
+              // Skip malformed JSON (partial chunk will be handled on next read)
             }
           }
         }
       }
+
+      // Process any remaining buffer content
+      if (buffer.trim() && buffer.startsWith('data: ')) {
+        const data = buffer.slice(6);
+        if (data !== '[DONE]') {
+          try {
+            const parsed: StreamChunk = JSON.parse(data);
+            if (parsed.message?.content) {
+              fullResponse += parsed.message.content;
+              tokenCount++;
+            }
+          } catch {
+            // Ignore incomplete final chunk
+          }
+        }
+      }
+
+      // Calculate final duration if we didn't get [DONE]
+      const streamDuration = Date.now() - streamStartTime;
+      const tokensPerSecond = streamDuration > 0
+        ? (tokenCount / streamDuration) * 1000
+        : 0;
+
+      metadata.streamDuration = streamDuration;
+      metadata.tokensPerSecond = Math.round(tokensPerSecond * 10) / 10;
 
       // If we get here without [DONE], still call onComplete
       onComplete(fullResponse, metadata);

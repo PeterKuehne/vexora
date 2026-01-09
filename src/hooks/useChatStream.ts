@@ -8,7 +8,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { streamChat, type StreamMetadata } from '../lib/api';
+import { streamChat, type StreamMetadata, type StreamProgress } from '../lib/api';
 import { generateId } from '../utils';
 import type { Message } from '../types/message';
 
@@ -21,6 +21,8 @@ export interface UseChatStreamOptions {
   onStreamStart?: (() => void) | undefined;
   /** Callback for each token */
   onToken?: ((token: string) => void) | undefined;
+  /** Callback for progress updates during streaming */
+  onProgress?: ((progress: StreamProgress) => void) | undefined;
   /** Callback when response completes */
   onComplete?: ((response: string, metadata?: StreamMetadata) => void) | undefined;
   /** Callback on error */
@@ -44,6 +46,10 @@ export interface UseChatStreamReturn {
   addMessage: (message: Message) => void;
   /** The current streaming response text */
   streamingContent: string;
+  /** Current streaming progress (tokens, elapsed time, tokens/sec) */
+  streamProgress: StreamProgress | null;
+  /** Last completed response metadata */
+  lastMetadata: StreamMetadata | null;
 }
 
 export function useChatStream(
@@ -54,6 +60,7 @@ export function useChatStream(
     initialMessages = [],
     onStreamStart,
     onToken,
+    onProgress,
     onComplete,
     onError,
   } = options;
@@ -62,6 +69,8 @@ export function useChatStream(
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [streamingContent, setStreamingContent] = useState('');
+  const [streamProgress, setStreamProgress] = useState<StreamProgress | null>(null);
+  const [lastMetadata, setLastMetadata] = useState<StreamMetadata | null>(null);
 
   // AbortController for cancelling streams
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -102,6 +111,7 @@ export function useChatStream(
       setMessages((prev) => [...prev, userMessage, assistantMessage]);
       setIsStreaming(true);
       setStreamingContent('');
+      setStreamProgress(null);
       onStreamStart?.();
 
       // Create abort controller for this request
@@ -128,6 +138,10 @@ export function useChatStream(
 
               onToken?.(token);
             },
+            onProgress: (progress) => {
+              setStreamProgress(progress);
+              onProgress?.(progress);
+            },
             onComplete: (fullResponse, metadata) => {
               // Finalize the assistant message
               setMessages((prev) =>
@@ -146,6 +160,8 @@ export function useChatStream(
 
               setIsStreaming(false);
               setStreamingContent('');
+              setStreamProgress(null);
+              setLastMetadata(metadata ?? null);
               currentAssistantIdRef.current = null;
               onComplete?.(fullResponse, metadata);
             },
@@ -168,6 +184,7 @@ export function useChatStream(
 
               setIsStreaming(false);
               setStreamingContent('');
+              setStreamProgress(null);
               currentAssistantIdRef.current = null;
               onError?.(err);
             },
@@ -185,7 +202,7 @@ export function useChatStream(
         onError?.(error);
       }
     },
-    [messages, isStreaming, model, onStreamStart, onToken, onComplete, onError]
+    [messages, isStreaming, model, onStreamStart, onToken, onProgress, onComplete, onError]
   );
 
   /**
@@ -238,5 +255,7 @@ export function useChatStream(
     clearMessages,
     addMessage,
     streamingContent,
+    streamProgress,
+    lastMetadata,
   };
 }
