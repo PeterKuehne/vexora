@@ -297,3 +297,37 @@ Status: 10/111 Features (9.0%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #11 ===
+Datum: 2026-01-09
+Agent: Coding
+
+Erledigt:
+- [X] Feature #11: DevOps - npm Scripts
+  - Vitest 4.0.16 als Test-Framework installiert
+  - @testing-library/react, @testing-library/jest-dom, jsdom installiert
+  - vite.config.ts mit vitest/config erweitert:
+    - globals: true, environment: jsdom
+    - setupFiles für jest-dom Matcher
+    - Coverage-Reporter konfiguriert
+  - src/test/setup.ts: Test-Setup mit matchMedia Mock
+  - src/utils/index.test.ts: Unit-Tests für Utility-Funktionen
+    - 10 Tests für truncate, formatDate, generateId, cn
+    - Alle Tests bestanden
+  - Neue npm Scripts hinzugefügt:
+    - test: vitest (Watch-Mode)
+    - test:run: vitest run (einmalig)
+    - test:coverage: vitest run --coverage
+    - typecheck: tsc --noEmit
+    - build:all: build Frontend + Backend
+  - npm run build erfolgreich
+  - npm run lint erfolgreich
+  - npm run test:run: 10/10 Tests bestanden
+  - Browser-Verifikation: App funktioniert, Socket connected
+  - Screenshot: .adw/screenshots/feature_11_npm_scripts.png
+  - Git Commit: 64a1b22
+
+Status: 11/111 Features (9.9%)
+
+Nächstes Feature:
+- adw features next
+
