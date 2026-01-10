@@ -192,6 +192,24 @@ export {
   type SendButtonVariant,
 } from './SendButton';
 
+// Typing Indicator
+export {
+  TypingIndicator,
+  TypingDots,
+  TypingPulse,
+  TypingWave,
+  TypingIndicatorWithAvatar,
+  TypingIndicatorInline,
+  TypingIndicatorBubble,
+  type TypingIndicatorProps,
+  type TypingIndicatorDotsProps,
+  type TypingIndicatorWithAvatarProps,
+  type TypingIndicatorInlineProps,
+  type TypingIndicatorBubbleProps,
+  type TypingIndicatorSize,
+  type TypingIndicatorVariant,
+} from './TypingIndicator';
+
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 

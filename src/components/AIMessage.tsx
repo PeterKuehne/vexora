@@ -11,11 +11,12 @@
  * - Error state handling
  */
 
-import { Bot, Loader2, AlertCircle, Copy, Check } from 'lucide-react';
+import { Bot, AlertCircle, Copy, Check } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import { useTheme } from '../contexts';
 import { formatDate, cn } from '../utils';
 import { Markdown } from './Markdown';
+import { TypingIndicator } from './TypingIndicator';
 import type { Message } from '../types';
 
 // ============================================
@@ -128,9 +129,7 @@ export function AIMessage({
             {hasContent ? (
               <Markdown content={message.content} />
             ) : isStreaming ? (
-              <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
-                Denke nach...
-              </span>
+              <TypingIndicator variant="dots" size="md" text="Denke nach..." />
             ) : null}
           </div>
 
@@ -154,10 +153,7 @@ export function AIMessage({
             </div>
           )}
 
-          {/* Loading Spinner for empty streaming messages */}
-          {isStreaming && !hasContent && (
-            <Loader2 size={16} className="animate-spin text-gray-400" />
-          )}
+          {/* Note: TypingIndicator is already shown above when isStreaming && !hasContent */}
         </div>
 
         {/* Timestamp */}
@@ -227,7 +223,7 @@ export function AIMessageCompact({
           {content ? (
             <Markdown content={content} />
           ) : isStreaming ? (
-            <Loader2 size={14} className="animate-spin text-gray-400" />
+            <TypingIndicator variant="dots" size="sm" showText={false} />
           ) : null}
 
           {isStreaming && content && (
@@ -297,7 +293,7 @@ export function AIMessageBubble({
         {content ? (
           <Markdown content={content} />
         ) : isStreaming ? (
-          <Loader2 size={compact ? 14 : 16} className="animate-spin text-gray-400" />
+          <TypingIndicator variant="dots" size={compact ? 'sm' : 'md'} showText={false} />
         ) : null}
 
         {isStreaming && content && (
@@ -388,12 +384,7 @@ export function AIMessageStreaming({
               </span>
             </>
           ) : (
-            <div className="flex items-center gap-2">
-              <Loader2 size={16} className="animate-spin text-gray-400" />
-              <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
-                Denke nach...
-              </span>
-            </div>
+            <TypingIndicator variant="dots" size="md" text="Denke nach..." />
           )}
         </div>
 
