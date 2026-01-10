@@ -1259,6 +1259,22 @@ Status: 41/111 Features (36.9%)
 
 Status: 42/111 Features (37.8%)
 
+- [X] Feature #35: UI Component - Logo
+  - Neue Logo.tsx Komponente erstellt
+  - Bot Icon (Lucide) + "Qwen Chat" Text
+  - Drei Größen: sm, md, lg
+  - Optional href für Links, onClick für SPA-Navigation
+  - LogoIcon Variante für collapsed States
+  - Theme-aware (light/dark mode)
+  - Header.tsx nutzt jetzt Logo-Komponente
+  - Barrel-Export in components/index.ts
+  - npm run build erfolgreich
+  - Browser-Verifikation: Logo mit Icon + Text im Header
+  - Screenshot: .adw/screenshots/feature_35_logo.png
+  - Git Commit: 72197e3
+
+Status: 43/111 Features (38.7%)
+
 Nächstes Feature:
 - adw features next
 

@@ -30,6 +30,9 @@ export { SaveIndicator } from './SaveIndicator';
 // Branding components
 export { Logo, LogoIcon, type LogoProps, type LogoSize, type LogoIconProps } from './Logo';
 
+// Markdown rendering
+export { Markdown, MarkdownInline, type MarkdownProps, type MarkdownInlineProps } from './Markdown';
+
 // Toast components
 export { Toast, ToastContainer } from './Toast';
 // export { Layout } from './Layout';

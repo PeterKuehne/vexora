@@ -8,6 +8,7 @@
 import { User, Bot, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '../utils';
 import type { Message } from '../types/message';
+import { Markdown } from './Markdown';
 
 export interface MessageBubbleProps {
   message: Message;
@@ -51,10 +52,20 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         )}
       >
         {/* Message Text */}
-        <div className="whitespace-pre-wrap break-words">
-          {message.content || (isStreaming && !message.content && (
-            <span className="text-gray-400 italic">Denke nach...</span>
-          ))}
+        <div className="break-words">
+          {message.content ? (
+            isAssistant ? (
+              // AI messages get markdown rendering
+              <Markdown content={message.content} />
+            ) : (
+              // User messages stay plain text
+              <div className="whitespace-pre-wrap">{message.content}</div>
+            )
+          ) : (
+            isStreaming && !message.content && (
+              <span className="text-gray-400 italic">Denke nach...</span>
+            )
+          )}
         </div>
 
         {/* Streaming Indicator */}
