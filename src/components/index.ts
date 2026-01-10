@@ -8,6 +8,17 @@ export { ChatContainer } from './ChatContainer';
 export { ChatInput } from './ChatInput';
 export { MessageBubble } from './MessageBubble';
 
+// Chat Textarea
+export {
+  ChatTextarea,
+  ChatTextareaStandalone,
+  ChatTextareaWithControls,
+  type ChatTextareaProps,
+  type ChatTextareaRef,
+  type ChatTextareaStandaloneProps,
+  type ChatTextareaWithControlsProps,
+} from './ChatTextarea';
+
 // Message List
 export {
   MessageList,
