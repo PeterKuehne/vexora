@@ -5,7 +5,7 @@
  * Loads available models from the backend and allows filtering.
  */
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   Listbox,
   ListboxButton,
@@ -13,8 +13,8 @@ import {
   ListboxOptions,
   Transition,
 } from '@headlessui/react';
-import { ChevronDown, Check, Search, Cpu, HardDrive, X } from 'lucide-react';
-import { useTheme } from '../contexts';
+import { ChevronDown, Check, Search, Cpu, HardDrive, X, AlertTriangle } from 'lucide-react';
+import { useTheme, useToast } from '../contexts';
 import { fetchModels } from '../lib/api';
 
 // ============================================
@@ -46,6 +46,10 @@ export interface ModelSelectorProps {
   showDetails?: boolean;
   /** Whether to auto-load models on mount */
   autoLoad?: boolean;
+  /** Whether to auto-fallback to default if selected model is unavailable */
+  autoFallback?: boolean;
+  /** Callback when model is not available (for external handling) */
+  onModelUnavailable?: (unavailableModelId: string, fallbackModelId: string | null) => void;
 }
 
 // ============================================
@@ -81,14 +85,21 @@ export function ModelSelector({
   placeholder = 'Modell wählen...',
   showDetails = true,
   autoLoad = true,
+  autoFallback = true,
+  onModelUnavailable,
 }: ModelSelectorProps) {
   const { isDark } = useTheme();
+  const { addToast } = useToast();
 
   // State
   const [models, setModels] = useState<Model[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [modelUnavailable, setModelUnavailable] = useState(false);
+
+  // Track if we've already checked availability to avoid duplicate notifications
+  const availabilityCheckedRef = useRef<string | null>(null);
 
   // Load models from API
   const loadModels = useCallback(async () => {
@@ -116,6 +127,49 @@ export function ModelSelector({
       loadModels();
     }
   }, [autoLoad, models.length, loadModels]);
+
+  // Check if selected model is available
+  useEffect(() => {
+    // Skip if no value, no models loaded, or already checked this value
+    if (!value || models.length === 0 || availabilityCheckedRef.current === value) {
+      return;
+    }
+
+    const isModelAvailable = models.some((m) => m.id === value);
+
+    if (!isModelAvailable) {
+      // Mark as checked to prevent duplicate notifications
+      availabilityCheckedRef.current = value;
+      setModelUnavailable(true);
+
+      // Find default model for fallback
+      const defaultModel = models.find((m) => m.isDefault);
+      const fallbackModelId = defaultModel?.id ?? models[0]?.id ?? null;
+
+      // Notify external handler if provided
+      if (onModelUnavailable) {
+        onModelUnavailable(value, fallbackModelId);
+      }
+
+      // Show toast notification
+      addToast(
+        'warning',
+        `Das Modell "${value}" ist nicht mehr verfügbar.${
+          fallbackModelId ? ` Wechsle zu "${fallbackModelId}".` : ''
+        }`,
+        { duration: 6000 }
+      );
+
+      // Auto-fallback to default model
+      if (autoFallback && fallbackModelId) {
+        onChange(fallbackModelId);
+      }
+    } else {
+      // Reset unavailable state when model becomes available
+      setModelUnavailable(false);
+      availabilityCheckedRef.current = value;
+    }
+  }, [value, models, autoFallback, onChange, onModelUnavailable, addToast]);
 
   // Filter models based on search query
   const filteredModels = useMemo(() => {
@@ -165,10 +219,18 @@ export function ModelSelector({
               `.trim()}
             >
               <span className="flex items-center gap-2 truncate">
-                <Cpu size={14} className={isDark ? 'text-gray-400' : 'text-gray-500'} />
+                {modelUnavailable ? (
+                  <AlertTriangle size={14} className="text-yellow-500" />
+                ) : (
+                  <Cpu size={14} className={isDark ? 'text-gray-400' : 'text-gray-500'} />
+                )}
                 {isLoading ? (
                   <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
                     Lade Modelle...
+                  </span>
+                ) : modelUnavailable && !selectedModel ? (
+                  <span className="text-yellow-500">
+                    Modell nicht verfügbar
                   </span>
                 ) : selectedModel ? (
                   formatModelName(selectedModel)
