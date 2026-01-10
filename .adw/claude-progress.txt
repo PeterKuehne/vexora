@@ -993,3 +993,31 @@ Status: 33/111 Features (29.7%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #32 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #66: Functional - Auto-save Conversations
+  - Debounced Auto-save im ConversationContext (500ms Delay)
+  - Neue SaveIndicator Komponente erstellt:
+    - saving: Spinner + "Speichere..."
+    - saved: Checkmark + "Gerade gespeichert"
+    - error: Error Icon + "Fehler beim Speichern"
+    - idle: Versteckt (nach 2 Sekunden)
+  - saveStatus und lastSavedAt zu ConversationContext hinzugefügt
+  - SaveIndicator im App-Header neben Theme-Toggle integriert
+  - Initial Mount wird übersprungen (bereits aus Storage geladen)
+  - useRef für Timer-Management (ESLint-kompatibel)
+  - npm run build erfolgreich
+  - npm run lint: 0 Errors (13 Warnings - bekannt)
+  - npm run test:run: 76/76 Tests bestanden
+  - Browser-Verifikation: SaveIndicator erscheint beim Speichern, Conversations aktualisieren
+  - Screenshot: .adw/screenshots/feature_66_autosave.png
+  - Git Commit: 44531d2
+
+Status: 34/111 Features (30.6%)
+
+Nächstes Feature:
+- adw features next
+
