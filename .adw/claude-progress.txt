@@ -1395,3 +1395,62 @@ Status: 47/111 Features (42.3%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #43 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #38: UI Component - Settings Button
+  - Neue SettingsButton.tsx Komponente erstellt
+  - Gear Icon (Lucide Settings) mit Hover-Animation
+  - Hover: scale (110%) und rotate (45°) auf Icon
+  - Active: scale (95%) für Klick-Feedback
+  - Size-Varianten: sm, md, lg
+  - SettingsButtonIcon Variante (nur Icon, kein Label)
+  - disabled State mit Cursor und Farb-Anpassung
+  - aria-label "Einstellungen öffnen" für Accessibility
+  - Integration in Header.tsx:
+    - Neue Props: onSettingsClick, showSettingsButton
+    - Position zwischen SaveIndicator und ThemeToggle
+  - App.tsx: Placeholder onClick Handler (modal coming soon)
+  - ESLint-Fix: ModelSelectorCompactProps von interface zu type geändert
+  - Barrel-Export in components/index.ts
+  - npm run build erfolgreich
+  - npm run lint: 0 Errors (17 Warnings - bekannt)
+  - npm run test:run: 96/96 Tests bestanden
+  - Browser-Verifikation:
+    - Settings Button mit Gear Icon und Label "Einstellungen" sichtbar
+    - onClick Handler funktioniert (Console Log bestätigt)
+    - Hover-Animation funktioniert
+  - Screenshot: .adw/screenshots/feature_38_settings_button.png
+  - Git Commit: b8c20fb
+
+Status: 48/111 Features (43.2%)
+
+Nächstes Feature:
+- adw features next
+
+=== Session: Coding #44 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #68: Functional - Auto-generate Conversation Title
+  - Feature war bereits in Session #22 (Feature #64) vollständig implementiert
+  - ConversationContext.tsx Zeilen 355-361:
+    - Erste 50 Zeichen der ersten User-Message als Titel
+    - Truncate mit "..." wenn länger als 50 Zeichen
+    - Update nur bei erster Message wenn Titel noch "Neue Unterhaltung"
+  - Browser-Verifikation:
+    - Neue Conversation erstellt
+    - Lange Nachricht gesendet: "Dies ist ein Test für die automatische Titel-Generierung..."
+    - Titel in Sidebar: "Dies ist ein Test für die automatische Titel-Gener..."
+    - Exakt 50 Zeichen + "..." ✓
+  - npm run build erfolgreich
+  - Screenshot: .adw/screenshots/feature_68_auto_title.png
+
+Status: 49/111 Features (44.1%)
+
+Nächstes Feature:
+- adw features next
+
