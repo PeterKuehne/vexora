@@ -1275,6 +1275,25 @@ Status: 42/111 Features (37.8%)
 
 Status: 43/111 Features (38.7%)
 
+- [X] Feature #58: Markdown - react-markdown Setup
+  - remark-gfm Plugin für GitHub Flavored Markdown installiert
+  - Neue Markdown.tsx Komponente mit Custom Renderers:
+    - Headings (h1-h6) mit Größen und Borders
+    - Listen (ul, ol, li) mit Einrückung
+    - Code-Blöcke und inline Code mit Farben
+    - Blockquotes, Tabellen, Links, Images
+    - Strong, Emphasis, Strikethrough
+  - MarkdownInline Variante für kurze Inhalte
+  - MessageBubble rendert AI-Nachrichten jetzt als Markdown
+  - Theme-aware Styling
+  - Barrel-Export in components/index.ts
+  - npm run build erfolgreich
+  - Browser-Verifikation: Liste, fett, kursiv, code korrekt gerendert
+  - Screenshot: .adw/screenshots/feature_58_markdown.png
+  - Git Commit: e7950c2
+
+Status: 44/111 Features (39.6%)
+
 Nächstes Feature:
 - adw features next
 
