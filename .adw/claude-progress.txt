@@ -1330,3 +1330,42 @@ Status: 45/111 Features (40.5%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #41 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #59: Markdown - Code Block Component
+  - CodeBlock.tsx Komponente mit Prism.js Syntax Highlighting erstellt
+  - Unterstützte Sprachen: TypeScript, JavaScript, JSX, TSX, Python, Java, C, C++, C#, Go, Rust, Ruby, SQL, Bash, JSON, YAML, CSS, Markdown, Diff
+  - Prism.js Imports in korrekter Reihenfolge (Abhängigkeiten beachtet)
+  - Language Detection:
+    - Aus className (z.B. "language-typescript") extrahiert
+    - Automatische Erkennung aus Code-Inhalt (import/export → TS, def → Python, etc.)
+  - Copy Button:
+    - "Kopieren" Button oben rechts im Code-Block
+    - navigator.clipboard API mit Fallback
+    - "Kopiert!" Feedback für 2 Sekunden
+  - Language Label:
+    - Sprache oben links angezeigt (z.B. "TypeScript")
+    - Display-Namen für bessere Lesbarkeit
+  - prism-theme.css:
+    - Custom CSS Variables für Dark/Light Mode
+    - Token-Farben für Keywords, Strings, Functions, etc.
+  - Markdown.tsx: CodeBlock für Fenced Code Blocks integriert
+  - Barrel-Export in components/index.ts
+  - npm run build erfolgreich
+  - npm run lint: 0 Errors (nur Fast Refresh Warnings)
+  - npm run test:run: 96/96 Tests bestanden
+  - Browser-Verifikation:
+    - TypeScript-Code mit Syntax Highlighting
+    - function/return in rot, types in blau
+    - Copy Button funktioniert mit "Kopiert!" Feedback
+  - Screenshot: .adw/screenshots/feature_59_codeblock.png
+  - Git Commit: 72500fb
+
+Status: 46/111 Features (41.4%)
+
+Nächstes Feature:
+- adw features next
+

@@ -54,6 +54,16 @@ export {
   type ModelSelectorCompactProps,
   type Model,
 } from './ModelSelector';
+
+// Theme toggle
+export {
+  ThemeToggle,
+  ThemeToggleIcon,
+  ThemeTogglePill,
+  type ThemeToggleProps,
+  type ThemeToggleIconProps,
+  type ThemeTogglePillProps,
+} from './ThemeToggle';
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 

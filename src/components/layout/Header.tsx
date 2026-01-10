@@ -5,11 +5,12 @@
  */
 
 import { type ReactNode } from 'react';
-import { Menu, Plus, Sun, Moon, Monitor } from 'lucide-react';
+import { Menu, Plus } from 'lucide-react';
 import { useTheme } from '../../contexts';
 import type { Theme } from '../../types/settings';
 import { Logo } from '../Logo';
 import { ModelSelector } from '../ModelSelector';
+import { ThemeToggle } from '../ThemeToggle';
 
 export interface HeaderProps {
   /** Callback to create a new conversation */
@@ -40,30 +41,7 @@ export interface HeaderProps {
   showModelSelector?: boolean;
 }
 
-/**
- * Get theme icon and label for display
- */
-function getThemeInfo(theme: Theme) {
-  switch (theme) {
-    case 'light':
-      return { Icon: Sun, label: 'Hell' };
-    case 'system':
-      return { Icon: Monitor, label: 'System' };
-    case 'dark':
-    default:
-      return { Icon: Moon, label: 'Dunkel' };
-  }
-}
-
-/**
- * Cycle through themes: dark -> light -> system -> dark
- */
-function getNextTheme(currentTheme: Theme): Theme {
-  const themeOrder: Theme[] = ['dark', 'light', 'system'];
-  const currentIndex = themeOrder.indexOf(currentTheme);
-  const nextIndex = (currentIndex + 1) % themeOrder.length;
-  return themeOrder[nextIndex];
-}
+// Theme toggle logic is now in ThemeToggle component
 
 export function Header({
   onNewConversation,
@@ -81,7 +59,6 @@ export function Header({
   showModelSelector = true,
 }: HeaderProps) {
   const { isDark } = useTheme();
-  const themeInfo = getThemeInfo(theme);
 
   // Connection status styling
   const connectionStatusColor =
@@ -97,10 +74,6 @@ export function Header({
       : isOllamaConnected
         ? `Ollama (${modelCount} ${modelCount === 1 ? 'Modell' : 'Modelle'})`
         : 'Ollama nicht verbunden';
-
-  const handleThemeToggle = () => {
-    onThemeChange(getNextTheme(theme));
-  };
 
   return (
     <header
@@ -172,18 +145,12 @@ export function Header({
         {saveIndicator}
 
         {/* Theme Toggle */}
-        <button
-          onClick={handleThemeToggle}
-          className={`flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-colors ${
-            isDark
-              ? 'text-gray-400 hover:text-white hover:bg-white/10'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
-          }`}
-          title={`Theme: ${themeInfo.label}`}
-        >
-          <themeInfo.Icon size={16} />
-          <span className="hidden sm:inline">{themeInfo.label}</span>
-        </button>
+        <ThemeToggle
+          theme={theme}
+          onThemeChange={onThemeChange}
+          size="md"
+          showLabel={true}
+        />
 
         {/* Connection Status */}
         <div className="flex items-center gap-2 text-sm">
