@@ -17,6 +17,15 @@ export type {
   OllamaHealthStatus,
 } from './useOllama';
 
+export {
+  useLocalStorage,
+  useLocalStorageState,
+  useLocalStorageFlag,
+} from './useLocalStorage';
+export type {
+  UseLocalStorageOptions,
+  UseLocalStorageReturn,
+} from './useLocalStorage';
+
 // Additional hooks will be exported here
-// export { useLocalStorage } from './useLocalStorage';
 // export { useDebounce } from './useDebounce';
