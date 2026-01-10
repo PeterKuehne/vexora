@@ -1183,3 +1183,40 @@ Status: 39/111 Features (35.1%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #38 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #33: UI Layout - Main Chat Area
+  - Neue ChatArea.tsx Layout-Komponente erstellt:
+    - Flex Container mit h-full Layout
+    - Scroll Container für Messages (flex-1 overflow-y-auto)
+    - StatusBar Slot für Streaming Stats
+    - InputArea Slot am unteren Rand (shrink-0)
+    - EmptyState für leere Conversations (zentriert)
+    - forwardRef mit ChatAreaRef für imperative Scroll-Kontrolle
+    - Auto-Scroll bei Message-Änderungen
+  - Helper-Komponenten:
+    - ChatAreaMessages: Message-Liste mit Padding
+    - ChatAreaEmptyState: Icon, Title, Description, Action
+    - ChatAreaInputWrapper: Input mit Hint-Text
+    - ChatAreaStatusBar: Streaming-Stats Display
+  - ChatContainer refaktoriert: nutzt jetzt ChatArea als Layout-Wrapper
+  - TypeScript strict mode kompatibel (exactOptionalPropertyTypes)
+  - npm run build erfolgreich
+  - npm run lint: 0 Errors (15 Warnings - Fast Refresh)
+  - npm run test:run: 96/96 Tests bestanden
+  - Browser-Verifikation:
+    - Empty State "Willkommen bei Qwen Chat" korrekt zentriert
+    - Chat-Nachricht wird gesendet und angezeigt
+    - Streaming Stats erscheinen: 0.1 tokens/s, 7.3s, 125 tokens
+    - Input-Area mit Hint-Text am unteren Rand
+  - Screenshot: .adw/screenshots/feature_33_chat_area.png
+  - Git Commit: a28885c
+
+Status: 40/111 Features (36.0%)
+
+Nächstes Feature:
+- adw features next
+
