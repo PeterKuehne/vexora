@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Plus, Menu, Sun, Moon, Monitor } from 'lucide-react';
-import { ChatContainer, ConversationSidebar, OllamaConnectionError } from './components';
+import { ChatContainer, ConversationSidebar, OllamaConnectionError, SaveIndicator } from './components';
 import { checkHealth } from './lib/api';
 import { ConversationProvider, useConversations, ThemeProvider, useTheme, SettingsProvider, ChatProvider } from './contexts';
 import type { Theme } from './types/settings';
@@ -18,6 +18,8 @@ function AppContent() {
     activeConversation,
     createConversation,
     isLoading: isLoadingConversations,
+    saveStatus,
+    lastSavedAt,
   } = useConversations();
 
   const { theme, setTheme, isDark } = useTheme();
@@ -125,8 +127,11 @@ function AppContent() {
           </button>
         </div>
 
-        {/* Theme Toggle & Connection Status */}
+        {/* Save Indicator, Theme Toggle & Connection Status */}
         <div className="flex items-center gap-4">
+          {/* Save Indicator */}
+          <SaveIndicator status={saveStatus} lastSavedAt={lastSavedAt} />
+
           {/* Theme Toggle */}
           <button
             onClick={cycleTheme}

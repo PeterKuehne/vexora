@@ -13,6 +13,9 @@ export { ConversationSidebar } from './ConversationSidebar';
 
 // Error components
 export { OllamaConnectionError } from './OllamaConnectionError';
+
+// Status components
+export { SaveIndicator } from './SaveIndicator';
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 

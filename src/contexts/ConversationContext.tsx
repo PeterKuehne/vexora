@@ -13,6 +13,7 @@ import {
   useCallback,
   useEffect,
   useState,
+  useRef,
   type ReactNode,
 } from 'react';
 import { generateId } from '../utils';
@@ -23,9 +24,15 @@ import type { Message } from '../types/message';
 const STORAGE_KEY = 'qwen-chat-conversations';
 const ACTIVE_ID_KEY = 'qwen-chat-active-conversation';
 
+// Auto-save debounce delay (ms)
+const SAVE_DEBOUNCE_DELAY = 500;
+
 // ============================================
 // Context Types
 // ============================================
+
+/** Save status for UI indicator */
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 interface ConversationContextValue {
   /** All conversations */
@@ -36,6 +43,10 @@ interface ConversationContextValue {
   activeConversationId: string | null;
   /** Whether conversations are loading from storage */
   isLoading: boolean;
+  /** Current save status for UI indicator */
+  saveStatus: SaveStatus;
+  /** Last saved timestamp */
+  lastSavedAt: Date | null;
 
   // Actions
   /** Create a new conversation and set it as active */
@@ -179,15 +190,71 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
     return null;
   });
 
+  // Save status for UI indicator
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+
+  // Debounce timer ref
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track if this is the initial mount (skip save on first render)
+  const isInitialMount = useRef(true);
+
   // No longer loading since we use synchronous initialization
   const isLoading = false;
 
-  // Save conversations to storage when they change
+  // Ref for status timer (to avoid race conditions)
+  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced save conversations to storage when they change
   useEffect(() => {
-    saveConversations(conversations);
+    // Skip save on initial mount (we just loaded from storage)
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    // Clear existing timers
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+    if (statusTimerRef.current) {
+      clearTimeout(statusTimerRef.current);
+    }
+
+    // Set status to saving immediately (using microtask to avoid synchronous call warning)
+    statusTimerRef.current = setTimeout(() => {
+      setSaveStatus('saving');
+    }, 0);
+
+    // Debounced save
+    saveTimerRef.current = setTimeout(() => {
+      try {
+        saveConversations(conversations);
+        setSaveStatus('saved');
+        setLastSavedAt(new Date());
+
+        // Reset to idle after 2 seconds
+        statusTimerRef.current = setTimeout(() => {
+          setSaveStatus('idle');
+        }, 2000);
+      } catch (error) {
+        console.error('Failed to save conversations:', error);
+        setSaveStatus('error');
+      }
+    }, SAVE_DEBOUNCE_DELAY);
+
+    // Cleanup
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+      if (statusTimerRef.current) {
+        clearTimeout(statusTimerRef.current);
+      }
+    };
   }, [conversations]);
 
-  // Save active ID to storage when it changes
+  // Save active ID to storage when it changes (immediate, no debounce needed)
   useEffect(() => {
     saveActiveId(activeConversationId);
   }, [activeConversationId]);
@@ -349,6 +416,8 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
     activeConversation,
     activeConversationId,
     isLoading,
+    saveStatus,
+    lastSavedAt,
     createConversation,
     deleteConversation,
     setActiveConversation,
