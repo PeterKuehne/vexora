@@ -154,6 +154,19 @@ export {
   type ConversationListProps,
   type ConversationItemProps,
 } from './ConversationList';
+
+// Search Input
+export {
+  SearchInput,
+  SearchInputCompact,
+  SearchInputWithResults,
+  type SearchInputProps,
+  type SearchInputRef,
+  type SearchInputCompactProps,
+  type SearchInputWithResultsProps,
+  type SearchResult,
+} from './SearchInput';
+
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 
