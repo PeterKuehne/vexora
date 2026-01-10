@@ -10,6 +10,7 @@ import { useTheme } from '../../contexts';
 import type { Theme } from '../../types/settings';
 import { Logo } from '../Logo';
 import { ModelSelector } from '../ModelSelector';
+import { SettingsButton } from '../SettingsButton';
 import { ThemeToggle } from '../ThemeToggle';
 
 export interface HeaderProps {
@@ -39,6 +40,10 @@ export interface HeaderProps {
   onModelChange?: (modelId: string) => void;
   /** Whether to show model selector */
   showModelSelector?: boolean;
+  /** Callback when settings button is clicked */
+  onSettingsClick?: () => void;
+  /** Whether to show settings button */
+  showSettingsButton?: boolean;
 }
 
 // Theme toggle logic is now in ThemeToggle component
@@ -57,6 +62,8 @@ export function Header({
   selectedModel,
   onModelChange,
   showModelSelector = true,
+  onSettingsClick,
+  showSettingsButton = true,
 }: HeaderProps) {
   const { isDark } = useTheme();
 
@@ -143,6 +150,15 @@ export function Header({
 
         {/* Save Indicator */}
         {saveIndicator}
+
+        {/* Settings Button */}
+        {showSettingsButton && onSettingsClick && (
+          <SettingsButton
+            onClick={onSettingsClick}
+            size="md"
+            showLabel={true}
+          />
+        )}
 
         {/* Theme Toggle */}
         <ThemeToggle

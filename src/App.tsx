@@ -86,6 +86,12 @@ function AppContent() {
     createConversation();
   };
 
+  // Placeholder for settings modal - will be implemented in a future feature
+  const handleSettingsClick = () => {
+    // TODO: Open settings modal when implemented
+    console.log('Settings button clicked - modal coming soon!');
+  };
+
   // Render header with sidebar controls from AppShell
   const renderHeader = (sidebarControls: SidebarControls) => (
     <Header
@@ -102,6 +108,8 @@ function AppContent() {
       selectedModel={selectedModel}
       onModelChange={setSelectedModel}
       showModelSelector={true}
+      onSettingsClick={handleSettingsClick}
+      showSettingsButton={true}
     />
   );
 

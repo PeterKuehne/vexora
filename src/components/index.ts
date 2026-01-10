@@ -64,6 +64,14 @@ export {
   type ThemeToggleIconProps,
   type ThemeTogglePillProps,
 } from './ThemeToggle';
+
+// Settings button
+export {
+  SettingsButton,
+  SettingsButtonIcon,
+  type SettingsButtonProps,
+} from './SettingsButton';
+export type { SettingsButtonIconProps } from './SettingsButton';
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 

@@ -1369,3 +1369,29 @@ Status: 46/111 Features (41.4%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #42 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #37: UI Component - Theme Toggle Button
+  - Neue ThemeToggle.tsx Komponente erstellt
+  - Sun/Moon/Monitor Icons für Light/Dark/System Themes
+  - Hover-Animationen: scale (110%) und rotate (12°)
+  - Active-Animation: scale (95%) für Klick-Feedback
+  - ThemeToggleIcon Variante (nur Icon, kein Label)
+  - ThemeTogglePill Variante (Pill-Button für prominente Anzeige)
+  - Theme-Cycling-Logik aus Header.tsx extrahiert
+  - aria-labels für Accessibility
+  - Header.tsx refaktoriert: nutzt jetzt ThemeToggle-Komponente
+  - Barrel-Export in components/index.ts
+  - npm run build erfolgreich
+  - Browser-Verifikation: Theme-Toggle Zyklus Hell→System→Dunkel funktioniert
+  - Screenshot: .adw/screenshots/feature_37_theme_toggle.png
+  - Git Commit: f9443ba
+
+Status: 47/111 Features (42.3%)
+
+Nächstes Feature:
+- adw features next
+

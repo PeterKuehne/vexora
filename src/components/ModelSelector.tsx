@@ -365,8 +365,10 @@ export function ModelSelector({
 // Compact Variant
 // ============================================
 
-export interface ModelSelectorCompactProps
-  extends Omit<ModelSelectorProps, 'showDetails' | 'placeholder'> {}
+export type ModelSelectorCompactProps = Omit<
+  ModelSelectorProps,
+  'showDetails' | 'placeholder'
+>;
 
 /**
  * Compact variant of ModelSelector without details
