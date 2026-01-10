@@ -89,6 +89,17 @@ export {
   type CodeBlockWrapperProps,
 } from './CodeBlock';
 
+// Inline Code
+export {
+  InlineCode,
+  InlineCodePrimary,
+  InlineCodeSuccess,
+  InlineCodeWarning,
+  InlineCodeError,
+  InlineCodePlain,
+  type InlineCodeProps,
+} from './InlineCode';
+
 // Toast components
 export { Toast, ToastContainer } from './Toast';
 

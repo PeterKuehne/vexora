@@ -1690,3 +1690,37 @@ Status: 64/111 Features (57.7%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #49 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #47: UI Component - Typing Indicator
+  - Neue TypingIndicator.tsx Komponente erstellt
+  - Drei Varianten implementiert:
+    - dots: Drei springende Punkte (animate-bounce mit Delay)
+    - pulse: Pulsierende Opacity-Animation
+    - wave: Wellen-Translation-Animation
+  - Drei Größen: sm, md, lg
+  - Helper-Komponenten:
+    - TypingDots, TypingPulse, TypingWave (Basis-Animationen)
+    - TypingIndicatorWithAvatar (mit Bot-Icon)
+    - TypingIndicatorInline (kompakt für inline Nutzung)
+    - TypingIndicatorBubble (eigenständige Chat-Bubble)
+  - Integration in AIMessage.tsx:
+    - Loader2 Spinner ersetzt durch TypingIndicator
+    - AIMessage, AIMessageCompact, AIMessageBubble, AIMessageStreaming aktualisiert
+    - Zeigt "Denke nach..." mit animierten Dots
+  - Theme-aware Styling (Light/Dark Mode)
+  - ARIA-Attribute für Accessibility (role="status", aria-label)
+  - Barrel-Export in components/index.ts
+  - npm run build erfolgreich
+  - npm run test:run: 121/121 Tests bestanden
+  - Screenshot: .adw/screenshots/feature_47_typing_indicator.png
+  - Git Commit: 038ac3f
+
+Status: 65/111 Features (58.6%)
+
+Nächstes Feature:
+- adw features next
+

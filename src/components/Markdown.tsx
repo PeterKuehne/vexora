@@ -15,6 +15,7 @@ import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
 import { useTheme } from '../contexts';
 import { CodeBlock, extractLanguageFromClassName } from './CodeBlock';
+import { InlineCode } from './InlineCode';
 
 // Import Prism theme
 import '../styles/prism-theme.css';
@@ -124,23 +125,13 @@ function useMarkdownComponents(): Components {
       <li className="ml-2">{children}</li>
     ),
 
-    // Code - Inline code styling
+    // Code - Inline code styling using InlineCode component
     code: ({ className, children }) => {
       // Check if this is inline code (no className or not inside a pre)
       const isInline = !className;
 
       if (isInline) {
-        return (
-          <code
-            className={`px-1.5 py-0.5 rounded text-sm font-code ${
-              isDark
-                ? 'bg-white/10 text-pink-400'
-                : 'bg-gray-100 text-pink-600'
-            }`}
-          >
-            {children}
-          </code>
-        );
+        return <InlineCode>{children}</InlineCode>;
       }
 
       // Block code - extract language and use CodeBlock component
@@ -312,17 +303,7 @@ export function MarkdownInline({ content, className = '' }: MarkdownInlineProps)
         remarkPlugins={[remarkGfm]}
         components={{
           p: ({ children }) => <>{children}</>,
-          code: ({ children }) => (
-            <code
-              className={`px-1 py-0.5 rounded text-sm font-code ${
-                isDark
-                  ? 'bg-white/10 text-pink-400'
-                  : 'bg-gray-100 text-pink-600'
-              }`}
-            >
-              {children}
-            </code>
-          ),
+          code: ({ children }) => <InlineCode>{children}</InlineCode>,
           strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
           em: ({ children }) => <em className="italic">{children}</em>,
           a: ({ href, children }) => (
