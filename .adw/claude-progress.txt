@@ -958,3 +958,38 @@ Status: 31/111 Features (27.9%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #31 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #27: Context - Conversations Context
+  - Bereits in Session #22 (Feature #64) implementiert
+  - ConversationProvider mit Multi-Conversation Management
+  - useConversations Hook für CRUD-Operationen
+  - LocalStorage Persistenz
+  - Verifiziert: Sidebar zeigt 4 Unterhaltungen
+  - Screenshot: .adw/screenshots/feature_27_conversations_context.png
+
+- [X] Feature #28: Hooks - useOllama Hook
+  - Neue useOllama.ts in src/hooks/
+  - refreshModels() mit Caching-Support (modelsCacheDuration)
+  - checkHealthStatus() mit Auto-Check Interval
+  - sendMessage() mit Streaming und Progress-Tracking
+  - stopStream() für Abort-Kontrolle
+  - Loading/Error States für alle Operationen
+  - Auto-fetch Models und Health on Mount (konfigurierbar)
+  - TypeScript strict mode kompatibel (exactOptionalPropertyTypes)
+  - Barrel-Export in hooks/index.ts aktualisiert
+  - npm run build erfolgreich
+  - npm run lint: 0 Errors (13 Warnings - bekannt)
+  - npm run test:run: 76/76 Tests bestanden
+  - Browser-Verifikation: Chat funktioniert, Antwort "Test" erhalten
+  - Screenshot: .adw/screenshots/feature_28_useOllama_hook.png
+  - Git Commit: f9802d3
+
+Status: 33/111 Features (29.7%)
+
+Nächstes Feature:
+- adw features next
+
