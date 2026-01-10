@@ -5,6 +5,7 @@
  * Features:
  * - GitHub Flavored Markdown (GFM) support
  * - Custom renderers for headings, lists, code blocks
+ * - Syntax highlighting for code blocks via Prism.js
  * - Theme-aware styling
  * - Optimized for AI response formatting
  */
@@ -13,6 +14,10 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
 import { useTheme } from '../contexts';
+import { CodeBlock, extractLanguageFromClassName } from './CodeBlock';
+
+// Import Prism theme
+import '../styles/prism-theme.css';
 
 export interface MarkdownProps {
   /** The markdown content to render */
@@ -119,8 +124,9 @@ function useMarkdownComponents(): Components {
       <li className="ml-2">{children}</li>
     ),
 
-    // Code
+    // Code - Inline code styling
     code: ({ className, children }) => {
+      // Check if this is inline code (no className or not inside a pre)
       const isInline = !className;
 
       if (isInline) {
@@ -137,22 +143,19 @@ function useMarkdownComponents(): Components {
         );
       }
 
-      // Block code - will be handled by pre
+      // Block code - extract language and use CodeBlock component
+      const language = extractLanguageFromClassName(className);
+      const code = typeof children === 'string' ? children : String(children ?? '');
+
       return (
-        <code className={`${className ?? ''} font-code text-sm`}>
-          {children}
-        </code>
+        <CodeBlock
+          code={code.replace(/\n$/, '')} // Remove trailing newline
+          language={language}
+        />
       );
     },
-    pre: ({ children }) => (
-      <pre
-        className={`my-3 p-4 rounded-lg overflow-x-auto ${
-          isDark ? 'bg-black/40' : 'bg-gray-100'
-        }`}
-      >
-        {children}
-      </pre>
-    ),
+    // Pre wrapper - just pass through children (CodeBlock handles its own styling)
+    pre: ({ children }) => <>{children}</>,
 
     // Blockquote
     blockquote: ({ children }) => (

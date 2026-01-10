@@ -1,0 +1,204 @@
+/**
+ * Prism.js Custom Theme for Qwen Chat
+ * Theme-aware syntax highlighting colors
+ * Inspired by VSCode One Dark Pro and GitHub Light
+ */
+
+/* Dark theme colors (default) */
+:root {
+  --prism-comment: #6a737d;
+  --prism-string: #9ecbff;
+  --prism-number: #79b8ff;
+  --prism-keyword: #f97583;
+  --prism-function: #b392f0;
+  --prism-class: #ffab70;
+  --prism-variable: #e1e4e8;
+  --prism-operator: #79b8ff;
+  --prism-punctuation: #e1e4e8;
+  --prism-property: #79b8ff;
+  --prism-regex: #dbedff;
+  --prism-attr-name: #b392f0;
+  --prism-attr-value: #9ecbff;
+  --prism-tag: #85e89d;
+  --prism-selector: #85e89d;
+  --prism-builtin: #ffab70;
+  --prism-inserted: #85e89d;
+  --prism-deleted: #f97583;
+  --prism-changed: #ffab70;
+}
+
+/* Light theme colors */
+.light {
+  --prism-comment: #6a737d;
+  --prism-string: #032f62;
+  --prism-number: #005cc5;
+  --prism-keyword: #d73a49;
+  --prism-function: #6f42c1;
+  --prism-class: #e36209;
+  --prism-variable: #24292e;
+  --prism-operator: #005cc5;
+  --prism-punctuation: #24292e;
+  --prism-property: #005cc5;
+  --prism-regex: #032f62;
+  --prism-attr-name: #6f42c1;
+  --prism-attr-value: #032f62;
+  --prism-tag: #22863a;
+  --prism-selector: #22863a;
+  --prism-builtin: #e36209;
+  --prism-inserted: #22863a;
+  --prism-deleted: #d73a49;
+  --prism-changed: #e36209;
+}
+
+/* Token styles */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: var(--prism-comment);
+  font-style: italic;
+}
+
+.token.punctuation {
+  color: var(--prism-punctuation);
+}
+
+.token.namespace {
+  opacity: 0.7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol {
+  color: var(--prism-number);
+}
+
+.token.selector,
+.token.attr-name,
+.token.char,
+.token.builtin {
+  color: var(--prism-attr-name);
+}
+
+.token.string,
+.token.attr-value {
+  color: var(--prism-string);
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: var(--prism-operator);
+}
+
+.token.atrule,
+.token.keyword {
+  color: var(--prism-keyword);
+}
+
+.token.function,
+.token.class-name {
+  color: var(--prism-function);
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: var(--prism-variable);
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+/* Diff tokens */
+.token.inserted {
+  color: var(--prism-inserted);
+  background-color: rgba(34, 134, 58, 0.15);
+}
+
+.token.deleted {
+  color: var(--prism-deleted);
+  background-color: rgba(215, 58, 73, 0.15);
+}
+
+.token.changed {
+  color: var(--prism-changed);
+  background-color: rgba(227, 98, 9, 0.15);
+}
+
+/* Selection */
+code[class*="language-"]::selection,
+pre[class*="language-"]::selection,
+code[class*="language-"] *::selection,
+pre[class*="language-"] *::selection {
+  background: rgba(99, 123, 156, 0.3);
+}
+
+/* Line highlighting */
+.line-highlight {
+  background: rgba(99, 123, 156, 0.1);
+  border-left: 3px solid var(--prism-keyword);
+  margin-left: -4px;
+  padding-left: 1px;
+}
+
+/* Language-specific styling */
+
+/* HTML/JSX tags */
+.language-html .token.tag,
+.language-jsx .token.tag,
+.language-tsx .token.tag {
+  color: var(--prism-tag);
+}
+
+/* JSON keys */
+.language-json .token.property {
+  color: var(--prism-property);
+}
+
+/* CSS selectors */
+.language-css .token.selector {
+  color: var(--prism-selector);
+}
+
+/* Shell prompts */
+.language-bash .token.function,
+.language-shell .token.function {
+  color: var(--prism-builtin);
+}
+
+/* SQL keywords */
+.language-sql .token.keyword {
+  color: var(--prism-keyword);
+  text-transform: uppercase;
+}
+
+/* Python decorators */
+.language-python .token.decorator {
+  color: var(--prism-function);
+}
+
+/* Go package names */
+.language-go .token.package {
+  color: var(--prism-class);
+}
+
+/* Rust macros */
+.language-rust .token.macro {
+  color: var(--prism-builtin);
+}

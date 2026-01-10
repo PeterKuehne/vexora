@@ -33,6 +33,16 @@ export { Logo, LogoIcon, type LogoProps, type LogoSize, type LogoIconProps } fro
 // Markdown rendering
 export { Markdown, MarkdownInline, type MarkdownProps, type MarkdownInlineProps } from './Markdown';
 
+// Code highlighting
+export {
+  CodeBlock,
+  CodeBlockWrapper,
+  extractLanguageFromClassName,
+  detectLanguage,
+  type CodeBlockProps,
+  type CodeBlockWrapperProps,
+} from './CodeBlock';
+
 // Toast components
 export { Toast, ToastContainer } from './Toast';
 

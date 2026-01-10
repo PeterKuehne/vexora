@@ -1297,3 +1297,36 @@ Status: 44/111 Features (39.6%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #40 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #36: UI Component - Model Selector Dropdown
+  - Neue ModelSelector.tsx Komponente erstellt mit Headless UI Listbox
+  - Model Liste lädt automatisch vom Backend via fetchModels() API
+  - Suchfunktion zum Filtern nach Name, Familie oder Größe
+  - Model Details angezeigt:
+    - Parameter-Größe (z.B. 8.2B, 3.2B)
+    - Speicherplatz (z.B. 4.9 GB, 1.9 GB)
+    - Quantization (z.B. Q4_K_M)
+  - "Standard" Badge für Default-Modell (qwen3:8b)
+  - Checkmark für aktuell ausgewähltes Modell
+  - Integration im Header rechts neben Theme Toggle
+  - selectedModel State in App.tsx, wird an ChatProvider übergeben
+  - Responsive: auf Mobile versteckt (hidden sm:block)
+  - npm run build erfolgreich
+  - npm run build:server erfolgreich
+  - Browser-Verifikation:
+    - Dropdown öffnet sich korrekt
+    - 2 Modelle angezeigt (qwen3, llama3.2)
+    - Modellwechsel funktioniert
+    - Suchfeld vorhanden
+  - Screenshot: .adw/screenshots/feature_36_model_selector.png
+  - Git Commit: 1eadfb0
+
+Status: 45/111 Features (40.5%)
+
+Nächstes Feature:
+- adw features next
+
