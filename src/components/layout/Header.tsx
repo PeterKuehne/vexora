@@ -8,6 +8,7 @@ import { type ReactNode } from 'react';
 import { Menu, Plus, Sun, Moon, Monitor } from 'lucide-react';
 import { useTheme } from '../../contexts';
 import type { Theme } from '../../types/settings';
+import { Logo } from '../Logo';
 
 export interface HeaderProps {
   /** Callback to create a new conversation */
@@ -125,11 +126,7 @@ export function Header({
         )}
 
         {/* Logo/Title */}
-        <h1
-          className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}
-        >
-          Qwen Chat
-        </h1>
+        <Logo size="md" />
 
         {/* New Conversation Button */}
         {onNewConversation && (

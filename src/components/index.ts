@@ -27,6 +27,9 @@ export { OllamaConnectionError } from './OllamaConnectionError';
 // Status components
 export { SaveIndicator } from './SaveIndicator';
 
+// Branding components
+export { Logo, LogoIcon, type LogoProps, type LogoSize, type LogoIconProps } from './Logo';
+
 // Toast components
 export { Toast, ToastContainer } from './Toast';
 // export { Layout } from './Layout';

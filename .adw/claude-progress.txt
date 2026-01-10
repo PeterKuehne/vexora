@@ -1244,6 +1244,21 @@ Erledigt:
 
 Status: 41/111 Features (36.9%)
 
+- [X] Feature #34: UI Layout - Input Area
+  - Neue InputArea.tsx Layout-Komponente erstellt
+  - Fixed bottom mit shrink-0 CSS
+  - Border-Separator, Padding, Hint-Text Support
+  - beforeInput/afterInput Slots für Erweiterbarkeit
+  - InputAreaCompact Variante für minimales Layout
+  - Theme-aware (light/dark mode)
+  - Barrel-Export in layout/index.ts
+  - npm run build erfolgreich
+  - Browser-Verifikation: Textarea + Button am unteren Rand
+  - Screenshot: .adw/screenshots/feature_34_input_area.png
+  - Git Commit: 5b997b6
+
+Status: 42/111 Features (37.8%)
+
 Nächstes Feature:
 - adw features next
 
