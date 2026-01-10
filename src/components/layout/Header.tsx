@@ -5,11 +5,12 @@
  */
 
 import { type ReactNode } from 'react';
-import { Menu, Plus } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useTheme } from '../../contexts';
 import type { Theme } from '../../types/settings';
 import { Logo } from '../Logo';
 import { ModelSelector } from '../ModelSelector';
+import { NewChatButton } from '../NewChatButton';
 import { SettingsButton } from '../SettingsButton';
 import { ThemeToggle } from '../ThemeToggle';
 
@@ -120,18 +121,13 @@ export function Header({
 
         {/* New Conversation Button */}
         {onNewConversation && (
-          <button
+          <NewChatButton
             onClick={onNewConversation}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-              isDark
-                ? 'text-gray-300 hover:text-white hover:bg-white/10'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
-            }`}
-            title="Neue Unterhaltung"
-          >
-            <Plus size={16} />
-            <span className="hidden sm:inline">Neu</span>
-          </button>
+            size="sm"
+            variant="secondary"
+            showLabel={true}
+            label="Neu"
+          />
         )}
       </div>
 

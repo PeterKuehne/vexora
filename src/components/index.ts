@@ -90,6 +90,16 @@ export {
   InlineSpinner,
   LoadingButtonContent,
 } from './Spinner';
+
+// New Chat Button
+export {
+  NewChatButton,
+  NewChatButtonIcon,
+  NewChatFAB,
+  type NewChatButtonProps,
+  type NewChatButtonIconProps,
+  type NewChatFABProps,
+} from './NewChatButton';
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 
