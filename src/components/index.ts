@@ -31,6 +31,18 @@ export {
   type UserMessageBubbleProps,
 } from './UserMessage';
 
+// AI Message
+export {
+  AIMessage,
+  AIMessageCompact,
+  AIMessageBubble,
+  AIMessageStreaming,
+  type AIMessageProps,
+  type AIMessageCompactProps,
+  type AIMessageBubbleProps,
+  type AIMessageStreamingProps,
+} from './AIMessage';
+
 // Layout components
 export { ConversationSidebar } from './ConversationSidebar';
 export {
