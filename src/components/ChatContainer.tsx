@@ -1,16 +1,25 @@
 /**
  * ChatContainer Component
  *
- * Main chat interface that uses ChatContext for:
- * - Message list display
- * - Chat input handling
- * - Streaming state visualization
+ * Main chat interface that uses:
+ * - ChatContext for message state and actions
+ * - ChatArea layout component for structure
+ *
+ * Composes the layout with message list, streaming stats, and input.
  */
 
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { useChat } from '../contexts';
+import {
+  ChatArea,
+  ChatAreaMessages,
+  ChatAreaEmptyState,
+  ChatAreaInputWrapper,
+  ChatAreaStatusBar,
+  type ChatAreaRef,
+} from './layout';
 import { Bot, Zap, Timer } from 'lucide-react';
 
 export interface ChatContainerProps {
@@ -19,7 +28,7 @@ export interface ChatContainerProps {
 }
 
 export function ChatContainer({ className }: ChatContainerProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatAreaRef = useRef<ChatAreaRef>(null);
 
   const {
     messages,
@@ -37,43 +46,12 @@ export function ChatContainer({ className }: ChatContainerProps) {
     return `${(ms / 1000).toFixed(1)}s`;
   };
 
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  return (
-    <div className={`flex flex-col h-full ${className ?? ''}`}>
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin">
-        {messages.length === 0 ? (
-          // Empty State
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-              <Bot size={32} />
-            </div>
-            <h2 className="text-xl font-medium text-white mb-2">
-              Willkommen bei Qwen Chat
-            </h2>
-            <p className="text-sm max-w-md text-center">
-              Starte eine Unterhaltung mit dem KI-Assistenten.
-              Deine Nachrichten werden lokal verarbeitet.
-            </p>
-          </div>
-        ) : (
-          // Message List
-          <div className="py-4">
-            {messages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
-      </div>
-
-      {/* Streaming Stats Display */}
-      {isStreaming && streamProgress && (
-        <div className="mx-4 mb-2 flex items-center gap-4 text-xs text-gray-400">
+  // Build status bar content
+  const renderStatusBar = () => {
+    // Streaming stats
+    if (isStreaming && streamProgress) {
+      return (
+        <ChatAreaStatusBar>
           <div className="flex items-center gap-1.5">
             <Zap size={12} className="text-yellow-500" />
             <span>{streamProgress.tokensPerSecond} tokens/s</span>
@@ -85,12 +63,14 @@ export function ChatContainer({ className }: ChatContainerProps) {
           <div className="text-gray-500">
             {streamProgress.tokenCount} tokens
           </div>
-        </div>
-      )}
+        </ChatAreaStatusBar>
+      );
+    }
 
-      {/* Last Response Stats */}
-      {!isStreaming && lastMetadata && lastMetadata.tokensPerSecond && (
-        <div className="mx-4 mb-2 flex items-center gap-4 text-xs text-gray-500">
+    // Last response stats
+    if (!isStreaming && lastMetadata && lastMetadata.tokensPerSecond) {
+      return (
+        <ChatAreaStatusBar>
           <div className="flex items-center gap-1.5">
             <Zap size={12} className="text-gray-500" />
             <span>{lastMetadata.tokensPerSecond} tokens/s</span>
@@ -104,25 +84,54 @@ export function ChatContainer({ className }: ChatContainerProps) {
           {lastMetadata.completionTokens && (
             <span>{lastMetadata.completionTokens} tokens generiert</span>
           )}
-        </div>
-      )}
+        </ChatAreaStatusBar>
+      );
+    }
 
-      {/* Error Display */}
-      {error && (
-        <div className="mx-4 mb-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+    // Error display
+    if (error) {
+      return (
+        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
           <strong>Fehler:</strong> {error.message}
         </div>
-      )}
+      );
+    }
 
-      {/* Input Area */}
-      <div className="p-4 border-t border-white/10">
-        <ChatInput
-          onSend={sendMessage}
-          onStop={stopStream}
-          isStreaming={isStreaming}
-          placeholder="Schreibe eine Nachricht..."
+    return null;
+  };
+
+  return (
+    <ChatArea
+      ref={chatAreaRef}
+      className={className}
+      isEmpty={messages.length === 0}
+      autoScroll={true}
+      scrollDependency={messages}
+      emptyState={
+        <ChatAreaEmptyState
+          icon={<Bot size={32} />}
+          title="Willkommen bei Qwen Chat"
+          description="Starte eine Unterhaltung mit dem KI-Assistenten. Deine Nachrichten werden lokal verarbeitet."
         />
-      </div>
-    </div>
+      }
+      statusBar={renderStatusBar()}
+      inputArea={
+        <ChatAreaInputWrapper hint="Enter zum Senden, Shift+Enter für neue Zeile">
+          <ChatInput
+            onSend={sendMessage}
+            onStop={stopStream}
+            isStreaming={isStreaming}
+            placeholder="Schreibe eine Nachricht..."
+          />
+        </ChatAreaInputWrapper>
+      }
+    >
+      {/* Message List */}
+      <ChatAreaMessages>
+        {messages.map((message) => (
+          <MessageBubble key={message.id} message={message} />
+        ))}
+      </ChatAreaMessages>
+    </ChatArea>
   );
 }

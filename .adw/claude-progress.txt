@@ -1151,3 +1151,35 @@ Status: 38/111 Features (34.2%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #37 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #32: UI Layout - Sidebar Component
+  - Neue Sidebar.tsx Layout-Komponente erstellt:
+    - 280px Breite (gemäß Implementierungsschritte)
+    - Scrollable Content Area (flex-1 overflow-y-auto)
+    - Collapsible State mit Toggle-Button (ChevronLeft/ChevronRight)
+    - Header, Content, Footer Sections
+  - Helper-Komponenten: SidebarSection, SidebarItem, SidebarDivider
+  - AppShell erweitert: sidebar prop akzeptiert jetzt Render-Prop
+  - ConversationSidebar refaktoriert: nutzt jetzt Sidebar-Komponente
+  - Theme-aware Styling für Light/Dark Mode
+  - TypeScript strict mode kompatibel (exactOptionalPropertyTypes)
+  - npm run build erfolgreich
+  - npm run lint: 0 Errors (nur Fast Refresh Warnings)
+  - npm run test:run: 96/96 Tests bestanden
+  - Browser-Verifikation:
+    - Sidebar mit 280px Breite
+    - 8 Unterhaltungen sichtbar mit Scrolling
+    - Collapse-Toggle: "Sidebar schließen" → collapsed view
+    - Expand-Toggle: "Sidebar öffnen" → expanded view
+  - Screenshot: .adw/screenshots/feature_32_sidebar_component.png
+  - Git Commit: fc107a6
+
+Status: 39/111 Features (35.1%)
+
+Nächstes Feature:
+- adw features next
+

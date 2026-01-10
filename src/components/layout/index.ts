@@ -32,3 +32,17 @@ export {
   type SidebarSectionProps,
   type SidebarItemProps,
 } from './Sidebar';
+
+export {
+  ChatArea,
+  ChatAreaMessages,
+  ChatAreaEmptyState,
+  ChatAreaInputWrapper,
+  ChatAreaStatusBar,
+  type ChatAreaProps,
+  type ChatAreaRef,
+  type ChatAreaMessagesProps,
+  type ChatAreaEmptyStateProps,
+  type ChatAreaInputWrapperProps,
+  type ChatAreaStatusBarProps,
+} from './ChatArea';
