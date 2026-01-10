@@ -21,6 +21,16 @@ export {
   type MessageListEmptyStateProps,
 } from './MessageList';
 
+// User Message
+export {
+  UserMessage,
+  UserMessageCompact,
+  UserMessageBubble,
+  type UserMessageProps,
+  type UserMessageCompactProps,
+  type UserMessageBubbleProps,
+} from './UserMessage';
+
 // Layout components
 export { ConversationSidebar } from './ConversationSidebar';
 export {
