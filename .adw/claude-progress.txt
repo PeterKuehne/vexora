@@ -1085,3 +1085,30 @@ Status: 36/111 Features (32.4%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #35 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #30: UI Layout - App Shell
+  - Neue AppShell Komponente in src/components/layout/AppShell.tsx
+  - CSS Flexbox Layout mit Header, Sidebar, Main Area
+  - Responsive Breakpoints:
+    - Mobile (<lg): Menu-Button sichtbar, Sidebar togglebar
+    - Desktop (>=lg): Sidebar immer sichtbar, Menu-Button versteckt
+  - Helper-Komponenten: AppShellHeaderSection, AppShellSidebar, AppShellContent
+  - App.tsx refaktoriert: Nutzt jetzt AppShell statt manuellem Layout
+  - Accessibility: aria-label, aria-expanded für Sidebar-Toggle
+  - npm run build erfolgreich
+  - npm run build:server erfolgreich
+  - npm run lint: 0 Errors (15 Warnings - bekannt)
+  - npm run test:run: 96/96 Tests bestanden
+  - Browser-Verifikation: Desktop + Mobile Layout, Sidebar-Toggle
+  - Screenshot: .adw/screenshots/feature_30_app_shell.png
+  - Git Commit: a23b768
+
+Status: 37/111 Features (33.3%)
+
+Nächstes Feature:
+- adw features next
+

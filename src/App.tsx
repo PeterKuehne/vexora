@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Plus, Sun, Moon, Monitor } from 'lucide-react';
 import {
   AppShell,
   ChatContainer,
   ConversationSidebar,
+  Header,
   OllamaConnectionError,
   SaveIndicator,
   ToastContainer,
+  type SidebarControls,
 } from './components';
 import { checkHealth } from './lib/api';
 import {
@@ -20,7 +21,6 @@ import {
   useToast,
   useToasts,
 } from './contexts';
-import type { Theme } from './types/settings';
 
 function AppContent() {
   const [isOllamaConnected, setIsOllamaConnected] = useState<boolean | null>(null);
@@ -38,32 +38,9 @@ function AppContent() {
     lastSavedAt,
   } = useConversations();
 
-  const { theme, setTheme, isDark } = useTheme();
+  const { theme, setTheme } = useTheme();
   const toasts = useToasts();
   const { removeToast } = useToast();
-
-  // Cycle through themes: dark -> light -> system -> dark
-  const cycleTheme = () => {
-    const themeOrder: Theme[] = ['dark', 'light', 'system'];
-    const currentIndex = themeOrder.indexOf(theme);
-    const nextIndex = (currentIndex + 1) % themeOrder.length;
-    setTheme(themeOrder[nextIndex]);
-  };
-
-  // Get theme icon and label
-  const getThemeInfo = () => {
-    switch (theme) {
-      case 'light':
-        return { icon: Sun, label: 'Hell' };
-      case 'system':
-        return { icon: Monitor, label: 'System' };
-      case 'dark':
-      default:
-        return { icon: Moon, label: 'Dunkel' };
-    }
-  };
-
-  const themeInfo = getThemeInfo();
 
   // Check backend and Ollama connectivity on mount
   useEffect(() => {
@@ -108,70 +85,20 @@ function AppContent() {
     createConversation();
   };
 
-  // Connection status indicator
-  const connectionStatusColor = isOllamaConnected === null
-    ? 'bg-yellow-500'
-    : isOllamaConnected
-      ? 'bg-green-500'
-      : 'bg-red-500';
-
-  const connectionStatusText = isOllamaConnected === null
-    ? 'Verbinde...'
-    : isOllamaConnected
-      ? `Ollama (${availableModels.length} Modelle)`
-      : 'Ollama nicht verbunden';
-
-  // Header Left Content
-  const headerLeft = (
-    <>
-      <h1 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-        Qwen Chat
-      </h1>
-
-      {/* New Conversation Button */}
-      <button
-        onClick={handleNewConversation}
-        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
-          isDark
-            ? 'text-gray-300 hover:text-white hover:bg-white/10'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
-        }`}
-        title="Neue Unterhaltung"
-      >
-        <Plus size={16} />
-        <span className="hidden sm:inline">Neu</span>
-      </button>
-    </>
-  );
-
-  // Header Right Content
-  const headerContent = (
-    <>
-      {/* Save Indicator */}
-      <SaveIndicator status={saveStatus} lastSavedAt={lastSavedAt} />
-
-      {/* Theme Toggle */}
-      <button
-        onClick={cycleTheme}
-        className={`flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-colors ${
-          isDark
-            ? 'text-gray-400 hover:text-white hover:bg-white/10'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
-        }`}
-        title={`Theme: ${themeInfo.label}`}
-      >
-        <themeInfo.icon size={16} />
-        <span className="hidden sm:inline">{themeInfo.label}</span>
-      </button>
-
-      {/* Connection Status */}
-      <div className="flex items-center gap-2 text-sm">
-        <div className={`w-2 h-2 rounded-full ${connectionStatusColor}`} />
-        <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>
-          {connectionStatusText}
-        </span>
-      </div>
-    </>
+  // Render header with sidebar controls from AppShell
+  const renderHeader = (sidebarControls: SidebarControls) => (
+    <Header
+      onNewConversation={handleNewConversation}
+      theme={theme}
+      onThemeChange={setTheme}
+      isOllamaConnected={isOllamaConnected}
+      modelCount={availableModels.length}
+      saveIndicator={<SaveIndicator status={saveStatus} lastSavedAt={lastSavedAt} />}
+      showMobileMenu={true}
+      onToggleSidebar={sidebarControls.toggle}
+      isSidebarCollapsed={sidebarControls.isCollapsed}
+      hasSidebar={sidebarControls.hasSidebar}
+    />
   );
 
   // Sidebar Content
@@ -201,10 +128,8 @@ function AppContent() {
   return (
     <>
       <AppShell
-        headerLeft={headerLeft}
-        headerContent={headerContent}
+        header={renderHeader}
         sidebar={sidebar}
-        showMobileMenu={true}
       >
         {mainContent}
       </AppShell>

@@ -15,6 +15,10 @@ export {
   AppShellHeaderSection,
   AppShellSidebar,
   AppShellContent,
+  Header,
+  HeaderDivider,
+  HeaderSection,
+  type SidebarControls,
 } from './layout';
 
 // Error components

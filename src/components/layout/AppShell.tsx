@@ -8,10 +8,19 @@ import { type ReactNode, useState, useCallback } from 'react';
 import { Menu } from 'lucide-react';
 import { useTheme } from '../../contexts';
 
+/** Sidebar controls passed to header render function */
+export interface SidebarControls {
+  toggle: () => void;
+  isCollapsed: boolean;
+  hasSidebar: boolean;
+}
+
 export interface AppShellProps {
-  /** Header content (right side) */
+  /** Complete header component or render function receiving sidebar controls */
+  header?: ReactNode | ((controls: SidebarControls) => ReactNode);
+  /** Header content (right side) - deprecated, use header prop */
   headerContent?: ReactNode;
-  /** Header left content (logo, title) */
+  /** Header left content (logo, title) - deprecated, use header prop */
   headerLeft?: ReactNode;
   /** Sidebar content */
   sidebar?: ReactNode;
@@ -21,13 +30,14 @@ export interface AppShellProps {
   defaultSidebarCollapsed?: boolean;
   /** Callback when sidebar collapse state changes */
   onSidebarToggle?: (collapsed: boolean) => void;
-  /** Show mobile menu button */
+  /** Show mobile menu button (only used with headerLeft/headerContent) */
   showMobileMenu?: boolean;
   /** Custom CSS class for the shell */
   className?: string;
 }
 
 export function AppShell({
+  header,
   headerContent,
   headerLeft,
   sidebar,
@@ -46,6 +56,13 @@ export function AppShell({
     onSidebarToggle?.(newState);
   }, [isSidebarCollapsed, onSidebarToggle]);
 
+  // Expose toggle function and state for Header component
+  const sidebarControls = {
+    toggle: handleToggleSidebar,
+    isCollapsed: isSidebarCollapsed,
+    hasSidebar: !!sidebar,
+  };
+
   return (
     <div
       className={`
@@ -54,47 +71,51 @@ export function AppShell({
         ${className}
       `.trim()}
     >
-      {/* Header */}
-      <header
-        className={`
-          flex items-center justify-between
-          px-4 py-3
-          border-b
-          shrink-0
-          ${isDark ? 'border-white/10' : 'border-gray-200'}
-        `.trim()}
-      >
-        {/* Left Section: Mobile Menu + Logo/Title */}
-        <div className="flex items-center gap-3">
-          {/* Mobile Menu Button - visible on mobile/tablet */}
-          {showMobileMenu && sidebar && (
-            <button
-              onClick={handleToggleSidebar}
-              className={`
-                p-1.5 rounded-lg transition-colors
-                lg:hidden
-                ${isDark
-                  ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
-                }
-              `.trim()}
-              title="Sidebar umschalten"
-              aria-label="Toggle sidebar"
-              aria-expanded={!isSidebarCollapsed}
-            >
-              <Menu size={20} />
-            </button>
-          )}
+      {/* Header - Either custom header component/render function or legacy headerLeft/headerContent */}
+      {header ? (
+        typeof header === 'function' ? header(sidebarControls) : header
+      ) : (
+        <header
+          className={`
+            flex items-center justify-between
+            px-4 py-3
+            border-b
+            shrink-0
+            ${isDark ? 'border-white/10' : 'border-gray-200'}
+          `.trim()}
+        >
+          {/* Left Section: Mobile Menu + Logo/Title */}
+          <div className="flex items-center gap-3">
+            {/* Mobile Menu Button - visible on mobile/tablet */}
+            {showMobileMenu && sidebar && (
+              <button
+                onClick={handleToggleSidebar}
+                className={`
+                  p-1.5 rounded-lg transition-colors
+                  lg:hidden
+                  ${isDark
+                    ? 'text-gray-400 hover:text-white hover:bg-white/10'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
+                  }
+                `.trim()}
+                title="Sidebar umschalten"
+                aria-label="Toggle sidebar"
+                aria-expanded={!isSidebarCollapsed}
+              >
+                <Menu size={20} />
+              </button>
+            )}
 
-          {/* Header Left Content (Logo, Title, Actions) */}
-          {headerLeft}
-        </div>
+            {/* Header Left Content (Logo, Title, Actions) */}
+            {headerLeft}
+          </div>
 
-        {/* Right Section: Status, Settings, etc. */}
-        <div className="flex items-center gap-4">
-          {headerContent}
-        </div>
-      </header>
+          {/* Right Section: Status, Settings, etc. */}
+          <div className="flex items-center gap-4">
+            {headerContent}
+          </div>
+        </header>
+      )}
 
       {/* Main Layout: Sidebar + Content */}
       <div className="flex-1 flex overflow-hidden">
