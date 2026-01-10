@@ -1724,3 +1724,37 @@ Status: 65/111 Features (58.6%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #50 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #60: Markdown - Inline Code Styling
+  - Neue InlineCode.tsx Komponente erstellt
+  - Theme-aware Styling:
+    - Dark Mode: bg-white/10, text-pink-400
+    - Light Mode: bg-gray-100, text-pink-600
+  - Monospace Font: JetBrains Mono (font-code)
+  - Styling: px-1.5 py-0.5 rounded text-sm whitespace-nowrap
+  - 5 Varianten implementiert:
+    - default: Pink (Standard für Code)
+    - primary: Blau
+    - success: Grün
+    - warning: Gelb
+    - error: Rot
+  - Helper-Komponenten:
+    - InlineCodePrimary, InlineCodeSuccess, InlineCodeWarning, InlineCodeError
+    - InlineCodePlain (minimal, nur Font)
+  - Markdown.tsx refaktoriert: Nutzt jetzt InlineCode-Komponente
+  - MarkdownInline ebenfalls aktualisiert
+  - Barrel-Export in components/index.ts
+  - npm run build erfolgreich
+  - Browser-Verifikation: Dark + Light Mode getestet
+  - Screenshot: .adw/screenshots/feature_60_inline_code_styling.png
+  - Git Commit: d868464
+
+Status: 66/111 Features (59.5%)
+
+Nächstes Feature:
+- adw features next
+
