@@ -1112,3 +1112,42 @@ Status: 37/111 Features (33.3%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #36 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #31: UI Layout - Header Component
+  - Neue Header.tsx Komponente in src/components/layout/
+  - Logo/Title "Qwen Chat" links im Header
+  - "Neu" Button für neue Unterhaltungen
+  - Theme Toggle mit Zyklus: dark → light → system → dark
+    - Lucide Icons: Moon, Sun, Monitor
+    - Label wechselt entsprechend: Dunkel, Hell, System
+  - Ollama Connection Status mit Modell-Anzahl
+  - SaveIndicator als Slot-Komponente (prop)
+  - Render-Prop-Pattern für Sidebar-Controls:
+    - AppShell übergibt SidebarControls (toggle, isCollapsed, hasSidebar)
+    - Header nutzt diese für Mobile Menu Button
+  - SidebarControls Interface exportiert
+  - HeaderDivider und HeaderSection Helper-Komponenten
+  - App.tsx refaktoriert:
+    - Nutzt jetzt renderHeader Render-Prop statt headerLeft/headerContent
+    - Entfernte inline Theme-Cycling-Logik
+  - npm run build erfolgreich
+  - npm run build:server erfolgreich
+  - npm run lint: 0 Errors (nur Fast Refresh Warnings)
+  - npm run test:run: 96/96 Tests bestanden
+  - Browser-Verifikation:
+    - Theme-Toggle funktioniert (Hell → System → Dunkel)
+    - Neu-Button erstellt neue Unterhaltung
+    - Ollama Status zeigt "Ollama (2 Modelle)"
+    - SaveIndicator zeigt "Gerade gespeichert"
+  - Screenshot: .adw/screenshots/feature_31_header_component.png
+  - Git Commit: 1973f58
+
+Status: 38/111 Features (34.2%)
+
+Nächstes Feature:
+- adw features next
+
