@@ -155,6 +155,17 @@ export {
   type ConversationItemProps,
 } from './ConversationList';
 
+// Conversation Group
+export {
+  ConversationGroup,
+  ConversationGroupHeader,
+  ConversationGroupCompact,
+  ConversationGroupStatic,
+  type ConversationGroupProps,
+  type ConversationGroupHeaderProps,
+  type DateGroupType,
+} from './ConversationGroup';
+
 // Search Input
 export {
   SearchInput,

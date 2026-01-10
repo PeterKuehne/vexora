@@ -1629,3 +1629,33 @@ Status: 62/111 Features (55.9%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #47 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #46: UI Component - Send Button
+  - Neue SendButton.tsx Komponente erstellt
+  - SendButton: Hauptkomponente mit hasContent, isStreaming props
+  - SendButtonIcon: Icon-only Variante
+  - StopButton: Roter Stop-Button für Streaming-State
+  - SendButtonWithLoading: Button mit explizitem Loading-Text
+  - Size-Varianten: sm, md, lg
+  - Visual-Varianten: primary, secondary, ghost
+  - ChatInput.tsx refaktoriert - nutzt jetzt SendButton-Komponente
+  - Disabled when empty (hasContent prop)
+  - Loading State wird zu StopButton während Streaming
+  - npm run build erfolgreich
+  - npm run test:run: 121/121 Tests bestanden
+  - Browser-Verifikation:
+    - Button disabled ohne Text ✓
+    - Button enabled mit Text ✓
+    - Stop-Button erscheint während Streaming ✓
+  - Screenshot: .adw/screenshots/feature_46_send_button.png
+  - Git Commit: f7de811
+
+Status: 63/111 Features (56.8%)
+
+Nächstes Feature:
+- adw features next
+

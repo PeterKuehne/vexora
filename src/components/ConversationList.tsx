@@ -14,6 +14,7 @@ import { MessageSquare, Trash2 } from 'lucide-react';
 import { useTheme } from '../contexts';
 import { formatDate } from '../utils';
 import type { Conversation } from '../types/conversation';
+import { ConversationGroup, type DateGroupType } from './ConversationGroup';
 
 // ============================================
 // Types
@@ -30,6 +31,8 @@ export interface ConversationListProps {
   onDelete: (id: string) => void;
   /** Whether to group by date */
   groupByDate?: boolean;
+  /** Whether groups are collapsible */
+  collapsibleGroups?: boolean;
   /** Whether the list is loading */
   isLoading?: boolean;
   /** Empty state message */
@@ -51,7 +54,7 @@ export interface ConversationItemProps {
 // Date Grouping Helpers
 // ============================================
 
-type DateGroup = 'today' | 'yesterday' | 'thisWeek' | 'thisMonth' | 'older';
+type DateGroup = DateGroupType;
 
 const DATE_GROUP_LABELS: Record<DateGroup, string> = {
   today: 'Heute',
@@ -260,6 +263,7 @@ export function ConversationList({
   onConversationClick,
   onDelete,
   groupByDate = true,
+  collapsibleGroups = true,
   emptyMessage = 'Keine Unterhaltungen vorhanden',
 }: ConversationListProps) {
   const { isDark } = useTheme();
@@ -295,21 +299,59 @@ export function ConversationList({
     );
   }
 
-  // Grouped view
+  // Grouped view with collapsible groups
   if (groupByDate && groupedConversations) {
+    // When collapsibleGroups is false, we use the static variant
+    if (!collapsibleGroups) {
+      return (
+        <div className="py-2" role="listbox" aria-label="Unterhaltungen">
+          {Array.from(groupedConversations.entries()).map(([group, convs]) => (
+            <div key={group} className="mb-2">
+              {/* Static Group Header with Count */}
+              <div
+                className={`
+                  flex items-center justify-between
+                  px-5 py-1.5 text-xs font-medium uppercase tracking-wider
+                  ${isDark ? 'text-gray-500' : 'text-gray-400'}
+                `}
+              >
+                <span>{DATE_GROUP_LABELS[group]}</span>
+                <span
+                  className={`
+                    px-1.5 py-0.5 text-[10px] font-semibold rounded-full
+                    ${isDark ? 'bg-white/10' : 'bg-black/10'}
+                  `}
+                >
+                  {convs.length}
+                </span>
+              </div>
+              {/* Group Items */}
+              {convs.map((conversation) => (
+                <ConversationItem
+                  key={conversation.id}
+                  conversation={conversation}
+                  isActive={conversation.id === activeConversationId}
+                  onClick={() => onConversationClick(conversation.id)}
+                  onDelete={() => onDelete(conversation.id)}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Collapsible groups (default)
     return (
       <div className="py-2" role="listbox" aria-label="Unterhaltungen">
         {Array.from(groupedConversations.entries()).map(([group, convs]) => (
-          <div key={group} className="mb-2">
-            {/* Group Header */}
-            <div
-              className={`px-5 py-1.5 text-xs font-medium uppercase tracking-wider ${
-                isDark ? 'text-gray-500' : 'text-gray-400'
-              }`}
-            >
-              {DATE_GROUP_LABELS[group]}
-            </div>
-            {/* Group Items */}
+          <ConversationGroup
+            key={group}
+            groupType={group}
+            label={DATE_GROUP_LABELS[group]}
+            count={convs.length}
+            defaultCollapsed={false}
+          >
             {convs.map((conversation) => (
               <ConversationItem
                 key={conversation.id}
@@ -319,7 +361,7 @@ export function ConversationList({
                 onDelete={() => onDelete(conversation.id)}
               />
             ))}
-          </div>
+          </ConversationGroup>
         ))}
       </div>
     );
