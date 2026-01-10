@@ -8,6 +8,19 @@ export { ChatContainer } from './ChatContainer';
 export { ChatInput } from './ChatInput';
 export { MessageBubble } from './MessageBubble';
 
+// Message List
+export {
+  MessageList,
+  MessageListItem,
+  MessageListLoadingIndicator,
+  MessageListEmptyState,
+  type MessageListProps,
+  type MessageListRef,
+  type MessageListItemProps,
+  type MessageListLoadingIndicatorProps,
+  type MessageListEmptyStateProps,
+} from './MessageList';
+
 // Layout components
 export { ConversationSidebar } from './ConversationSidebar';
 export {
