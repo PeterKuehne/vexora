@@ -46,3 +46,10 @@ export {
   type ChatAreaInputWrapperProps,
   type ChatAreaStatusBarProps,
 } from './ChatArea';
+
+export {
+  InputArea,
+  InputAreaCompact,
+  type InputAreaProps,
+  type InputAreaCompactProps,
+} from './InputArea';
