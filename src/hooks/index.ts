@@ -27,5 +27,10 @@ export type {
   UseLocalStorageReturn,
 } from './useLocalStorage';
 
-// Additional hooks will be exported here
-// export { useDebounce } from './useDebounce';
+// Debounce & Throttle hooks
+export {
+  useDebounce,
+  useDebouncedCallback,
+  useDebouncedState,
+  useThrottle,
+} from './useDebounce';
