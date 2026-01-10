@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Plus, Menu, Sun, Moon, Monitor } from 'lucide-react';
-import { ChatContainer, ConversationSidebar, OllamaConnectionError, SaveIndicator } from './components';
+import { ChatContainer, ConversationSidebar, OllamaConnectionError, SaveIndicator, ToastContainer } from './components';
 import { checkHealth } from './lib/api';
-import { ConversationProvider, useConversations, ThemeProvider, useTheme, SettingsProvider, ChatProvider } from './contexts';
+import { ConversationProvider, useConversations, ThemeProvider, useTheme, SettingsProvider, ChatProvider, ToastProvider, useToast, useToasts } from './contexts';
 import type { Theme } from './types/settings';
 
 function AppContent() {
@@ -23,6 +23,8 @@ function AppContent() {
   } = useConversations();
 
   const { theme, setTheme, isDark } = useTheme();
+  const toasts = useToasts();
+  const { removeToast } = useToast();
 
   // Cycle through themes: dark -> light -> system -> dark
   const cycleTheme = () => {
@@ -197,6 +199,9 @@ function AppContent() {
         ) : null}
         </main>
       </div>
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }
@@ -205,9 +210,11 @@ function App() {
   return (
     <SettingsProvider>
       <ThemeProvider defaultTheme="dark">
-        <ConversationProvider>
-          <AppContent />
-        </ConversationProvider>
+        <ToastProvider>
+          <ConversationProvider>
+            <AppContent />
+          </ConversationProvider>
+        </ToastProvider>
       </ThemeProvider>
     </SettingsProvider>
   );

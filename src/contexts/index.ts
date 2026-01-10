@@ -28,5 +28,12 @@ export {
   useChatActions,
 } from './ChatContext';
 
+export {
+  ToastProvider,
+  useToast,
+  useToasts,
+} from './ToastContext';
+
 export type { SettingsContextValue } from './SettingsContext';
 export type { ChatContextValue } from './ChatContext';
+export type { Toast, ToastType } from './ToastContext';

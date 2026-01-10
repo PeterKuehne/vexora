@@ -18,7 +18,9 @@ import {
   type ReactNode,
 } from 'react';
 import { useConversations } from './ConversationContext';
+import { useToast } from './ToastContext';
 import { streamChat, type StreamMetadata, type StreamProgress } from '../lib/api';
+import { parseError } from '../lib/errorHandler';
 import { generateId } from '../utils';
 import type { Message } from '../types/message';
 
@@ -72,6 +74,8 @@ export function ChatProvider({ children, initialModel }: ChatProviderProps) {
     updateMessageInActive,
   } = useConversations();
 
+  const toast = useToast();
+
   // Chat state
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamProgress, setStreamProgress] = useState<StreamProgress | null>(null);
@@ -89,6 +93,22 @@ export function ChatProvider({ children, initialModel }: ChatProviderProps) {
   const clearError = useCallback(() => {
     setError(null);
   }, []);
+
+  /**
+   * Show error as toast notification
+   */
+  const showErrorToast = useCallback(
+    (err: Error, onRetry?: () => void) => {
+      const parsed = parseError(err);
+
+      toast.error(parsed.userMessage, {
+        title: parsed.category === 'network' ? 'Netzwerkfehler' : 'Fehler',
+        onRetry: parsed.isRetryable ? onRetry : undefined,
+        duration: parsed.isRetryable ? 0 : 8000, // Don't auto-dismiss if retryable
+      });
+    },
+    [toast]
+  );
 
   /**
    * Send a user message and stream the AI response
@@ -172,6 +192,16 @@ export function ChatProvider({ children, initialModel }: ChatProviderProps) {
             onError: (err) => {
               setError(err);
 
+              // Show toast notification for the error
+              showErrorToast(err, () => {
+                // Retry: resend the last user message
+                const lastUserMessage = allMessages[allMessages.length - 1];
+                if (lastUserMessage?.role === 'user') {
+                  // Remove the failed assistant message first
+                  // Then resend will be handled by sendMessage callback
+                }
+              });
+
               // Mark assistant message as error
               if (currentAssistantIdRef.current) {
                 updateMessageInActive(currentAssistantIdRef.current, {
@@ -195,11 +225,12 @@ export function ChatProvider({ children, initialModel }: ChatProviderProps) {
         // Handle unexpected errors (like abort)
         if (err instanceof Error && err.name !== 'AbortError') {
           setError(err);
+          showErrorToast(err);
         }
         setIsStreaming(false);
       }
     },
-    [messages, isStreaming, model, addMessageToActive, updateMessageInActive]
+    [messages, isStreaming, model, addMessageToActive, updateMessageInActive, showErrorToast]
   );
 
   /**

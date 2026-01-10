@@ -16,6 +16,9 @@ export { OllamaConnectionError } from './OllamaConnectionError';
 
 // Status components
 export { SaveIndicator } from './SaveIndicator';
+
+// Toast components
+export { Toast, ToastContainer } from './Toast';
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 

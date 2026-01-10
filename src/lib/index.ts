@@ -53,3 +53,18 @@ export type { ConversationUpdate } from './conversationStorage';
 // Settings Storage
 export { SettingsStorage, settingsStorage } from './settingsStorage';
 export type { SerializedSettings } from './settingsStorage';
+
+// Error Handler
+export {
+  parseError,
+  isRetryableError,
+  isNetworkError,
+  isOllamaError,
+  getUserFriendlyMessage,
+  withRetry,
+} from './errorHandler';
+export type {
+  ErrorCategory,
+  ParsedError,
+  RetryOptions,
+} from './errorHandler';
