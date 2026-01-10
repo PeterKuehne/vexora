@@ -26,6 +26,7 @@ function AppContent() {
   const [isOllamaConnected, setIsOllamaConnected] = useState<boolean | null>(null);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<string>('qwen3:8b');
 
   // Ref to store the checkConnectivity function for use in handleRetry
   const checkConnectivityRef = useRef<(() => Promise<boolean>) | null>(null);
@@ -98,6 +99,9 @@ function AppContent() {
       onToggleSidebar={sidebarControls.toggle}
       isSidebarCollapsed={sidebarControls.isCollapsed}
       hasSidebar={sidebarControls.hasSidebar}
+      selectedModel={selectedModel}
+      onModelChange={setSelectedModel}
+      showModelSelector={true}
     />
   );
 
@@ -120,7 +124,7 @@ function AppContent() {
       <div className="text-gray-400">Lade Unterhaltungen...</div>
     </div>
   ) : activeConversation ? (
-    <ChatProvider key={activeConversation.id}>
+    <ChatProvider key={activeConversation.id} initialModel={selectedModel}>
       <ChatContainer />
     </ChatProvider>
   ) : null;

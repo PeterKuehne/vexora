@@ -9,6 +9,7 @@ import { Menu, Plus, Sun, Moon, Monitor } from 'lucide-react';
 import { useTheme } from '../../contexts';
 import type { Theme } from '../../types/settings';
 import { Logo } from '../Logo';
+import { ModelSelector } from '../ModelSelector';
 
 export interface HeaderProps {
   /** Callback to create a new conversation */
@@ -31,6 +32,12 @@ export interface HeaderProps {
   isSidebarCollapsed?: boolean;
   /** Whether sidebar exists */
   hasSidebar?: boolean;
+  /** Currently selected model */
+  selectedModel?: string | undefined;
+  /** Callback when model is changed */
+  onModelChange?: (modelId: string) => void;
+  /** Whether to show model selector */
+  showModelSelector?: boolean;
 }
 
 /**
@@ -69,6 +76,9 @@ export function Header({
   onToggleSidebar,
   isSidebarCollapsed = false,
   hasSidebar = false,
+  selectedModel,
+  onModelChange,
+  showModelSelector = true,
 }: HeaderProps) {
   const { isDark } = useTheme();
   const themeInfo = getThemeInfo(theme);
@@ -145,8 +155,19 @@ export function Header({
         )}
       </div>
 
-      {/* Right Section: Save Indicator, Theme Toggle, Connection Status */}
+      {/* Right Section: Model Selector, Save Indicator, Theme Toggle, Connection Status */}
       <div className="flex items-center gap-4">
+        {/* Model Selector - visible when Ollama is connected */}
+        {showModelSelector && isOllamaConnected && onModelChange && (
+          <div className="hidden sm:block">
+            <ModelSelector
+              value={selectedModel ?? ''}
+              onChange={onModelChange}
+              disabled={!isOllamaConnected}
+            />
+          </div>
+        )}
+
         {/* Save Indicator */}
         {saveIndicator}
 

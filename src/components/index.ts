@@ -35,6 +35,15 @@ export { Markdown, MarkdownInline, type MarkdownProps, type MarkdownInlineProps 
 
 // Toast components
 export { Toast, ToastContainer } from './Toast';
+
+// Model selector
+export {
+  ModelSelector,
+  ModelSelectorCompact,
+  type ModelSelectorProps,
+  type ModelSelectorCompactProps,
+  type Model,
+} from './ModelSelector';
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 
