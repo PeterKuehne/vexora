@@ -10,6 +10,12 @@ export { MessageBubble } from './MessageBubble';
 
 // Layout components
 export { ConversationSidebar } from './ConversationSidebar';
+export {
+  AppShell,
+  AppShellHeaderSection,
+  AppShellSidebar,
+  AppShellContent,
+} from './layout';
 
 // Error components
 export { OllamaConnectionError } from './OllamaConnectionError';

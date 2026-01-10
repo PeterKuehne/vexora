@@ -1,14 +1,30 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Plus, Menu, Sun, Moon, Monitor } from 'lucide-react';
-import { ChatContainer, ConversationSidebar, OllamaConnectionError, SaveIndicator, ToastContainer } from './components';
+import { Plus, Sun, Moon, Monitor } from 'lucide-react';
+import {
+  AppShell,
+  ChatContainer,
+  ConversationSidebar,
+  OllamaConnectionError,
+  SaveIndicator,
+  ToastContainer,
+} from './components';
 import { checkHealth } from './lib/api';
-import { ConversationProvider, useConversations, ThemeProvider, useTheme, SettingsProvider, ChatProvider, ToastProvider, useToast, useToasts } from './contexts';
+import {
+  ConversationProvider,
+  useConversations,
+  ThemeProvider,
+  useTheme,
+  SettingsProvider,
+  ChatProvider,
+  ToastProvider,
+  useToast,
+  useToasts,
+} from './contexts';
 import type { Theme } from './types/settings';
 
 function AppContent() {
   const [isOllamaConnected, setIsOllamaConnected] = useState<boolean | null>(null);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
 
   // Ref to store the checkConnectivity function for use in handleRetry
@@ -92,117 +108,110 @@ function AppContent() {
     createConversation();
   };
 
-  const handleToggleSidebar = () => {
-    setIsSidebarCollapsed((prev) => !prev);
-  };
+  // Connection status indicator
+  const connectionStatusColor = isOllamaConnected === null
+    ? 'bg-yellow-500'
+    : isOllamaConnected
+      ? 'bg-green-500'
+      : 'bg-red-500';
+
+  const connectionStatusText = isOllamaConnected === null
+    ? 'Verbinde...'
+    : isOllamaConnected
+      ? `Ollama (${availableModels.length} Modelle)`
+      : 'Ollama nicht verbunden';
+
+  // Header Left Content
+  const headerLeft = (
+    <>
+      <h1 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        Qwen Chat
+      </h1>
+
+      {/* New Conversation Button */}
+      <button
+        onClick={handleNewConversation}
+        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+          isDark
+            ? 'text-gray-300 hover:text-white hover:bg-white/10'
+            : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
+        }`}
+        title="Neue Unterhaltung"
+      >
+        <Plus size={16} />
+        <span className="hidden sm:inline">Neu</span>
+      </button>
+    </>
+  );
+
+  // Header Right Content
+  const headerContent = (
+    <>
+      {/* Save Indicator */}
+      <SaveIndicator status={saveStatus} lastSavedAt={lastSavedAt} />
+
+      {/* Theme Toggle */}
+      <button
+        onClick={cycleTheme}
+        className={`flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg transition-colors ${
+          isDark
+            ? 'text-gray-400 hover:text-white hover:bg-white/10'
+            : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
+        }`}
+        title={`Theme: ${themeInfo.label}`}
+      >
+        <themeInfo.icon size={16} />
+        <span className="hidden sm:inline">{themeInfo.label}</span>
+      </button>
+
+      {/* Connection Status */}
+      <div className="flex items-center gap-2 text-sm">
+        <div className={`w-2 h-2 rounded-full ${connectionStatusColor}`} />
+        <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+          {connectionStatusText}
+        </span>
+      </div>
+    </>
+  );
+
+  // Sidebar Content
+  const sidebar = (
+    <ConversationSidebar
+      isCollapsed={false}
+      onToggleCollapse={() => {}}
+    />
+  );
+
+  // Main Content
+  const mainContent = isOllamaConnected === false ? (
+    <OllamaConnectionError
+      onRetry={handleRetry}
+      isRetrying={isRetrying}
+    />
+  ) : isLoadingConversations ? (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-gray-400">Lade Unterhaltungen...</div>
+    </div>
+  ) : activeConversation ? (
+    <ChatProvider key={activeConversation.id}>
+      <ChatContainer />
+    </ChatProvider>
+  ) : null;
 
   return (
-    <div className={`h-screen flex flex-col ${isDark ? 'bg-background' : 'bg-white'}`}>
-      {/* Header */}
-      <header className={`flex items-center justify-between px-4 py-3 border-b ${
-        isDark ? 'border-white/10' : 'border-gray-200'
-      }`}>
-        <div className="flex items-center gap-3">
-          {/* Mobile Menu Button */}
-          <button
-            onClick={handleToggleSidebar}
-            className={`p-1.5 ${
-              isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
-            } rounded-lg transition-colors lg:hidden`}
-            title="Sidebar umschalten"
-          >
-            <Menu size={20} />
-          </button>
+    <>
+      <AppShell
+        headerLeft={headerLeft}
+        headerContent={headerContent}
+        sidebar={sidebar}
+        showMobileMenu={true}
+      >
+        {mainContent}
+      </AppShell>
 
-          <h1 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Qwen Chat</h1>
-
-          {/* New Conversation Button */}
-          <button
-            onClick={handleNewConversation}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm ${
-              isDark ? 'text-gray-300 hover:text-white hover:bg-white/10' : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
-            } rounded-lg transition-colors`}
-            title="Neue Unterhaltung"
-          >
-            <Plus size={16} />
-            <span className="hidden sm:inline">Neu</span>
-          </button>
-        </div>
-
-        {/* Save Indicator, Theme Toggle & Connection Status */}
-        <div className="flex items-center gap-4">
-          {/* Save Indicator */}
-          <SaveIndicator status={saveStatus} lastSavedAt={lastSavedAt} />
-
-          {/* Theme Toggle */}
-          <button
-            onClick={cycleTheme}
-            className={`flex items-center gap-1.5 px-2 py-1.5 text-sm ${
-              isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
-            } rounded-lg transition-colors`}
-            title={`Theme: ${themeInfo.label}`}
-          >
-            <themeInfo.icon size={16} />
-            <span className="hidden sm:inline">{themeInfo.label}</span>
-          </button>
-
-          {/* Connection Status */}
-          <div className="flex items-center gap-2 text-sm">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                isOllamaConnected === null
-                  ? 'bg-yellow-500'
-                  : isOllamaConnected
-                    ? 'bg-green-500'
-                    : 'bg-red-500'
-              }`}
-            />
-            <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>
-              {isOllamaConnected === null
-                ? 'Verbinde...'
-                : isOllamaConnected
-                  ? `Ollama (${availableModels.length} Modelle)`
-                  : 'Ollama nicht verbunden'}
-            </span>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Layout with Sidebar */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar - hidden on mobile when collapsed */}
-        <div className={`${isSidebarCollapsed ? 'hidden' : 'flex'} lg:flex`}>
-          <ConversationSidebar
-            isCollapsed={false}
-            onToggleCollapse={handleToggleSidebar}
-          />
-        </div>
-
-        {/* Main Chat Area */}
-        <main className="flex-1 overflow-hidden">
-        {isOllamaConnected === false ? (
-          // Ollama not connected - show error with retry
-          <OllamaConnectionError
-            onRetry={handleRetry}
-            isRetrying={isRetrying}
-          />
-        ) : isLoadingConversations ? (
-          // Loading state
-          <div className="flex items-center justify-center h-full">
-            <div className="text-gray-400">Lade Unterhaltungen...</div>
-          </div>
-        ) : activeConversation ? (
-          // Show chat interface with active conversation
-          <ChatProvider key={activeConversation.id}>
-            <ChatContainer />
-          </ChatProvider>
-        ) : null}
-        </main>
-      </div>
-
-      {/* Toast Notifications */}
+      {/* Toast Notifications - Outside AppShell for proper z-index */}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
-    </div>
+    </>
   );
 }
 
