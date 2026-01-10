@@ -1478,6 +1478,33 @@ Status: 49/111 Features (44.1%)
 
 Status: 50/111 Features (45.0%)
 
+- [X] Feature #39: UI Component - New Chat Button
+  - NewChatButton.tsx mit Plus Icon erstellt
+  - Variants: primary, secondary, ghost
+  - Sizes: sm, md, lg
+  - NewChatButtonIcon: Icon-only Variante
+  - NewChatFAB: Floating Action Button Variante
+  - Header.tsx refaktoriert - nutzt jetzt NewChatButton
+  - npm run build erfolgreich
+  - npm run test:run: 96/96 Tests bestanden
+  - Browser-Verifikation: Button erstellt neue Conversation
+  - Screenshot: .adw/screenshots/feature_39_new_chat_button.png
+  - Git Commit: b793e67
+
+- [X] Feature #40: UI Component - Conversation List
+  - ConversationList.tsx mit Datumsgruppierung erstellt
+  - Gruppen: Heute, Gestern, Diese Woche, Diesen Monat, Älter
+  - ConversationItem als wiederverwendbare Komponente extrahiert
+  - ConversationSidebar refaktoriert - nutzt jetzt ConversationList
+  - ARIA listbox role für Accessibility
+  - npm run build erfolgreich
+  - npm run test:run: 96/96 Tests bestanden
+  - Browser-Verifikation: "HEUTE" Header sichtbar, Gruppierung funktioniert
+  - Screenshot: .adw/screenshots/feature_40_conversation_list.png
+  - Git Commit: 63e3849
+
+Status: 52/111 Features (46.8%)
+
 Nächstes Feature:
 - adw features next
 

@@ -100,6 +100,14 @@ export {
   type NewChatButtonIconProps,
   type NewChatFABProps,
 } from './NewChatButton';
+
+// Conversation List
+export {
+  ConversationList,
+  ConversationItem,
+  type ConversationListProps,
+  type ConversationItemProps,
+} from './ConversationList';
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 
