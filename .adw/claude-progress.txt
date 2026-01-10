@@ -1564,3 +1564,68 @@ Status: 57/111 Features (51.4%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #46 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #80: Functional - Stop Generation
+  - War bereits vollständig implementiert (ChatInput.tsx, ChatContext.tsx)
+  - Stop-Button (Square Icon, rot) während Streaming sichtbar
+  - AbortController bricht fetch request ab
+  - Partial Response wird behalten mit status 'complete'
+  - Screenshot: .adw/screenshots/feature_80_stop_generation.png
+  - Git Commit: 5d5d104
+
+- [X] Feature #44: UI Component - AI Message Bubble
+  - Neue AIMessage.tsx Komponente erstellt
+  - Left-aligned mit Bot Avatar
+  - Gray background (theme-aware für dark/light)
+  - Markdown rendering via react-markdown
+  - Code highlighting mit Prism.js
+  - Copy-to-clipboard Button on hover
+  - Streaming cursor animation
+  - Varianten: AIMessageCompact, AIMessageBubble, AIMessageStreaming
+  - Screenshot: .adw/screenshots/feature_44_ai_message.png
+  - Git Commit: 5d79436
+
+- [X] Feature #70: Hooks - useAutoResize Hook
+  - Neuer Hook für auto-resizing textarea
+  - useAutoResize: Basis-Hook mit ref und options
+  - useAutoResizeValue: Vereinfachter Hook mit value dependency
+  - useAutoResizeTextarea: Komplettlösung mit value state
+  - Max height limit (default 200px)
+  - Min height support
+  - Reset on submit
+  - 11 Unit Tests hinzugefügt (121 total)
+  - Screenshot: .adw/screenshots/feature_70_autoresize.png
+  - Git Commit: fa5c6fd
+
+- [X] Feature #45: UI Component - Chat Textarea
+  - Neue ChatTextarea.tsx Komponente
+  - Auto-resize basierend auf Inhalt (bis 4 Zeilen default)
+  - Enter to send, Shift+Enter für newline
+  - Disabled state während Streaming
+  - Focus management mit autoFocus
+  - Varianten: ChatTextarea, ChatTextareaStandalone, ChatTextareaWithControls
+  - Screenshot: .adw/screenshots/feature_45_chat_textarea.png
+  - Git Commit: b5b13d0
+
+- [X] Feature #71: UI Component - Search Input
+  - Neue SearchInput.tsx Komponente für Filtering
+  - Search icon prefix (Lucide Search)
+  - Clear button (X) wenn Wert vorhanden
+  - Debounced onChange (300ms default)
+  - Loading state indicator
+  - Size variants: sm, md, lg
+  - Style variants: default, filled, ghost
+  - SearchInputCompact: minimale Version
+  - SearchInputWithResults: Dropdown-Support
+  - Screenshot: .adw/screenshots/feature_71_search_input.png
+  - Git Commit: 7c6273c
+
+Status: 62/111 Features (55.9%)
+
+Nächstes Feature:
+- adw features next
+
