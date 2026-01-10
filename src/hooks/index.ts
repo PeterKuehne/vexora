@@ -34,3 +34,16 @@ export {
   useDebouncedState,
   useThrottle,
 } from './useDebounce';
+
+// Auto-resize textarea hook
+export {
+  useAutoResize,
+  useAutoResizeValue,
+  useAutoResizeTextarea,
+} from './useAutoResize';
+export type {
+  UseAutoResizeOptions,
+  UseAutoResizeReturn,
+  UseAutoResizeTextareaOptions,
+  UseAutoResizeTextareaReturn,
+} from './useAutoResize';
