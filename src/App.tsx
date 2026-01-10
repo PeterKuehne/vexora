@@ -101,11 +101,11 @@ function AppContent() {
     />
   );
 
-  // Sidebar Content
-  const sidebar = (
+  // Sidebar Content - receives controls from AppShell
+  const renderSidebar = (sidebarControls: SidebarControls) => (
     <ConversationSidebar
-      isCollapsed={false}
-      onToggleCollapse={() => {}}
+      isCollapsed={sidebarControls.isCollapsed}
+      onToggleCollapse={sidebarControls.toggle}
     />
   );
 
@@ -129,7 +129,7 @@ function AppContent() {
     <>
       <AppShell
         header={renderHeader}
-        sidebar={sidebar}
+        sidebar={renderSidebar}
       >
         {mainContent}
       </AppShell>

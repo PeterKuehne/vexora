@@ -22,8 +22,8 @@ export interface AppShellProps {
   headerContent?: ReactNode;
   /** Header left content (logo, title) - deprecated, use header prop */
   headerLeft?: ReactNode;
-  /** Sidebar content */
-  sidebar?: ReactNode;
+  /** Sidebar content or render function receiving sidebar controls */
+  sidebar?: ReactNode | ((controls: SidebarControls) => ReactNode);
   /** Main content area */
   children: ReactNode;
   /** Initial sidebar collapsed state */
@@ -130,7 +130,7 @@ export function AppShell({
             `.trim()}
             aria-label="Sidebar"
           >
-            {sidebar}
+            {typeof sidebar === 'function' ? sidebar(sidebarControls) : sidebar}
           </aside>
         )}
 

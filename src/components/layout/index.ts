@@ -22,3 +22,13 @@ export {
   type HeaderProps,
   type HeaderSectionProps,
 } from './Header';
+
+export {
+  Sidebar,
+  SidebarSection,
+  SidebarItem,
+  SidebarDivider,
+  type SidebarProps,
+  type SidebarSectionProps,
+  type SidebarItemProps,
+} from './Sidebar';
