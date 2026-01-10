@@ -167,6 +167,20 @@ export {
   type SearchResult,
 } from './SearchInput';
 
+// Send Button
+export {
+  SendButton,
+  SendButtonIcon,
+  StopButton,
+  SendButtonWithLoading,
+  type SendButtonProps,
+  type SendButtonIconProps,
+  type StopButtonProps,
+  type SendButtonWithLoadingProps,
+  type SendButtonSize,
+  type SendButtonVariant,
+} from './SendButton';
+
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 

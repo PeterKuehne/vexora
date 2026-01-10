@@ -6,8 +6,8 @@
  */
 
 import { useState, useRef, useEffect, type KeyboardEvent, type FormEvent } from 'react';
-import { Send, Square } from 'lucide-react';
 import { cn } from '../utils';
+import { SendButton } from './SendButton';
 
 export interface ChatInputProps {
   /** Called when user sends a message */
@@ -70,8 +70,6 @@ export function ChatInput({
     onStop?.();
   };
 
-  const canSend = input.trim().length > 0 && !isStreaming && !disabled;
-
   return (
     <form onSubmit={handleSubmit} className="relative">
       <div className="flex items-end gap-2 p-3 rounded-xl bg-surface border border-white/10">
@@ -91,34 +89,12 @@ export function ChatInput({
           )}
         />
 
-        {isStreaming ? (
-          <button
-            type="button"
-            onClick={handleStop}
-            className={cn(
-              'p-2 rounded-lg transition-all',
-              'bg-red-500/20 text-red-400 hover:bg-red-500/30',
-              'cursor-pointer'
-            )}
-            title="Stoppen"
-          >
-            <Square size={18} />
-          </button>
-        ) : (
-          <button
-            type="submit"
-            disabled={!canSend}
-            className={cn(
-              'p-2 rounded-lg transition-all',
-              canSend
-                ? 'bg-primary text-white hover:opacity-90 cursor-pointer'
-                : 'bg-white/10 text-gray-500 cursor-not-allowed'
-            )}
-            title="Senden"
-          >
-            <Send size={18} />
-          </button>
-        )}
+        <SendButton
+          hasContent={input.trim().length > 0}
+          isStreaming={isStreaming}
+          disabled={disabled}
+          onStop={handleStop}
+        />
       </div>
 
       {/* Hint */}
