@@ -17,6 +17,7 @@ import { useConversations } from '../contexts';
 import { useTheme } from '../contexts';
 import { formatDate } from '../utils';
 import { Sidebar } from './layout';
+import { SkeletonConversationList } from './Skeleton';
 
 /** Sidebar width in pixels - matches design spec */
 const SIDEBAR_WIDTH = 280;
@@ -37,6 +38,7 @@ export function ConversationSidebar({
     activeConversationId,
     setActiveConversation,
     deleteConversation,
+    isLoading,
   } = useConversations();
   const { isDark } = useTheme();
 
@@ -109,8 +111,13 @@ export function ConversationSidebar({
       footer={footerContent}
       ariaLabel="Unterhaltungen Sidebar"
     >
-      {/* Conversation List */}
-      {sortedConversations.length === 0 ? (
+      {/* Loading State */}
+      {isLoading ? (
+        <div className="py-2 px-2">
+          <SkeletonConversationList count={5} />
+        </div>
+      ) : sortedConversations.length === 0 ? (
+        /* Empty State */
         <div
           className={`px-3 py-8 text-center text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
         >

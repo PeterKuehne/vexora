@@ -1451,6 +1451,33 @@ Erledigt:
 
 Status: 49/111 Features (44.1%)
 
+- [X] Feature #91: UI Polish - Loading States
+  - Neue Skeleton.tsx Komponente erstellt:
+    - Skeleton: Base mit shimmer animation
+    - SkeletonText: Multi-line text placeholder
+    - SkeletonAvatar: Avatar placeholder
+    - SkeletonMessage: Chat message placeholder
+    - SkeletonMessageList: Multiple messages
+    - SkeletonConversationItem/List: Sidebar placeholders
+  - Neue Spinner.tsx Komponente erstellt:
+    - Spinner: Animated loading spinner (Loader2)
+    - SpinnerOverlay: Full-screen spinner overlay
+    - InlineSpinner: For buttons
+    - LoadingButtonContent: Button loading state helper
+  - ConversationSidebar: SkeletonConversationList integriert
+  - Bestehende Loading States verifiziert:
+    - "Denke nach..." mit Spinner während Streaming
+    - Disabled Input während Streaming
+    - Stop-Button ersetzt Send-Button
+    - "Verbinde..." Status im Header
+  - npm run build erfolgreich
+  - npm run test:run: 96/96 Tests bestanden
+  - Browser-Verifikation: Alle Loading States funktionieren
+  - Screenshot: .adw/screenshots/feature_91_loading_streaming.png
+  - Git Commit: efb0a3c
+
+Status: 50/111 Features (45.0%)
+
 Nächstes Feature:
 - adw features next
 
