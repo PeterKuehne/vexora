@@ -1508,3 +1508,59 @@ Status: 52/111 Features (46.8%)
 Nächstes Feature:
 - adw features next
 
+=== Session: Coding #45 ===
+Datum: 2026-01-10
+Agent: Coding
+
+Erledigt:
+- [X] Feature #41: UI Component - Conversation Item
+  - War bereits in Feature #40 (ConversationList.tsx) implementiert
+  - Verifiziert: Title, Preview, Timestamp, Active State, Hover Actions
+  - Screenshot: .adw/screenshots/feature_41_conversation_item.png
+  - Git Commit: fddbe3a
+
+- [X] Feature #42: UI Component - Message List
+  - Neue MessageList.tsx Komponente erstellt
+  - Auto-scroll to bottom on new messages
+  - forwardRef mit scrollToBottom/scrollToMessage Methoden
+  - MessageListLoadingIndicator mit animierten Dots
+  - MessageListEmptyState für leere Chats
+  - ARIA-Attribute für Accessibility (role="log", aria-live="polite")
+  - Screenshot: .adw/screenshots/feature_42_message_list.png
+  - Git Commit: 6c578a7
+
+- [X] Feature #43: UI Component - User Message Bubble
+  - Neue UserMessage.tsx Komponente erstellt
+  - Right-aligned (flex-row-reverse)
+  - Blue Background (bg-primary)
+  - Timestamp unter jeder Nachricht
+  - UserMessageCompact und UserMessageBubble Varianten
+  - MessageBubble.tsx erweitert um showTimestamp prop
+  - Screenshot: .adw/screenshots/feature_43_user_message.png
+  - Git Commit: 2249da5
+
+- [X] Feature #69: Hooks - useDebounce Hook
+  - Neue useDebounce.ts mit 4 Hooks:
+    - useDebounce<T>: Debounce values mit configurable delay
+    - useDebouncedCallback: Debounce callbacks mit cancel/flush/isPending
+    - useDebouncedState: useState mit debounced updates
+    - useThrottle<T>: Throttle values (bonus)
+  - 14 Unit-Tests alle bestanden (110 total)
+  - Screenshot: .adw/screenshots/feature_69_useDebounce.png
+  - Git Commit: 9776cf0
+
+- [X] Feature #77: Error Handling - Model Not Available
+  - ModelSelector.tsx erweitert:
+    - useEffect prüft Model Availability beim Laden
+    - autoFallback prop für automatischen Wechsel zu Default
+    - onModelUnavailable callback für externe Handler
+    - Toast-Notification bei nicht verfügbarem Modell
+    - AlertTriangle Icon für visuelles Feedback
+  - Screenshot: .adw/screenshots/feature_77_model_availability.png
+  - Git Commit: b10503a
+
+Status: 57/111 Features (51.4%)
+
+Nächstes Feature:
+- adw features next
+
