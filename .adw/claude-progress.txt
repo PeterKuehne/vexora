@@ -1793,7 +1793,36 @@ Erledigt:
   - Screenshot: .adw/screenshots/feature_73_storage_quota_alert.png
   - Git Commit: 626264d
 
-Status: 67/111 Features (60.4%)
+- [X] Feature #74: Functional - Search/Filter Conversations
+  - ConversationContext erweitert um Search State:
+    - searchQuery, filteredConversations, isSearchActive State
+    - setSearchQuery, clearSearch Actions
+    - Debounced search mit useDebounce Hook (300ms)
+    - Filter Logic: Sucht in Conversation.title und Message.content
+    - useMemo für Performance-Optimierung
+  - ConversationSearch.tsx: Spezialisierte Search-Komponenten
+    - ConversationSearch: Full-featured mit Clear-Button
+    - ConversationSearchCompact: Minimale Version
+    - ConversationSearchBar: Mit Result Count und Clear All
+    - Integration mit ConversationContext
+  - ConversationSidebar aktualisiert:
+    - ConversationSearchBar integriert mit Border-Separator
+    - displayConversations nutzt filteredConversations bei Search
+    - Footer zeigt "X von Y Unterhaltungen" bei aktiver Suche
+    - Empty Message unterscheidet zwischen Search/No Data
+  - TypeScript strict mode kompatibel (exactOptionalPropertyTypes)
+  - Barrel-Export in components/index.ts erweitert
+  - npm run build erfolgreich (Frontend + Backend)
+  - npm run lint: 0 Errors
+  - Browser-Verifikation:
+    - Search Input in Sidebar integriert ✓
+    - Filter funktioniert: "Test" zeigt nur matching Conversation ✓
+    - Debounced Search (300ms) funktioniert ✓
+    - Search in Titel und Content funktioniert ✓
+  - Screenshot: .playwright-mcp/feature_74_conversation_search.png
+  - Git Commit: 564da8c
+
+Status: 68/111 Features (61.3%)
 
 Nächstes Feature:
 - adw features next

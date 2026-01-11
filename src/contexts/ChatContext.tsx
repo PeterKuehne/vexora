@@ -98,11 +98,17 @@ export function ChatProvider({ children, initialModel }: ChatProviderProps) {
    * Show error as toast notification
    */
   const showErrorToast = useCallback(
-    (err: Error, onRetry?: () => void) => {
-      const parsed = parseError(err);
+    (err: Error, onRetry?: () => void, partialResponse?: string) => {
+      const parsed = parseError(err, partialResponse);
 
-      toast.error(parsed.userMessage, {
-        title: parsed.category === 'network' ? 'Netzwerkfehler' : 'Fehler',
+      // Use different toast type for stream interruption
+      const toastType = parsed.category === 'stream_interrupted' ? 'warning' : 'error';
+      const toastTitle = parsed.category === 'stream_interrupted' ? 'Stream unterbrochen'
+        : parsed.category === 'network' ? 'Netzwerkfehler'
+        : 'Fehler';
+
+      toast[toastType](parsed.userMessage, {
+        title: toastTitle,
         onRetry: parsed.isRetryable ? onRetry : undefined,
         duration: parsed.isRetryable ? 0 : 8000, // Don't auto-dismiss if retryable
       });
@@ -189,30 +195,72 @@ export function ChatProvider({ children, initialModel }: ChatProviderProps) {
               setLastMetadata(metadata ?? null);
               currentAssistantIdRef.current = null;
             },
-            onError: (err) => {
+            onError: (err, partialResponse) => {
               setError(err);
+
+              // Parse error to get better information
+              const parsed = parseError(err, partialResponse);
+
+              // If we have a partial response and it's a stream interrupted error,
+              // keep the message with the partial content
+              if (partialResponse && parsed.category === 'stream_interrupted') {
+                if (currentAssistantIdRef.current) {
+                  updateMessageInActive(currentAssistantIdRef.current, {
+                    content: partialResponse,
+                    status: 'complete', // Mark as complete with partial content
+                    isStreaming: false,
+                  });
+                }
+              } else {
+                // Mark assistant message as error
+                if (currentAssistantIdRef.current) {
+                  updateMessageInActive(currentAssistantIdRef.current, {
+                    status: 'error',
+                    isStreaming: false,
+                    error: err.message,
+                  });
+                }
+              }
 
               // Show toast notification for the error
               showErrorToast(err, () => {
                 // Retry: resend the last user message
                 const lastUserMessage = allMessages[allMessages.length - 1];
                 if (lastUserMessage?.role === 'user') {
-                  // Remove the failed assistant message first
-                  // Then resend will be handled by sendMessage callback
+                  sendMessage(lastUserMessage.content);
                 }
-              });
+              }, partialResponse);
 
-              // Mark assistant message as error
+              setIsStreaming(false);
+              setStreamProgress(null);
+              currentAssistantIdRef.current = null;
+            },
+            onConnectionInterrupted: (partialResponse, metadata) => {
+              // Handle connection interrupted gracefully
               if (currentAssistantIdRef.current) {
                 updateMessageInActive(currentAssistantIdRef.current, {
-                  status: 'error',
+                  content: partialResponse,
+                  status: 'complete',
                   isStreaming: false,
-                  error: err.message,
+                  tokenCount: metadata.tokensPerSecond ? Math.round(metadata.tokensPerSecond) : undefined,
                 });
               }
 
               setIsStreaming(false);
               setStreamProgress(null);
+              setLastMetadata(metadata as StreamMetadata);
+
+              // Show info toast about interruption
+              toast.info('Verbindung unterbrochen - bisherige Antwort wurde gespeichert', {
+                title: 'Stream unterbrochen',
+                onRetry: () => {
+                  const lastUserMessage = allMessages[allMessages.length - 1];
+                  if (lastUserMessage?.role === 'user') {
+                    sendMessage(lastUserMessage.content);
+                  }
+                },
+              });
+
               currentAssistantIdRef.current = null;
             },
           },

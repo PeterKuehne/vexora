@@ -18,6 +18,7 @@ export type ErrorCategory =
   | 'validation'   // Validation errors (400)
   | 'not_found'    // Not found (404)
   | 'ollama'       // Ollama-specific errors
+  | 'stream_interrupted' // Streaming connection interrupted
   | 'unknown';     // Unknown errors
 
 export interface ParsedError {
@@ -27,6 +28,8 @@ export interface ParsedError {
   isRetryable: boolean;
   statusCode?: number;
   originalError: unknown;
+  /** Partial response content if streaming was interrupted */
+  partialResponse?: string | undefined;
 }
 
 // ============================================
@@ -42,6 +45,7 @@ const USER_MESSAGES: Record<ErrorCategory, string> = {
   validation: 'Die eingegebenen Daten sind ungültig.',
   not_found: 'Die angeforderte Ressource wurde nicht gefunden.',
   ollama: 'Ollama ist nicht erreichbar. Stelle sicher, dass der Server läuft.',
+  stream_interrupted: 'Die Verbindung wurde unterbrochen. Die bisherige Antwort wurde gespeichert.',
   unknown: 'Ein unerwarteter Fehler ist aufgetreten.',
 };
 
@@ -49,7 +53,7 @@ const USER_MESSAGES: Record<ErrorCategory, string> = {
  * Categories that are considered retryable
  * Used in parseError to set the isRetryable flag
  */
-export const RETRYABLE_CATEGORIES: readonly ErrorCategory[] = ['network', 'timeout', 'server', 'ollama'] as const;
+export const RETRYABLE_CATEGORIES: readonly ErrorCategory[] = ['network', 'timeout', 'server', 'ollama', 'stream_interrupted'] as const;
 
 // ============================================
 // Error Parsing
@@ -58,7 +62,7 @@ export const RETRYABLE_CATEGORIES: readonly ErrorCategory[] = ['network', 'timeo
 /**
  * Parse an error and return structured error information
  */
-export function parseError(error: unknown): ParsedError {
+export function parseError(error: unknown, partialResponse?: string): ParsedError {
   // Handle AbortError (user cancelled)
   if (error instanceof DOMException && error.name === 'AbortError') {
     return {
@@ -67,6 +71,7 @@ export function parseError(error: unknown): ParsedError {
       userMessage: 'Anfrage wurde abgebrochen.',
       isRetryable: false,
       originalError: error,
+      partialResponse,
     };
   }
 
@@ -86,6 +91,7 @@ export function parseError(error: unknown): ParsedError {
         userMessage: USER_MESSAGES.network,
         isRetryable: true,
         originalError: error,
+        partialResponse,
       };
     }
 
@@ -97,6 +103,7 @@ export function parseError(error: unknown): ParsedError {
         userMessage: 'CORS-Fehler: Der Server erlaubt keine Anfragen von dieser Domain.',
         isRetryable: false,
         originalError: error,
+        partialResponse,
       };
     }
   }
@@ -104,6 +111,22 @@ export function parseError(error: unknown): ParsedError {
   // Handle standard Error objects
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
+
+    // Stream interrupted errors
+    if (
+      message.includes('connection interrupted') ||
+      message.includes('stream interrupted') ||
+      (message.includes('connection') && partialResponse)
+    ) {
+      return {
+        category: 'stream_interrupted',
+        message: error.message,
+        userMessage: USER_MESSAGES.stream_interrupted,
+        isRetryable: true,
+        originalError: error,
+        partialResponse,
+      };
+    }
 
     // Timeout errors
     if (message.includes('timeout') || message.includes('timed out')) {
@@ -113,6 +136,7 @@ export function parseError(error: unknown): ParsedError {
         userMessage: USER_MESSAGES.timeout,
         isRetryable: true,
         originalError: error,
+        partialResponse,
       };
     }
 
@@ -128,6 +152,7 @@ export function parseError(error: unknown): ParsedError {
         userMessage: USER_MESSAGES.ollama,
         isRetryable: true,
         originalError: error,
+        partialResponse,
       };
     }
 
@@ -135,7 +160,7 @@ export function parseError(error: unknown): ParsedError {
     const httpMatch = message.match(/http\s*(\d{3})/i);
     if (httpMatch) {
       const statusCode = parseInt(httpMatch[1], 10);
-      return parseHttpStatusError(statusCode, error.message, error);
+      return parseHttpStatusError(statusCode, error.message, error, partialResponse);
     }
 
     // Generic network error
@@ -146,6 +171,7 @@ export function parseError(error: unknown): ParsedError {
         userMessage: USER_MESSAGES.network,
         isRetryable: true,
         originalError: error,
+        partialResponse,
       };
     }
 
@@ -156,6 +182,7 @@ export function parseError(error: unknown): ParsedError {
       userMessage: error.message || USER_MESSAGES.unknown,
       isRetryable: false,
       originalError: error,
+      partialResponse,
     };
   }
 
@@ -166,6 +193,7 @@ export function parseError(error: unknown): ParsedError {
     userMessage: USER_MESSAGES.unknown,
     isRetryable: false,
     originalError: error,
+    partialResponse,
   };
 }
 
@@ -175,7 +203,8 @@ export function parseError(error: unknown): ParsedError {
 function parseHttpStatusError(
   statusCode: number,
   message: string,
-  originalError: unknown
+  originalError: unknown,
+  partialResponse?: string
 ): ParsedError {
   if (statusCode === 400) {
     return {
@@ -185,6 +214,7 @@ function parseHttpStatusError(
       isRetryable: false,
       statusCode,
       originalError,
+      partialResponse,
     };
   }
 
@@ -196,6 +226,7 @@ function parseHttpStatusError(
       isRetryable: false,
       statusCode,
       originalError,
+      partialResponse,
     };
   }
 
@@ -207,6 +238,7 @@ function parseHttpStatusError(
       isRetryable: false,
       statusCode,
       originalError,
+      partialResponse,
     };
   }
 
@@ -218,6 +250,7 @@ function parseHttpStatusError(
       isRetryable: true,
       statusCode,
       originalError,
+      partialResponse,
     };
   }
 
@@ -241,6 +274,7 @@ function parseHttpStatusError(
       isRetryable: true,
       statusCode,
       originalError,
+      partialResponse,
     };
   }
 
@@ -252,6 +286,7 @@ function parseHttpStatusError(
       isRetryable: false,
       statusCode,
       originalError,
+      partialResponse,
     };
   }
 

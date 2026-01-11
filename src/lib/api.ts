@@ -47,9 +47,11 @@ export interface StreamChunk {
 export interface StreamCallbacks {
   onToken: (token: string) => void;
   onComplete: (fullResponse: string, metadata?: StreamMetadata) => void;
-  onError: (error: Error) => void;
+  onError: (error: Error, partialResponse?: string) => void;
   /** Optional callback for streaming progress updates */
   onProgress?: (progress: StreamProgress) => void;
+  /** Optional callback for connection interruption */
+  onConnectionInterrupted?: (partialResponse: string, metadata: Partial<StreamMetadata>) => void;
 }
 
 export interface StreamMetadata {
@@ -104,6 +106,10 @@ export async function streamChat(
     options: chatOptions,
   };
 
+  // Variables to track response and metadata across try/catch blocks
+  let fullResponse = '';
+  let metadata: StreamMetadata = {};
+
   try {
     const response = await fetch(`${env.API_URL}/api/chat`, {
       method: 'POST',
@@ -129,8 +135,6 @@ export async function streamChat(
     }
 
     const decoder = new TextDecoder();
-    let fullResponse = '';
-    let metadata: StreamMetadata = {};
 
     // Buffer for handling partial SSE chunks
     // SSE data can be split across multiple read() calls
@@ -140,80 +144,110 @@ export async function streamChat(
     const streamStartTime = Date.now();
     let tokenCount = 0;
 
+    let connectionInterrupted = false;
+    let lastSuccessfulRead = Date.now();
+    const CONNECTION_TIMEOUT = 30000; // 30 seconds timeout
+
     try {
       while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        try {
+          const { done, value } = await reader.read();
+          lastSuccessfulRead = Date.now();
 
-        // Append decoded chunk to buffer
-        buffer += decoder.decode(value, { stream: true });
+          if (done) break;
 
-        // Process complete lines from buffer
-        const lines = buffer.split('\n');
-        // Keep the last incomplete line in buffer
-        buffer = lines.pop() ?? '';
+          // Append decoded chunk to buffer
+          buffer += decoder.decode(value, { stream: true });
 
-        for (const line of lines) {
-          // Skip empty lines (SSE uses double newlines as separators)
-          if (!line.trim()) continue;
+          // Process complete lines from buffer
+          const lines = buffer.split('\n');
+          // Keep the last incomplete line in buffer
+          buffer = lines.pop() ?? '';
 
-          // SSE format: "data: {...}"
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6); // Remove "data: " prefix
+          for (const line of lines) {
+            // Skip empty lines (SSE uses double newlines as separators)
+            if (!line.trim()) continue;
 
-            if (data === '[DONE]') {
-              // Stream complete - calculate final stats
-              const streamDuration = Date.now() - streamStartTime;
-              const tokensPerSecond = streamDuration > 0
-                ? (tokenCount / streamDuration) * 1000
-                : 0;
+            // SSE format: "data: {...}"
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6); // Remove "data: " prefix
 
-              metadata.streamDuration = streamDuration;
-              metadata.tokensPerSecond = Math.round(tokensPerSecond * 10) / 10;
+              if (data === '[DONE]') {
+                // Stream complete - calculate final stats
+                const streamDuration = Date.now() - streamStartTime;
+                const tokensPerSecond = streamDuration > 0
+                  ? (tokenCount / streamDuration) * 1000
+                  : 0;
 
-              onComplete(fullResponse, metadata);
-              return;
-            }
+                metadata.streamDuration = streamDuration;
+                metadata.tokensPerSecond = Math.round(tokensPerSecond * 10) / 10;
 
-            try {
-              const parsed: StreamChunk = JSON.parse(data);
+                onComplete(fullResponse, metadata);
+                return;
+              }
 
-              if (parsed.message?.content) {
-                const token = parsed.message.content;
-                fullResponse += token;
-                tokenCount++;
+              try {
+                const parsed: StreamChunk = JSON.parse(data);
 
-                // Call token callback
-                onToken(token);
+                if (parsed.message?.content) {
+                  const token = parsed.message.content;
+                  fullResponse += token;
+                  tokenCount++;
 
-                // Report progress if callback provided
-                if (onProgress) {
-                  const elapsedMs = Date.now() - streamStartTime;
-                  const tokensPerSecond = elapsedMs > 0
-                    ? (tokenCount / elapsedMs) * 1000
-                    : 0;
+                  // Call token callback
+                  onToken(token);
 
-                  onProgress({
-                    tokenCount,
-                    elapsedMs,
-                    tokensPerSecond: Math.round(tokensPerSecond * 10) / 10,
-                  });
+                  // Report progress if callback provided
+                  if (onProgress) {
+                    const elapsedMs = Date.now() - streamStartTime;
+                    const tokensPerSecond = elapsedMs > 0
+                      ? (tokenCount / elapsedMs) * 1000
+                      : 0;
+
+                    onProgress({
+                      tokenCount,
+                      elapsedMs,
+                      tokensPerSecond: Math.round(tokensPerSecond * 10) / 10,
+                    });
+                  }
                 }
-              }
 
-              // Capture metadata from final chunk
-              if (parsed.done) {
-                metadata = {
-                  ...metadata,
-                  totalDuration: parsed.total_duration,
-                  promptTokens: parsed.prompt_eval_count,
-                  completionTokens: parsed.eval_count,
-                };
+                // Capture metadata from final chunk
+                if (parsed.done) {
+                  metadata = {
+                    ...metadata,
+                    totalDuration: parsed.total_duration,
+                    promptTokens: parsed.prompt_eval_count,
+                    completionTokens: parsed.eval_count,
+                  };
+                }
+              } catch {
+                // Skip malformed JSON (partial chunk will be handled on next read)
               }
-            } catch {
-              // Skip malformed JSON (partial chunk will be handled on next read)
             }
           }
+        } catch (readError) {
+          // Check if this is a connection interruption
+          const timeSinceLastRead = Date.now() - lastSuccessfulRead;
+
+          if (timeSinceLastRead > CONNECTION_TIMEOUT) {
+            connectionInterrupted = true;
+
+            // Call connection interrupted callback if partial response exists
+            if (fullResponse.trim() && callbacks.onConnectionInterrupted) {
+              const streamDuration = Date.now() - streamStartTime;
+              const partialMetadata: Partial<StreamMetadata> = {
+                streamDuration,
+                tokensPerSecond: streamDuration > 0 ? (tokenCount / streamDuration) * 1000 : 0,
+              };
+
+              callbacks.onConnectionInterrupted(fullResponse, partialMetadata);
+              return;
+            }
+          }
+
+          // Re-throw the error for other error types
+          throw readError;
         }
       }
 
@@ -242,8 +276,19 @@ export async function streamChat(
       metadata.streamDuration = streamDuration;
       metadata.tokensPerSecond = Math.round(tokensPerSecond * 10) / 10;
 
-      // If we get here without [DONE], still call onComplete
-      onComplete(fullResponse, metadata);
+      // If we get here without [DONE], check if connection was interrupted
+      if (connectionInterrupted) {
+        // Handle as connection interruption
+        if (fullResponse.trim() && callbacks.onConnectionInterrupted) {
+          callbacks.onConnectionInterrupted(fullResponse, metadata);
+        } else {
+          // No partial response, treat as error
+          throw new Error('Connection interrupted with no partial response');
+        }
+      } else {
+        // Normal completion without explicit [DONE]
+        onComplete(fullResponse, metadata);
+      }
     } finally {
       reader.releaseLock();
     }
@@ -251,12 +296,17 @@ export async function streamChat(
     if (error instanceof Error) {
       // Don't report abort errors as actual errors
       if (error.name === 'AbortError') {
-        onComplete('', undefined);
+        onComplete(fullResponse || '', metadata);
         return;
       }
-      onError(error);
+
+      // Check if we have partial response to include with error
+      const partialResponse = fullResponse && fullResponse.trim() ? fullResponse : undefined;
+      onError(error, partialResponse);
     } else {
-      onError(new Error('Unknown error during chat stream'));
+      // Check if we have partial response to include with error
+      const partialResponse = fullResponse && fullResponse.trim() ? fullResponse : undefined;
+      onError(new Error('Unknown error during chat stream'), partialResponse);
     }
   }
 }
