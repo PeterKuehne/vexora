@@ -14,9 +14,11 @@ import {
   useEffect,
   useState,
   useRef,
+  useMemo,
   type ReactNode,
 } from 'react';
 import { generateId } from '../utils';
+import { useDebounce } from '../hooks';
 import type { Conversation, CreateConversationInput } from '../types/conversation';
 import type { Message } from '../types/message';
 
@@ -37,6 +39,8 @@ export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 interface ConversationContextValue {
   /** All conversations */
   conversations: Conversation[];
+  /** Filtered conversations based on search */
+  filteredConversations: Conversation[];
   /** Currently active conversation */
   activeConversation: Conversation | null;
   /** ID of the active conversation */
@@ -47,6 +51,16 @@ interface ConversationContextValue {
   saveStatus: SaveStatus;
   /** Last saved timestamp */
   lastSavedAt: Date | null;
+
+  // Search/Filter
+  /** Current search query */
+  searchQuery: string;
+  /** Set search query */
+  setSearchQuery: (query: string) => void;
+  /** Clear search */
+  clearSearch: () => void;
+  /** Whether search is active */
+  isSearchActive: boolean;
 
   // Actions
   /** Create a new conversation and set it as active */
@@ -194,6 +208,12 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
+  // Search/Filter state
+  const [searchQuery, setSearchQueryState] = useState<string>('');
+
+  // Debounced search query for performance
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
   // Debounce timer ref
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track if this is the initial mount (skip save on first render)
@@ -265,6 +285,32 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
 
   // Get messages for active conversation
   const activeMessages = activeConversation?.messages ?? [];
+
+  // Filter conversations based on search query
+  const filteredConversations = useMemo(() => {
+    if (!debouncedSearchQuery.trim()) {
+      return conversations;
+    }
+
+    const query = debouncedSearchQuery.toLowerCase();
+
+    return conversations.filter((conversation) => {
+      // Search in conversation title
+      if (conversation.title.toLowerCase().includes(query)) {
+        return true;
+      }
+
+      // Search in message content
+      const hasMatchingMessage = conversation.messages.some((message) =>
+        message.content.toLowerCase().includes(query)
+      );
+
+      return hasMatchingMessage;
+    });
+  }, [conversations, debouncedSearchQuery]);
+
+  // Search state helpers
+  const isSearchActive = debouncedSearchQuery.trim().length > 0;
 
   /**
    * Create a new conversation
@@ -411,13 +457,32 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
     );
   }, [activeConversationId]);
 
+  /**
+   * Set search query
+   */
+  const setSearchQuery = useCallback((query: string) => {
+    setSearchQueryState(query);
+  }, []);
+
+  /**
+   * Clear search
+   */
+  const clearSearch = useCallback(() => {
+    setSearchQueryState('');
+  }, []);
+
   const value: ConversationContextValue = {
     conversations,
+    filteredConversations,
     activeConversation,
     activeConversationId,
     isLoading,
     saveStatus,
     lastSavedAt,
+    searchQuery,
+    setSearchQuery,
+    clearSearch,
+    isSearchActive,
     createConversation,
     deleteConversation,
     setActiveConversation,

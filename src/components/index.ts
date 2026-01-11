@@ -197,6 +197,16 @@ export {
   type SearchResult,
 } from './SearchInput';
 
+// Conversation Search
+export {
+  ConversationSearch,
+  ConversationSearchCompact,
+  ConversationSearchBar,
+  type ConversationSearchProps,
+  type ConversationSearchCompactProps,
+  type ConversationSearchBarProps,
+} from './ConversationSearch';
+
 // Send Button
 export {
   SendButton,

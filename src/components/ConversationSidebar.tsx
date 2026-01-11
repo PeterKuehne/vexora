@@ -16,6 +16,7 @@ import { useTheme } from '../contexts';
 import { Sidebar } from './layout';
 import { SkeletonConversationList } from './Skeleton';
 import { ConversationList } from './ConversationList';
+import { ConversationSearchBar } from './ConversationSearch';
 
 /** Sidebar width in pixels - matches design spec */
 const SIDEBAR_WIDTH = 280;
@@ -33,12 +34,17 @@ export function ConversationSidebar({
 }: ConversationSidebarProps) {
   const {
     conversations,
+    filteredConversations,
     activeConversationId,
     setActiveConversation,
     deleteConversation,
     isLoading,
+    isSearchActive,
   } = useConversations();
   const { isDark } = useTheme();
+
+  // Use filtered conversations when search is active, otherwise all conversations
+  const displayConversations = isSearchActive ? filteredConversations : conversations;
 
   // Sidebar header content
   const headerContent = (
@@ -52,7 +58,10 @@ export function ConversationSidebar({
   // Sidebar footer content
   const footerContent = (
     <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-      {conversations.length} Unterhaltung{conversations.length !== 1 ? 'en' : ''}
+      {isSearchActive && displayConversations.length !== conversations.length
+        ? `${displayConversations.length} von ${conversations.length} Unterhaltung${conversations.length !== 1 ? 'en' : ''}`
+        : `${conversations.length} Unterhaltung${conversations.length !== 1 ? 'en' : ''}`
+      }
     </span>
   );
 
@@ -65,6 +74,14 @@ export function ConversationSidebar({
       footer={footerContent}
       ariaLabel="Unterhaltungen Sidebar"
     >
+      {/* Search Bar */}
+      <div className="px-3 pb-3 border-b border-white/10">
+        <ConversationSearchBar
+          showResultCount={false}
+          showClearAll={true}
+        />
+      </div>
+
       {/* Loading State */}
       {isLoading ? (
         <div className="py-2 px-2">
@@ -73,12 +90,16 @@ export function ConversationSidebar({
       ) : (
         /* Conversation List with Date Grouping */
         <ConversationList
-          conversations={conversations}
+          conversations={displayConversations}
           activeConversationId={activeConversationId}
           onConversationClick={setActiveConversation}
           onDelete={deleteConversation}
           groupByDate={true}
-          emptyMessage="Keine Unterhaltungen vorhanden"
+          emptyMessage={
+            isSearchActive
+              ? "Keine Unterhaltungen gefunden"
+              : "Keine Unterhaltungen vorhanden"
+          }
         />
       )}
     </Sidebar>
