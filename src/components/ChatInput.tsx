@@ -72,7 +72,7 @@ export function ChatInput({
 
   return (
     <form onSubmit={handleSubmit} className="relative">
-      <div className="flex items-end gap-2 p-3 rounded-xl bg-surface border border-white/10">
+      <div className="flex items-center gap-2 p-3 rounded-xl bg-surface border border-white/10 focus-within:border-white/10">
         <textarea
           ref={textareaRef}
           value={input}
@@ -83,9 +83,10 @@ export function ChatInput({
           rows={1}
           className={cn(
             'flex-1 bg-transparent resize-none outline-none',
-            'text-white placeholder:text-gray-500',
+            'text-primary placeholder:text-secondary',
             'min-h-[24px] max-h-[200px]',
-            'disabled:opacity-50 disabled:cursor-not-allowed'
+            'disabled:opacity-50 disabled:cursor-not-allowed',
+            'focus:outline-none focus:ring-0 focus:border-0'
           )}
         />
 

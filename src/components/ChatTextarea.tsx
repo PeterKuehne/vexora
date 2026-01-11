@@ -159,8 +159,10 @@ export const ChatTextarea = forwardRef<ChatTextareaRef, ChatTextareaProps>(
           'w-full resize-none outline-none bg-transparent',
           // Text styles
           'text-base leading-6',
+          // Text color (responsive to theme via CSS variables)
+          'text-primary',
           // Placeholder
-          'placeholder:text-gray-500',
+          'placeholder:text-secondary',
           // Disabled state
           'disabled:opacity-50 disabled:cursor-not-allowed',
           // Custom className
@@ -292,14 +294,14 @@ export function ChatTextareaWithControls({
 
   return (
     <div className="relative">
-      <div className="flex items-end gap-2 p-3 rounded-xl bg-surface border border-white/10">
+      <div className="flex items-center gap-2 p-3 rounded-xl bg-surface border border-white/10 focus-within:border-white/10">
         <ChatTextarea
           ref={textareaRef}
           value={value}
           onChange={onChange}
           onSubmit={handleSubmit}
           isDisabled={isDisabled || isStreaming}
-          className={cn('flex-1', className)}
+          className={cn('flex-1 focus:outline-none focus:ring-0', className)}
           {...props}
         />
 

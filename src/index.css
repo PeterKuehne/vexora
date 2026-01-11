@@ -125,6 +125,11 @@ pre {
   outline-offset: 2px;
 }
 
+/* Remove focus outline from textarea (contained in styled input boxes) */
+textarea:focus-visible {
+  outline: none;
+}
+
 /* Selection styles */
 ::selection {
   background-color: var(--primary);

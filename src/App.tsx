@@ -6,6 +6,7 @@ import {
   Header,
   OllamaConnectionError,
   SaveIndicator,
+  StorageQuotaAlert,
   ToastContainer,
   type SidebarControls,
 } from './components';
@@ -133,7 +134,17 @@ function AppContent() {
     </div>
   ) : activeConversation ? (
     <ChatProvider key={activeConversation.id} initialModel={selectedModel}>
-      <ChatContainer />
+      <div className="flex flex-col h-full">
+        {/* Storage Quota Alert - Show when approaching limits */}
+        <div className="shrink-0 p-4">
+          <StorageQuotaAlert />
+        </div>
+
+        {/* Main Chat Area */}
+        <div className="flex-1 overflow-hidden">
+          <ChatContainer />
+        </div>
+      </div>
     </ChatProvider>
   ) : null;
 

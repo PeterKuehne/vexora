@@ -73,6 +73,14 @@ export { OllamaConnectionError } from './OllamaConnectionError';
 // Status components
 export { SaveIndicator } from './SaveIndicator';
 
+// Storage Quota components
+export {
+  StorageQuotaAlert,
+  StorageQuotaAlertCompact,
+  StorageQuotaDebug,
+  type StorageQuotaAlertProps,
+} from './StorageQuotaAlert';
+
 // Branding components
 export { Logo, LogoIcon, type LogoProps, type LogoSize, type LogoIconProps } from './Logo';
 

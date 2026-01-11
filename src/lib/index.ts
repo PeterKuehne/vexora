@@ -54,6 +54,25 @@ export type { ConversationUpdate } from './conversationStorage';
 export { SettingsStorage, settingsStorage } from './settingsStorage';
 export type { SerializedSettings } from './settingsStorage';
 
+// Storage Quota
+export {
+  getStorageUsage,
+  getStorageBreakdown,
+  checkStorageQuota,
+  getCleanupSuggestions,
+  performAutomaticCleanup,
+  formatBytes,
+  formatUsageBar,
+  STORAGE_LIMIT_MB,
+  WARNING_THRESHOLD_MB,
+  CRITICAL_THRESHOLD_MB,
+} from './storageQuota';
+export type {
+  StorageUsage,
+  StorageBreakdown,
+  CleanupSuggestion,
+} from './storageQuota';
+
 // Error Handler
 export {
   parseError,
