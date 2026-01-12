@@ -14,6 +14,7 @@ import {
   Info,
   RefreshCw,
 } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 import type { Toast as ToastType, ToastType as ToastVariant } from '../contexts/ToastContext';
 
 // ============================================
@@ -34,7 +35,7 @@ interface ToastContainerProps {
 // Styles
 // ============================================
 
-const TOAST_STYLES: Record<
+const TOAST_STYLES_DARK: Record<
   ToastVariant,
   {
     bg: string;
@@ -79,6 +80,51 @@ const TOAST_STYLES: Record<
   },
 };
 
+const TOAST_STYLES_LIGHT: Record<
+  ToastVariant,
+  {
+    bg: string;
+    border: string;
+    icon: string;
+    title: string;
+    text: string;
+    button: string;
+  }
+> = {
+  error: {
+    bg: 'bg-red-50',
+    border: 'border-red-300',
+    icon: 'text-red-600',
+    title: 'text-red-900',
+    text: 'text-red-800',
+    button: 'bg-red-600 hover:bg-red-700 text-white',
+  },
+  warning: {
+    bg: 'bg-yellow-50',
+    border: 'border-yellow-300',
+    icon: 'text-yellow-600',
+    title: 'text-yellow-900',
+    text: 'text-yellow-800',
+    button: 'bg-yellow-600 hover:bg-yellow-700 text-white',
+  },
+  success: {
+    bg: 'bg-green-50',
+    border: 'border-green-400',
+    icon: 'text-green-700',
+    title: 'text-green-900',
+    text: 'text-green-800',
+    button: 'bg-green-600 hover:bg-green-700 text-white',
+  },
+  info: {
+    bg: 'bg-blue-50',
+    border: 'border-blue-300',
+    icon: 'text-blue-600',
+    title: 'text-blue-900',
+    text: 'text-blue-800',
+    button: 'bg-blue-600 hover:bg-blue-700 text-white',
+  },
+};
+
 const TOAST_ICONS: Record<ToastVariant, typeof AlertCircle> = {
   error: AlertCircle,
   warning: AlertTriangle,
@@ -98,11 +144,12 @@ const TOAST_TITLES: Record<ToastVariant, string> = {
 // ============================================
 
 export function Toast({ toast, onDismiss }: ToastProps) {
+  const { isDark } = useTheme();
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
 
-  const styles = TOAST_STYLES[toast.type];
+  const styles = isDark ? TOAST_STYLES_DARK[toast.type] : TOAST_STYLES_LIGHT[toast.type];
   const Icon = TOAST_ICONS[toast.type];
   const defaultTitle = TOAST_TITLES[toast.type];
 
