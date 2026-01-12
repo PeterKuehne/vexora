@@ -12,6 +12,7 @@ import { useSettings, useFontSize } from '../contexts/SettingsContext';
 import { GeneralSettings } from './GeneralSettings';
 import { ModelSettings } from './ModelSettings';
 import { AdvancedSettings } from './AdvancedSettings';
+import { ConfirmDialog } from './ConfirmDialog';
 import type { Theme, FontSize } from '../types/settings';
 
 export interface SettingsModalProps {
@@ -66,6 +67,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { settings, updateSetting, resetSettings } = useSettings();
   const { fontSize, setFontSize, fontSizeClass } = useFontSize();
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const handleThemeChange = (newTheme: Theme) => {
     updateSetting('theme', newTheme);
@@ -76,9 +78,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   };
 
   const handleReset = () => {
-    if (confirm('Möchtest du alle Einstellungen auf die Standardwerte zurücksetzen?')) {
-      resetSettings();
-    }
+    setShowResetConfirm(true);
+  };
+
+  const handleConfirmReset = () => {
+    resetSettings();
+    setShowResetConfirm(false);
+  };
+
+  const handleCancelReset = () => {
+    setShowResetConfirm(false);
   };
 
   return (
@@ -323,6 +332,18 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </div>
       </Dialog>
+
+      {/* Confirm Reset Dialog */}
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        title="Einstellungen zurücksetzen"
+        message="Möchten Sie alle Einstellungen auf die Standardwerte zurücksetzen? Diese Aktion kann nicht rückgängig gemacht werden."
+        confirmText="Zurücksetzen"
+        cancelText="Abbrechen"
+        confirmVariant="danger"
+        onConfirm={handleConfirmReset}
+        onCancel={handleCancelReset}
+      />
     </Transition>
   );
 }
