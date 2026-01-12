@@ -1867,7 +1867,22 @@ Erledigt:
   - Screenshot: .playwright-mcp/feature_81_regenerate_response.png
   - Git Commit: 8a0501a
 
-Status: 70/111 Features (63.1%)
+- [X] Feature #92: UI Polish - Toast Notifications
+  - Feature war bereits vollständig implementiert aus Feature #76
+  - ToastContext mit vollständiger API (error, warning, success, info)
+  - Toast-Komponente mit allen Types, Auto-dismiss, Retry-Button, Close-Button
+  - ToastContainer für Multiple-Toast Management mit z-index 50
+  - Integration in App.tsx mit ToastProvider wrapper
+  - Browser-Verifikation: Error-Toast bei Network-Failure
+    - Roter Error-Toast "Netzwerkfehler" erscheint bei Backend-Stop
+    - "Erneut versuchen" Button mit Refresh-Icon funktional
+    - Close-Button (X) zum manuellen Schließen
+    - Progress-Bar für Auto-dismiss (8s für Error-Type)
+  - npm run build erfolgreich (Frontend + Backend)
+  - Screenshot: .adw/screenshots/feature_92_toast_notifications.png
+  - Git Commit: 82c1339
+
+Status: 71/111 Features (64.0%)
 
 Nächstes Feature:
 - adw features next

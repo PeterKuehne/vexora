@@ -11,13 +11,13 @@
  * - Error state handling
  */
 
-import { Bot, AlertCircle, Copy, Check } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { Bot, AlertCircle } from 'lucide-react';
 import { useTheme } from '../contexts';
 import { formatDate, cn } from '../utils';
 import { Markdown } from './Markdown';
 import { TypingIndicator } from './TypingIndicator';
 import { RegenerateButtonIcon } from './RegenerateButton';
+import { CopyButtonIcon } from './CopyButton';
 import type { Message } from '../types';
 
 // ============================================
@@ -58,7 +58,6 @@ export function AIMessage({
   className = '',
 }: AIMessageProps) {
   const { isDark } = useTheme();
-  const [copied, setCopied] = useState(false);
 
   const isStreaming = message.isStreaming;
   const isError = message.status === 'error';
@@ -68,19 +67,6 @@ export function AIMessage({
   const formattedTime = message.timestamp
     ? formatDate(new Date(message.timestamp))
     : '';
-
-  // Copy message content to clipboard
-  const handleCopy = useCallback(async () => {
-    if (!message.content) return;
-
-    try {
-      await navigator.clipboard.writeText(message.content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  }, [message.content]);
 
   return (
     <div
@@ -119,19 +105,13 @@ export function AIMessage({
         >
           {/* Copy Button */}
           {showCopyButton && hasContent && !isStreaming && (
-            <button
-              onClick={handleCopy}
-              className={cn(
-                'absolute top-2 right-2 p-1.5 rounded-md transition-all',
-                'opacity-0 group-hover:opacity-100',
-                isDark
-                  ? 'bg-white/10 hover:bg-white/20 text-gray-400'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-500'
-              )}
-              title={copied ? 'Kopiert!' : 'Kopieren'}
-            >
-              {copied ? <Check size={14} /> : <Copy size={14} />}
-            </button>
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all">
+              <CopyButtonIcon
+                content={message.content}
+                size="sm"
+                variant="ghost"
+              />
+            </div>
           )}
 
           {/* Message Content */}

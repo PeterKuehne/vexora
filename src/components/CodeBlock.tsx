@@ -9,10 +9,10 @@
  * - Support for 20+ programming languages
  */
 
-import { useState, useMemo, useCallback, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import Prism from 'prismjs';
-import { Copy, Check } from 'lucide-react';
 import { useTheme } from '../contexts';
+import { CopyButtonWithLabel } from './CopyButton';
 
 // Import Prism language components
 // Note: Order matters! Some languages depend on others
@@ -178,7 +178,6 @@ export function CodeBlock({
   showLanguageLabel = true,
 }: CodeBlockProps) {
   const { isDark } = useTheme();
-  const [copied, setCopied] = useState(false);
 
   // Normalize language
   const normalizedLanguage = language
@@ -200,27 +199,6 @@ export function CodeBlock({
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
   }, [code, normalizedLanguage]);
-
-  // Copy to clipboard
-  const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Fallback for older browsers
-      const textarea = document.createElement('textarea');
-      textarea.value = code;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  }, [code]);
 
   // Split code into lines for line numbers
   const lines = code.split('\n');
@@ -253,31 +231,13 @@ export function CodeBlock({
 
         {/* Copy button */}
         {showCopyButton && (
-          <button
-            onClick={handleCopy}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors ${
-              copied
-                ? isDark
-                  ? 'text-green-400 bg-green-400/10'
-                  : 'text-green-600 bg-green-100'
-                : isDark
-                  ? 'text-gray-400 hover:text-gray-200 hover:bg-white/10'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
-            }`}
-            aria-label={copied ? 'Kopiert!' : 'Code kopieren'}
-          >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5" />
-                <span>Kopiert!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" />
-                <span>Kopieren</span>
-              </>
-            )}
-          </button>
+          <CopyButtonWithLabel
+            content={code}
+            size="sm"
+            variant="ghost"
+            label="Kopieren"
+            copiedText="Kopiert!"
+          />
         )}
       </div>
 

@@ -249,6 +249,18 @@ export {
   type TypingIndicatorVariant,
 } from './TypingIndicator';
 
+// Copy Button
+export {
+  CopyButton,
+  CopyButtonIcon,
+  CopyButtonWithLabel,
+  CopyButtonSmall,
+  CopyButtonLarge,
+  CopyButtonGhost,
+  CopyButtonOutline,
+  type CopyButtonProps,
+} from './CopyButton';
+
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 
