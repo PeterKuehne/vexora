@@ -29,18 +29,15 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
   const { settings, updateSetting } = useSettings();
   const { info } = useToast();
 
-  // Local state for generation parameters
+  // Local state for generation parameters (not persisted yet)
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(4096);
-  const [systemPrompt, setSystemPrompt] = useState('');
 
-  // Load initial values from settings or defaults
+  // Load initial system prompt from settings
   useEffect(() => {
-    // These would come from a generation params context/storage in the future
-    // For now, using default values
+    // Temperature and maxTokens will come from generation params context in the future
     setTemperature(0.7);
     setMaxTokens(4096);
-    setSystemPrompt('');
   }, []);
 
   /**
@@ -71,9 +68,11 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
    * Handle system prompt change
    */
   const handleSystemPromptChange = (prompt: string) => {
-    setSystemPrompt(prompt);
+    updateSetting('systemPrompt', prompt);
     if (prompt.trim()) {
       info('System-Prompt wurde aktualisiert');
+    } else {
+      info('System-Prompt wurde entfernt');
     }
   };
 
@@ -261,7 +260,7 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
         </label>
         <div className="space-y-3">
           <textarea
-            value={systemPrompt}
+            value={settings.systemPrompt || ''}
             onChange={(e) => handleSystemPromptChange(e.target.value)}
             placeholder="Geben Sie hier einen System-Prompt ein, um das Verhalten der KI zu beeinflussen..."
             rows={6}
@@ -289,10 +288,10 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
               "Antworte immer sehr kurz und präzise". Leer lassen für Standard-Verhalten.
             </div>
           </div>
-          {systemPrompt.trim() && (
+          {settings.systemPrompt && settings.systemPrompt.trim() && (
             <div className="flex items-center gap-2">
               <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                {systemPrompt.length} Zeichen
+                {settings.systemPrompt.length} Zeichen
               </span>
               <button
                 onClick={() => handleSystemPromptChange('')}

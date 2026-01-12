@@ -35,6 +35,8 @@ export interface AppSettings {
   sidebarCollapsed: boolean;
   /** Whether to automatically save conversations */
   autoSave: boolean;
+  /** System prompt to prepend to all conversations */
+  systemPrompt?: string;
 }
 
 /**
@@ -50,6 +52,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   showMarkdownPreview: false,
   sidebarCollapsed: false,
   autoSave: true,
+  systemPrompt: '',
 };
 
 /**

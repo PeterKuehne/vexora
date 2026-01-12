@@ -20,6 +20,7 @@ import {
 } from 'react';
 import { useConversations } from './ConversationContext';
 import { useToast } from './ToastContext';
+import { useSettings } from './SettingsContext';
 import { streamChat, type StreamMetadata, type StreamProgress } from '../lib/api';
 import { parseError } from '../lib/errorHandler';
 import { generateId } from '../utils';
@@ -83,6 +84,7 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
   } = useConversations();
 
   const toast = useToast();
+  const { settings } = useSettings();
 
   // Chat state
   const [isStreaming, setIsStreaming] = useState(false);
@@ -195,7 +197,25 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
       abortControllerRef.current = new AbortController();
 
       // Get all messages for context (including the new user message)
-      const allMessages = [...messages, userMessage];
+      let allMessages = [...messages, userMessage];
+
+      // Prepend system prompt if configured
+      if (settings.systemPrompt && settings.systemPrompt.trim()) {
+        // Check if there's already a system message (to avoid duplicates)
+        const hasSystemMessage = allMessages.some(msg => msg.role === 'system' && !msg.isSystemMessage);
+
+        if (!hasSystemMessage) {
+          // Add system prompt as first message
+          const systemMessage: Message = {
+            id: generateId(),
+            role: 'system',
+            content: settings.systemPrompt.trim(),
+            timestamp: new Date(),
+            status: 'complete',
+          };
+          allMessages = [systemMessage, ...allMessages];
+        }
+      }
 
       try {
         let currentContent = '';
@@ -315,7 +335,7 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
         setIsStreaming(false);
       }
     },
-    [messages, isStreaming, model, addMessageToActive, updateMessageInActive, showErrorToast]
+    [messages, isStreaming, model, settings.systemPrompt, addMessageToActive, updateMessageInActive, showErrorToast]
   );
 
   /**

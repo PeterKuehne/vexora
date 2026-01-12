@@ -87,6 +87,10 @@ function sanitizeSettings(data: Partial<AppSettings>): AppSettings {
       typeof data.autoSave === 'boolean'
         ? data.autoSave
         : DEFAULT_SETTINGS.autoSave,
+    systemPrompt:
+      typeof data.systemPrompt === 'string'
+        ? data.systemPrompt
+        : (DEFAULT_SETTINGS.systemPrompt ?? ''),
   };
 }
 
