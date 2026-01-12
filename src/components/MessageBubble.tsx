@@ -41,7 +41,7 @@ export function MessageBubble({
   return (
     <div
       className={cn(
-        'flex gap-3 p-4',
+        'flex gap-3 p-4 animate-fadeInUp',
         isUser ? 'flex-row-reverse' : 'flex-row'
       )}
     >

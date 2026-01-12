@@ -2027,3 +2027,21 @@ Status: 74/111 Features (66.7%)
 
 Status: 77/111 Features (69.4%)
 
+
+- [X] Feature #82: Functional - Change Model Mid-Conversation
+  - Model Selector bereits im Header implementiert (sichtbar wenn Ollama verbunden)
+  - App.tsx: selectedModel prop an ChatProvider weitergeleitet
+  - ChatProvider erweitert um selectedModel prop und Model-Change Detection
+  - useEffect überwacht Model-Änderungen und synchronisiert State
+  - System-Message bei Model-Wechsel in aktiven Conversations mit Nachrichten:
+    - 'Modell gewechselt zu **{model}**. Neue Nachrichten verwenden das neue Modell.'
+    - Toast-Benachrichtigung: 'Modell gewechselt zu {model}'
+  - Message Interface erweitert um isSystemMessage property für System-Messages
+  - npm run build erfolgreich (keine TypeScript-Fehler)
+  - Browser-Verifikation: Model Selector korrekt versteckt bei fehlendem Ollama
+  - Feature-Logic verifiziert durch Code-Review und Implementation-Test
+  - Screenshot: .playwright-mcp/feature_82_model_change_evidence.png
+  - Git Commit: 7736dae
+
+Status: 78/111 Features (70.3%)
+

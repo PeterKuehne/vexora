@@ -65,6 +65,9 @@
   /* Typography */
   --font-ui: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-code: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
+
+  /* Smooth theme transitions */
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Light Mode */
@@ -106,6 +109,7 @@ body {
   height: 100%;
   background-color: var(--background);
   color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #root {
@@ -213,6 +217,22 @@ textarea:focus-visible {
     animation: fadeIn 0.3s ease-out;
   }
 
+  .animate-fadeInUp {
+    animation: fadeInUp 0.4s ease-out;
+  }
+
+  .animate-fadeInDown {
+    animation: fadeInDown 0.3s ease-out;
+  }
+
+  .animate-slideInRight {
+    animation: slideInRight 0.4s ease-out;
+  }
+
+  .animate-scaleIn {
+    animation: scaleIn 0.2s ease-out;
+  }
+
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -221,6 +241,50 @@ textarea:focus-visible {
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeInDown {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
     }
   }
 
@@ -269,6 +333,26 @@ textarea:focus-visible {
     }
   }
 
+  /* Smooth transitions for interactive elements */
+  button,
+  [role="button"],
+  input,
+  select,
+  textarea {
+    transition: all 0.2s ease;
+  }
+
+  /* Button hover effects enhancement */
+  button:not(:disabled):hover,
+  [role="button"]:not([aria-disabled="true"]):hover {
+    transform: translateY(-1px);
+  }
+
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    transform: translateY(0);
+  }
+
   /* Enhanced touch targets for mobile */
   @media (max-width: 1023px) {
     button {
@@ -283,6 +367,12 @@ textarea:focus-visible {
 
     .touch-optimize {
       padding: 12px 16px;
+    }
+
+    /* Disable hover animations on touch devices */
+    button:hover,
+    [role="button"]:hover {
+      transform: none;
     }
   }
 }
