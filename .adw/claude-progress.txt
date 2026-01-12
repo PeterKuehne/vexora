@@ -2132,3 +2132,26 @@ Status: 81/111 Features (73.0%)
   - Git Commit: 492c7ea
 
 Status: 82/111 Features (73.9%)
+
+
+- [X] Feature #53: UI Component - Settings Tab - General
+  - GeneralSettings.tsx Komponente mit drei Hauptfeatures implementiert:
+    - Theme Selector: Dropdown mit Icons (☀️ Hell, 🌙 Dunkel, 💻 System)
+      - Echtes Theme-Switching funktional
+      - Toast-Benachrichtigungen bei Theme-Wechsel
+    - Auto-Save Toggle: Custom Switch-UI
+      - Boolean Setting "autoSave" zu AppSettings hinzugefügt
+      - Toggle-Interaktion mit visueller Feedback
+      - Toast-Benachrichtigungen für Status-Änderungen
+    - Clear All Button: Confirmation Dialog System
+      - Warnung mit AlertTriangle Icon und Zweistufiger Bestätigung
+      - Nutzt conversationStorage.clearAll() für echte Daten-Löschung
+      - Page reload nach Löschung für Clean State
+  - Integration: Ersetzt inline General Tab in SettingsModal durch dedizierte Komponente
+  - Type-System erweitert: autoSave property in AppSettings + DEFAULT_SETTINGS + sanitizeSettings
+  - npm run build erfolgreich (alle TypeScript-Fehler behoben)
+  - Browser-Verifikation: Alle drei Features manuell getestet und funktional ✓
+  - Screenshot: .adw/screenshots/feature_53_general_settings_evidence.png
+  - Git Commit: 43d4c0e
+
+Status: 83/111 Features (74.8%)
