@@ -1914,7 +1914,24 @@ Erledigt:
   - Screenshot: .playwright-mcp/feature_48_copy_button.png
   - Git Commit: 77ad00e
 
-Status: 72/111 Features (64.9%)
+Status: 73/111 Features (65.8%)
+
+- [X] Feature #49: UI Component - Welcome Screen
+  - WelcomeScreen.tsx mit vollständigem responsive Design
+  - 4 interaktive Example Prompts:
+    - Kreative Hilfe (Purple Sparkles): "Schreibe eine kurze Geschichte..."
+    - Code-Beispiel (Blue Code): "Erkläre mir React Hook..."
+    - Erklärung (Yellow Lightbulb): "Erkläre maschinelles Lernen..."
+    - Unterhaltung (Green MessageSquare): "Erzähl über das Universum..."
+  - Qwen Chat Branding mit Bot-Icon und Beschreibung
+  - onClick Integration mit sendMessage für seamlose UX
+  - 3 Varianten: WelcomeScreen, WelcomeScreenCompact, WelcomeScreenMinimal
+  - Ersetzt einfaches EmptyState in ChatContainer
+  - Theme-aware Styling (Dark/Light Mode)
+  - npm run build erfolgreich
+  - Browser-Verifikation: Example Prompt Click funktional
+  - Screenshot: .adw/screenshots/feature_49_welcome_screen.png
+  - Git Commit: 43f1d14
 
 Nächstes Feature:
 - adw features next
