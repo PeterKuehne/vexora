@@ -2112,3 +2112,23 @@ Status: 80/111 Features (72.1%)
   - Git Commit: 05ffa68
 
 Status: 81/111 Features (73.0%)
+
+
+- [X] Feature #96: Accessibility - ARIA Labels
+  - Comprehensive ARIA implementation für Screen Reader Accessibility:
+    - ARIA-Labels für alle Buttons (13 Komponenten):
+      - SearchInput Clear Button, ChatTextarea Controls, ModelSelector Buttons
+      - RegenerateButton, OllamaConnectionError Buttons mit dynamischen Labels
+    - ARIA Live Regions für dynamische Updates:
+      - SaveIndicator: role='status' + aria-live='polite' hinzugefügt  
+      - TypingIndicator + Toast: bereits korrekt implementiert (verifiziert)
+    - Form Input Labels:
+      - ChatTextarea: 'Chat-Nachricht eingeben'
+      - ModelSelector SearchInput: 'Modelle durchsuchen'
+  - Bereits korrekt (verifiziert): ThemeToggle, NewChatButton, SendButton, SettingsButton, CopyButton, Sidebar
+  - npm run build erfolgreich (keine TypeScript-Fehler)
+  - Browser-Verifikation mit Playwright MCP: Alle ARIA-Labels funktional ✓
+  - Screenshot: .adw/screenshots/feature_96_aria_labels_evidence.png
+  - Git Commit: 492c7ea
+
+Status: 82/111 Features (73.9%)

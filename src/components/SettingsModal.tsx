@@ -9,6 +9,7 @@ import { Dialog, Transition, Tab } from '@headlessui/react';
 import { X, Settings, Palette, Keyboard, Sliders } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSettings, useFontSize } from '../contexts/SettingsContext';
+import { GeneralSettings } from './GeneralSettings';
 import type { Theme, FontSize } from '../types/settings';
 
 export interface SettingsModalProps {
@@ -203,88 +204,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <div className="flex-1 p-6">
                       <Tab.Panels className="focus:outline-none">
                         {/* General Settings */}
-                        <Tab.Panel className="space-y-6 focus:outline-none">
-                          <div>
-                            <h3 className="text-lg font-medium mb-4">Allgemeine Einstellungen</h3>
-
-                            {/* Default Model */}
-                            <div className="space-y-2">
-                              <label className="block text-sm font-medium">
-                                Standard-Modell
-                              </label>
-                              <select
-                                value={settings.defaultModel}
-                                onChange={(e) => updateSetting('defaultModel', e.target.value)}
-                                className={`
-                                  w-full px-3 py-2 rounded-lg
-                                  border transition-colors
-                                  focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                                  ${
-                                    isDark
-                                      ? 'bg-gray-700 border-gray-600 text-white'
-                                      : 'bg-white border-gray-300 text-gray-900'
-                                  }
-                                `}
-                              >
-                                <option value="qwen3:8b">Qwen 3 8B</option>
-                                <option value="llama3.2:latest">Llama 3.2</option>
-                              </select>
-                              <p
-                                className={`
-                                  text-xs
-                                  ${isDark ? 'text-gray-400' : 'text-gray-600'}
-                                `}
-                              >
-                                Standardmodell für neue Unterhaltungen
-                              </p>
-                            </div>
-
-                            {/* Streaming */}
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <label className="block text-sm font-medium">
-                                  Streaming aktivieren
-                                </label>
-                                <p
-                                  className={`
-                                    text-xs
-                                    ${isDark ? 'text-gray-400' : 'text-gray-600'}
-                                  `}
-                                >
-                                  Antworten werden in Echtzeit angezeigt
-                                </p>
-                              </div>
-                              <input
-                                type="checkbox"
-                                checked={settings.enableStreaming}
-                                onChange={(e) => updateSetting('enableStreaming', e.target.checked)}
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                              />
-                            </div>
-
-                            {/* Timestamps */}
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <label className="block text-sm font-medium">
-                                  Zeitstempel anzeigen
-                                </label>
-                                <p
-                                  className={`
-                                    text-xs
-                                    ${isDark ? 'text-gray-400' : 'text-gray-600'}
-                                  `}
-                                >
-                                  Zeige Datum und Uhrzeit bei Nachrichten
-                                </p>
-                              </div>
-                              <input
-                                type="checkbox"
-                                checked={settings.showTimestamps}
-                                onChange={(e) => updateSetting('showTimestamps', e.target.checked)}
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                              />
-                            </div>
-                          </div>
+                        <Tab.Panel className="focus:outline-none">
+                          <GeneralSettings />
                         </Tab.Panel>
 
                         {/* Appearance Settings */}

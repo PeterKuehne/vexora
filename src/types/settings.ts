@@ -33,6 +33,8 @@ export interface AppSettings {
   showMarkdownPreview: boolean;
   /** Whether sidebar is collapsed (for persistence) */
   sidebarCollapsed: boolean;
+  /** Whether to automatically save conversations */
+  autoSave: boolean;
 }
 
 /**
@@ -47,6 +49,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableStreaming: true,
   showMarkdownPreview: false,
   sidebarCollapsed: false,
+  autoSave: true,
 };
 
 /**

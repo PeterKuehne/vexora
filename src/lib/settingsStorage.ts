@@ -83,6 +83,10 @@ function sanitizeSettings(data: Partial<AppSettings>): AppSettings {
       typeof data.sidebarCollapsed === 'boolean'
         ? data.sidebarCollapsed
         : DEFAULT_SETTINGS.sidebarCollapsed,
+    autoSave:
+      typeof data.autoSave === 'boolean'
+        ? data.autoSave
+        : DEFAULT_SETTINGS.autoSave,
   };
 }
 
