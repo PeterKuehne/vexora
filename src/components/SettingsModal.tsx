@@ -11,6 +11,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useSettings, useFontSize } from '../contexts/SettingsContext';
 import { GeneralSettings } from './GeneralSettings';
 import { ModelSettings } from './ModelSettings';
+import { AdvancedSettings } from './AdvancedSettings';
 import type { Theme, FontSize } from '../types/settings';
 
 export interface SettingsModalProps {
@@ -47,7 +48,7 @@ const SETTINGS_TABS: SettingsTab[] = [
     id: 'behavior',
     name: 'Verhalten',
     icon: Keyboard,
-    description: 'Chat-Verhalten und Interaktion',
+    description: 'API, Export/Import und Shortcuts',
   },
   {
     id: 'advanced',
@@ -271,57 +272,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                           </div>
                         </Tab.Panel>
 
-                        {/* Behavior Settings */}
-                        <Tab.Panel className="space-y-6 focus:outline-none">
-                          <div>
-                            <h3 className="text-lg font-medium mb-4">Verhalten</h3>
-
-                            {/* Send on Enter */}
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <label className="block text-sm font-medium">
-                                  Enter zum Senden
-                                </label>
-                                <p
-                                  className={`
-                                    text-xs
-                                    ${isDark ? 'text-gray-400' : 'text-gray-600'}
-                                  `}
-                                >
-                                  Neue Zeile mit Shift+Enter, Senden mit Enter
-                                </p>
-                              </div>
-                              <input
-                                type="checkbox"
-                                checked={settings.sendOnEnter}
-                                onChange={(e) => updateSetting('sendOnEnter', e.target.checked)}
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                              />
-                            </div>
-
-                            {/* Markdown Preview */}
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <label className="block text-sm font-medium">
-                                  Markdown-Vorschau
-                                </label>
-                                <p
-                                  className={`
-                                    text-xs
-                                    ${isDark ? 'text-gray-400' : 'text-gray-600'}
-                                  `}
-                                >
-                                  Live-Vorschau beim Schreiben
-                                </p>
-                              </div>
-                              <input
-                                type="checkbox"
-                                checked={settings.showMarkdownPreview}
-                                onChange={(e) => updateSetting('showMarkdownPreview', e.target.checked)}
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                              />
-                            </div>
-                          </div>
+                        {/* Advanced Settings */}
+                        <Tab.Panel className="focus:outline-none">
+                          <AdvancedSettings />
                         </Tab.Panel>
 
                         {/* Model Settings */}
