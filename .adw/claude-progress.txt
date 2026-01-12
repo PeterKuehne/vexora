@@ -1882,7 +1882,39 @@ Erledigt:
   - Screenshot: .adw/screenshots/feature_92_toast_notifications.png
   - Git Commit: 82c1339
 
-Status: 71/111 Features (64.0%)
+- [X] Feature #48: UI Component - Copy Button
+  - Neue CopyButton.tsx Komponente erstellt:
+    - Hauptkomponente mit size (sm/md/lg), variant (default/ghost/outline)
+    - showLabel prop für Text/Icon-only Modi
+    - Success Feedback: "Kopieren" → "Kopiert!" mit Checkmark Icon
+    - Clipboard API mit Error Handling und onCopySuccess/onCopyError callbacks
+    - Theme-aware Styling (Dark/Light Mode)
+    - TypeScript strict mode kompatibel mit exactOptionalPropertyTypes
+  - Variants implementiert:
+    - CopyButtonIcon: Icon-only für subtile Integration
+    - CopyButtonWithLabel: Mit Text für Code-Blöcke
+    - CopyButtonSmall/Large: Size Shortcuts
+    - CopyButtonGhost/Outline: Style Variants
+  - AIMessage.tsx refaktoriert:
+    - CopyButtonIcon ersetzt inline Copy Button
+    - Hover-opacity Animation beibehalten
+    - useState/handleCopy Code entfernt
+  - CodeBlock.tsx refaktoriert:
+    - CopyButtonWithLabel ersetzt inline Button
+    - "Kopieren"/"Kopiert!" Labels korrekt angezeigt
+    - Fallback für ältere Browser entfernt (von CopyButton übernommen)
+  - Barrel-Export in components/index.ts erweitert
+  - npm run build erfolgreich (Frontend + Backend)
+  - npm run lint: 0 Errors
+  - Browser-Verifikation:
+    - Copy Buttons in AI Messages funktional ✓
+    - Copy Buttons in Code-Blöcken funktional ✓
+    - Success State "Kopiert!" mit Checkmark ✓
+    - Theme-aware Styling funktional ✓
+  - Screenshot: .playwright-mcp/feature_48_copy_button.png
+  - Git Commit: 77ad00e
+
+Status: 72/111 Features (64.9%)
 
 Nächstes Feature:
 - adw features next

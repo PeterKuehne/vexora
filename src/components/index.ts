@@ -261,6 +261,16 @@ export {
   type CopyButtonProps,
 } from './CopyButton';
 
+// Welcome Screen
+export {
+  WelcomeScreen,
+  WelcomeScreenCompact,
+  WelcomeScreenMinimal,
+  type WelcomeScreenProps,
+  type ExamplePrompt,
+  DEFAULT_EXAMPLE_PROMPTS,
+} from './WelcomeScreen';
+
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 

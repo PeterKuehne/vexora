@@ -12,16 +12,16 @@ import { useRef } from 'react';
 import { AIMessage } from './AIMessage';
 import { UserMessage } from './UserMessage';
 import { ChatInput } from './ChatInput';
+import { WelcomeScreen } from './WelcomeScreen';
 import { useChat } from '../contexts';
 import {
   ChatArea,
   ChatAreaMessages,
-  ChatAreaEmptyState,
   ChatAreaInputWrapper,
   ChatAreaStatusBar,
   type ChatAreaRef,
 } from './layout';
-import { Bot, Zap, Timer } from 'lucide-react';
+import { Zap, Timer } from 'lucide-react';
 
 export interface ChatContainerProps {
   /** Optional className for container */
@@ -111,11 +111,7 @@ export function ChatContainer({ className }: ChatContainerProps) {
       autoScroll={true}
       scrollDependency={messages}
       emptyState={
-        <ChatAreaEmptyState
-          icon={<Bot size={32} />}
-          title="Willkommen bei Qwen Chat"
-          description="Starte eine Unterhaltung mit dem KI-Assistenten. Deine Nachrichten werden lokal verarbeitet."
-        />
+        <WelcomeScreen onExamplePromptClick={sendMessage} />
       }
       statusBar={renderStatusBar()}
       inputArea={
