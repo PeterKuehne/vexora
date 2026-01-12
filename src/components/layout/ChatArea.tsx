@@ -9,8 +9,9 @@
  * Uses CSS Flexbox for proper layout with overflow handling.
  */
 
-import { type ReactNode, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { type ReactNode, useRef, useEffect, forwardRef, useImperativeHandle, useState, useCallback } from 'react';
 import { useTheme } from '../../contexts';
+import { ChevronDown } from 'lucide-react';
 
 export interface ChatAreaProps {
   /** Message list content */
@@ -57,6 +58,28 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(function ChatArea
   const { isDark } = useTheme();
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+
+  // Check if user is at the bottom of the chat
+  const isAtBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+
+    const threshold = 100; // px from bottom
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    return scrollHeight - scrollTop - clientHeight < threshold;
+  }, []);
+
+  // Handle scroll events to show/hide button
+  const handleScroll = useCallback(() => {
+    if (isEmpty) {
+      setShowScrollButton(false);
+      return;
+    }
+
+    const atBottom = isAtBottom();
+    setShowScrollButton(!atBottom);
+  }, [isAtBottom, isEmpty]);
 
   // Expose imperative methods via ref
   useImperativeHandle(ref, () => ({
@@ -73,10 +96,37 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(function ChatArea
     }
   }, [autoScroll, scrollDependency]);
 
+  // Listen to scroll events
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // Throttle scroll events for performance
+    let ticking = false;
+    const throttledHandleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          handleScroll();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    container.addEventListener('scroll', throttledHandleScroll, { passive: true });
+
+    // Initial check
+    handleScroll();
+
+    return () => {
+      container.removeEventListener('scroll', throttledHandleScroll);
+    };
+  }, [handleScroll]);
+
   return (
     <div
       className={`
-        flex flex-col h-full
+        flex flex-col h-full relative
         ${isDark ? 'bg-background' : 'bg-white'}
         ${className}
       `.trim()}
@@ -130,6 +180,30 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(function ChatArea
         >
           {inputArea}
         </div>
+      )}
+
+      {/* Floating Scroll to Bottom Button */}
+      {showScrollButton && (
+        <button
+          onClick={() => {
+            scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className={`
+            absolute bottom-20 right-6 z-50
+            w-12 h-12 rounded-full shadow-lg
+            flex items-center justify-center
+            transition-all duration-200 ease-out
+            hover:scale-110 hover:shadow-xl
+            ${isDark
+              ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm'
+              : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200'
+            }
+          `.trim()}
+          aria-label="Zum Ende scrollen"
+          title="Zum Ende scrollen"
+        >
+          <ChevronDown size={20} />
+        </button>
       )}
     </div>
   );
