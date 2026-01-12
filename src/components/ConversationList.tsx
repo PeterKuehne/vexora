@@ -160,7 +160,9 @@ export function ConversationItem({
         group relative mx-2 mb-1 px-3 py-2.5 rounded-lg cursor-pointer
         transition-colors duration-150
         ${isActive
-          ? 'bg-primary/20 text-white'
+          ? isDark
+            ? 'bg-primary/20 text-white'
+            : 'bg-primary/15 text-gray-900'
           : isDark
             ? 'text-gray-300 hover:bg-white/5 hover:text-white'
             : 'text-gray-700 hover:bg-black/5 hover:text-gray-900'
@@ -219,7 +221,15 @@ export function ConversationItem({
             />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{conversation.title}</p>
-              <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+              <p className={`text-xs mt-0.5 ${
+                isActive
+                  ? isDark
+                    ? 'text-gray-400'
+                    : 'text-gray-600'
+                  : isDark
+                    ? 'text-gray-500'
+                    : 'text-gray-400'
+              }`}>
                 {conversation.messages.length} Nachrichten
                 {' · '}
                 {formatDate(conversation.updatedAt)}
