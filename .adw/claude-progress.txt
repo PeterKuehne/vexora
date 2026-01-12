@@ -2090,3 +2090,25 @@ Status: 79/111 Features (71.2%)
   - Git Commit: be47572
 
 Status: 80/111 Features (72.1%)
+
+
+- [X] Feature #95: Documentation - README
+  - Umfassende README.md Dokumentation erstellt mit allen wichtigen Bereichen:
+    - Project Description: Modern chat interface für lokale LLMs mit Ollama
+    - Features Overview: 9 Hauptfeatures (Local AI, Conversation Management, Modern UI, etc.)
+    - Prerequisites Section: Detaillierte Ollama-Installation (macOS/Linux/Windows)
+    - System Requirements: Node.js 18+, 8GB+ RAM, moderne Browser
+    - Installation Guide: 4-Step Setup (Clone, Install, Start, Open)
+    - Usage Guide: Interface Overview (Sidebar, Header, Chat Area, Input)
+    - Development Setup: Projektstruktur, Tech Stack, Scripts
+    - API Endpoints: Backend Proxy-Layer zu Ollama API
+    - Environment Variables: Port, API URL, CORS Konfiguration
+    - Troubleshooting: Common Issues + Solutions (Ollama, Connection, Build)
+    - Contributing Guidelines: Development workflow und PR-Prozess
+    - Keyboard Shortcuts: Enter, Shift+Enter, Ctrl+N, Ctrl+K, Escape
+  - npm run build erfolgreich (nur Warnings für 700kb Bundle-Größe)
+  - Browser-Verifikation: App lädt korrekt, zeigt "Ollama nicht erreichbar" ✓
+  - Screenshot: .adw/screenshots/feature_95_readme_evidence.png
+  - Git Commit: 05ffa68
+
+Status: 81/111 Features (73.0%)
