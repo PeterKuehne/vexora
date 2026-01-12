@@ -22,9 +22,10 @@ import { useDebounce } from '../hooks';
 import type { Conversation, CreateConversationInput } from '../types/conversation';
 import type { Message } from '../types/message';
 
-// LocalStorage key
+// LocalStorage keys
 const STORAGE_KEY = 'qwen-chat-conversations';
 const ACTIVE_ID_KEY = 'qwen-chat-active-conversation';
+const SCROLL_POSITIONS_KEY = 'qwen-chat-scroll-positions';
 
 // Auto-save debounce delay (ms)
 const SAVE_DEBOUNCE_DELAY = 500;
@@ -81,6 +82,12 @@ interface ConversationContextValue {
   clearActiveMessages: () => void;
   /** Get messages for active conversation */
   activeMessages: Message[];
+
+  // Scroll position management
+  /** Save current scroll position for conversation */
+  saveScrollPosition: (conversationId: string, scrollTop: number, scrollHeight: number) => void;
+  /** Get saved scroll position for conversation */
+  getScrollPosition: (conversationId: string) => { scrollTop: number; scrollHeight: number } | null;
 }
 
 // ============================================
@@ -175,6 +182,29 @@ function saveActiveId(id: string | null): void {
   }
 }
 
+/**
+ * Load scroll positions from LocalStorage
+ */
+function loadScrollPositions(): Record<string, { scrollTop: number; scrollHeight: number }> {
+  try {
+    const data = localStorage.getItem(SCROLL_POSITIONS_KEY);
+    return data ? JSON.parse(data) : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Save scroll positions to LocalStorage
+ */
+function saveScrollPositions(positions: Record<string, { scrollTop: number; scrollHeight: number }>): void {
+  try {
+    localStorage.setItem(SCROLL_POSITIONS_KEY, JSON.stringify(positions));
+  } catch (error) {
+    console.error('Failed to save scroll positions to storage:', error);
+  }
+}
+
 // ============================================
 // Provider Component
 // ============================================
@@ -215,6 +245,11 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
 
   // Debounced search query for performance
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Scroll positions storage
+  const [scrollPositions, setScrollPositions] = useState<Record<string, { scrollTop: number; scrollHeight: number }>>(() => {
+    return loadScrollPositions();
+  });
 
   // Debounce timer ref
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -495,6 +530,24 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
     setSearchQueryState('');
   }, []);
 
+  /**
+   * Save scroll position for conversation
+   */
+  const saveScrollPosition = useCallback((conversationId: string, scrollTop: number, scrollHeight: number) => {
+    setScrollPositions(prev => {
+      const newPositions = { ...prev, [conversationId]: { scrollTop, scrollHeight } };
+      saveScrollPositions(newPositions);
+      return newPositions;
+    });
+  }, []);
+
+  /**
+   * Get saved scroll position for conversation
+   */
+  const getScrollPosition = useCallback((conversationId: string) => {
+    return scrollPositions[conversationId] || null;
+  }, [scrollPositions]);
+
   const value: ConversationContextValue = {
     conversations,
     filteredConversations,
@@ -516,6 +569,8 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
     removeMessageFromActive,
     clearActiveMessages,
     activeMessages,
+    saveScrollPosition,
+    getScrollPosition,
   };
 
   return (

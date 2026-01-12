@@ -9,8 +9,9 @@
  * Uses CSS Flexbox for proper layout with overflow handling.
  */
 
-import { type ReactNode, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { type ReactNode, useRef, useEffect, forwardRef, useImperativeHandle, useState, useCallback } from 'react';
 import { useTheme } from '../../contexts';
+import { ChevronDown } from 'lucide-react';
 
 export interface ChatAreaProps {
   /** Message list content */
@@ -29,6 +30,12 @@ export interface ChatAreaProps {
   scrollDependency?: unknown | undefined;
   /** Custom className for container */
   className?: string | undefined;
+  /** Conversation ID for scroll position persistence */
+  conversationId?: string | undefined;
+  /** Callback to save scroll position */
+  onSaveScrollPosition?: (conversationId: string, scrollTop: number, scrollHeight: number) => void | undefined;
+  /** Callback to restore scroll position when conversation changes */
+  onRestoreScrollPosition?: (conversationId: string) => { scrollTop: number; scrollHeight: number } | null | undefined;
 }
 
 export interface ChatAreaRef {
@@ -36,6 +43,8 @@ export interface ChatAreaRef {
   scrollToBottom: (behavior?: ScrollBehavior) => void;
   /** Get the messages container element */
   getMessagesContainer: () => HTMLDivElement | null;
+  /** Check if user is at the bottom of the chat */
+  isAtBottom: () => boolean;
 }
 
 /**
@@ -51,27 +60,103 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(function ChatArea
     autoScroll = true,
     scrollDependency,
     className = '',
+    conversationId,
+    onSaveScrollPosition,
+    onRestoreScrollPosition,
   },
   ref
 ) {
   const { isDark } = useTheme();
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
+
+  // Check if user is at the bottom
+  const isAtBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+
+    const threshold = 100; // px from bottom
+    return container.scrollHeight - container.scrollTop <= container.clientHeight + threshold;
+  }, []);
+
+  // Handle scroll events to show/hide scroll-to-bottom button
+  const handleScroll = useCallback(() => {
+    if (!isUserScrolling) {
+      setIsUserScrolling(true);
+    }
+
+    const atBottom = isAtBottom();
+    setShowScrollToBottom(!atBottom && !isEmpty);
+
+    // Save scroll position for current conversation
+    const container = messagesContainerRef.current;
+    if (container && conversationId && onSaveScrollPosition) {
+      onSaveScrollPosition(conversationId, container.scrollTop, container.scrollHeight);
+    }
+  }, [isAtBottom, isEmpty, conversationId, onSaveScrollPosition, isUserScrolling]);
 
   // Expose imperative methods via ref
   useImperativeHandle(ref, () => ({
     scrollToBottom: (behavior: ScrollBehavior = 'smooth') => {
+      setIsUserScrolling(false);
       scrollAnchorRef.current?.scrollIntoView({ behavior });
     },
     getMessagesContainer: () => messagesContainerRef.current,
+    isAtBottom,
   }));
 
-  // Auto-scroll when dependency changes
+  // Auto-scroll when dependency changes (only if not user scrolling)
   useEffect(() => {
-    if (autoScroll && scrollDependency !== undefined) {
+    if (autoScroll && scrollDependency !== undefined && !isUserScrolling) {
       scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [autoScroll, scrollDependency]);
+  }, [autoScroll, scrollDependency, isUserScrolling]);
+
+  // Monitor scroll position
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // Throttle scroll events
+    let ticking = false;
+    const throttledHandleScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          handleScroll();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    container.addEventListener('scroll', throttledHandleScroll);
+    return () => container.removeEventListener('scroll', throttledHandleScroll);
+  }, [handleScroll]);
+
+  // Restore scroll position when conversation changes
+  useEffect(() => {
+    if (conversationId && onRestoreScrollPosition) {
+      const savedPosition = onRestoreScrollPosition(conversationId);
+      const container = messagesContainerRef.current;
+
+      if (savedPosition && container) {
+        // Use requestAnimationFrame to ensure DOM is updated
+        requestAnimationFrame(() => {
+          // Check if content height is similar to when position was saved
+          if (Math.abs(container.scrollHeight - savedPosition.scrollHeight) < 100) {
+            container.scrollTop = savedPosition.scrollTop;
+            setIsUserScrolling(true); // Mark as user scrolled to prevent auto-scroll
+          } else {
+            // Content height changed significantly, scroll to bottom instead
+            setIsUserScrolling(false);
+            scrollAnchorRef.current?.scrollIntoView({ behavior: 'instant' });
+          }
+        });
+      }
+    }
+  }, [conversationId, onRestoreScrollPosition]);
 
   return (
     <div
@@ -82,13 +167,14 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(function ChatArea
       `.trim()}
     >
       {/* Messages Area - Flex grow with scroll */}
-      <div
-        ref={messagesContainerRef}
-        className={`
-          flex-1 overflow-y-auto scrollbar-thin
-          ${isDark ? 'scrollbar-thumb-white/20' : 'scrollbar-thumb-gray-300'}
-        `.trim()}
-      >
+      <div className="relative flex-1">
+        <div
+          ref={messagesContainerRef}
+          className={`
+            h-full overflow-y-auto scrollbar-thin
+            ${isDark ? 'scrollbar-thumb-white/20' : 'scrollbar-thumb-gray-300'}
+          `.trim()}
+        >
         {isEmpty && emptyState ? (
           // Empty State - Centered in available space
           <div className="flex items-center justify-center h-full">
@@ -103,6 +189,32 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(function ChatArea
             {/* Scroll anchor - always at bottom */}
             <div ref={scrollAnchorRef} aria-hidden="true" />
           </div>
+        )}
+        </div>
+
+        {/* Scroll to Bottom Button */}
+        {showScrollToBottom && (
+          <button
+            onClick={() => {
+              setIsUserScrolling(false);
+              scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className={`
+              absolute bottom-4 right-4 z-10
+              w-10 h-10 rounded-full shadow-lg
+              flex items-center justify-center
+              transition-all duration-200 ease-out
+              hover:scale-110 hover:shadow-xl
+              animate-fadeIn
+              ${isDark
+                ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200'
+              }
+            `.trim()}
+            aria-label="Zum Ende scrollen"
+          >
+            <ChevronDown size={16} />
+          </button>
         )}
       </div>
 

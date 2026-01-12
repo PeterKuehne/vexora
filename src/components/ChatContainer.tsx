@@ -13,7 +13,7 @@ import { AIMessage } from './AIMessage';
 import { UserMessage } from './UserMessage';
 import { ChatInput } from './ChatInput';
 import { WelcomeScreen } from './WelcomeScreen';
-import { useChat } from '../contexts';
+import { useChat, useConversations } from '../contexts';
 import {
   ChatArea,
   ChatAreaMessages,
@@ -42,6 +42,12 @@ export function ChatContainer({ className }: ChatContainerProps) {
     regenerateLastResponse,
     canRegenerate,
   } = useChat();
+
+  const {
+    activeConversationId,
+    saveScrollPosition,
+    getScrollPosition
+  } = useConversations();
 
   // Format milliseconds to readable time
   const formatTime = (ms: number): string => {
@@ -110,6 +116,9 @@ export function ChatContainer({ className }: ChatContainerProps) {
       isEmpty={messages.length === 0}
       autoScroll={true}
       scrollDependency={messages}
+      conversationId={activeConversationId || undefined}
+      onSaveScrollPosition={saveScrollPosition}
+      onRestoreScrollPosition={getScrollPosition}
       emptyState={
         <WelcomeScreen onExamplePromptClick={sendMessage} />
       }
