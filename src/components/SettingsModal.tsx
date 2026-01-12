@@ -10,6 +10,7 @@ import { X, Settings, Palette, Keyboard, Sliders } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSettings, useFontSize } from '../contexts/SettingsContext';
 import { GeneralSettings } from './GeneralSettings';
+import { ModelSettings } from './ModelSettings';
 import type { Theme, FontSize } from '../types/settings';
 
 export interface SettingsModalProps {
@@ -323,22 +324,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                           </div>
                         </Tab.Panel>
 
-                        {/* Advanced Settings */}
-                        <Tab.Panel className="space-y-6 focus:outline-none">
-                          <div>
-                            <h3 className="text-lg font-medium mb-4">Erweiterte Einstellungen</h3>
-
-                            <div
-                              className={`
-                                p-4 rounded-lg
-                                ${isDark ? 'bg-gray-700' : 'bg-gray-100'}
-                              `}
-                            >
-                              <p className="text-sm">
-                                Erweiterte Modell-Parameter werden in einem zukünftigen Update verfügbar sein.
-                              </p>
-                            </div>
-                          </div>
+                        {/* Model Settings */}
+                        <Tab.Panel className="focus:outline-none">
+                          <ModelSettings />
                         </Tab.Panel>
                       </Tab.Panels>
                     </div>
