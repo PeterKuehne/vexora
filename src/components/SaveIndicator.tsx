@@ -66,6 +66,9 @@ export function SaveIndicator({ status, lastSavedAt, className = '' }: SaveIndic
         transition-all duration-300 ease-in-out
         ${className}
       `}
+      role="status"
+      aria-live="polite"
+      aria-label={config.text}
     >
       {config.icon}
       <span>{config.text}</span>

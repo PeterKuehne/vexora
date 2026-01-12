@@ -269,6 +269,7 @@ export const SearchInput = forwardRef<SearchInputRef, SearchInputProps>(
               styles.clear
             )}
             title="Suche leeren"
+            aria-label="Suche leeren"
           >
             {isLoading ? (
               <Loader2 className="animate-spin" size={size === 'sm' ? 14 : size === 'lg' ? 18 : 16} />
@@ -342,6 +343,8 @@ export function SearchInputCompact({
           type="button"
           onClick={() => onChange('')}
           className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-gray-500 hover:text-gray-300"
+          title="Suche leeren"
+          aria-label="Suche leeren"
         >
           <X size={14} />
         </button>

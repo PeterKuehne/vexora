@@ -40,6 +40,7 @@ export function OllamaConnectionError({
         onClick={onRetry}
         disabled={isRetrying}
         className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/80 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-8"
+        aria-label={isRetrying ? 'Verbindung wird geprüft...' : 'Verbindung zu Ollama erneut versuchen'}
       >
         <RefreshCw
           size={18}
@@ -68,6 +69,8 @@ export function OllamaConnectionError({
       <button
         onClick={() => setShowFullInstructions(!showFullInstructions)}
         className="text-sm text-primary hover:text-primary/80 transition-colors mb-4"
+        aria-label={showFullInstructions ? 'Anleitungsdetails verbergen' : 'Vollständige Anleitung anzeigen'}
+        aria-expanded={showFullInstructions}
       >
         {showFullInstructions ? 'Weniger anzeigen' : 'Vollständige Anleitung anzeigen'}
       </button>

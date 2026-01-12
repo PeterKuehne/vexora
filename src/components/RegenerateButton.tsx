@@ -91,6 +91,7 @@ export function RegenerateButton({
         className
       )}
       title={isRegenerating ? 'Regeneriere Antwort...' : 'Antwort regenerieren'}
+      aria-label={isRegenerating ? 'Regeneriere Antwort...' : 'Antwort regenerieren'}
     >
       {/* Icon */}
       {isRegenerating ? (
@@ -167,6 +168,7 @@ export function RegenerateButtonIcon({
         className
       )}
       title={isRegenerating ? 'Regeneriere Antwort...' : 'Antwort regenerieren'}
+      aria-label={isRegenerating ? 'Regeneriere Antwort...' : 'Antwort regenerieren'}
     >
       {isRegenerating ? (
         <Loader2 size={iconSize} className="animate-spin" />

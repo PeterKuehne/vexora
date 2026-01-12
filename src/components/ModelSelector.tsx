@@ -217,6 +217,7 @@ export function ModelSelector({
                     : 'bg-black/5 text-gray-900 hover:bg-black/10 border border-black/10'
                 }
               `.trim()}
+              aria-label="KI-Modell auswählen"
             >
               <span className="flex items-center gap-2 truncate">
                 {modelUnavailable ? (
@@ -287,6 +288,7 @@ export function ModelSelector({
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Modelle suchen..."
+                      aria-label="Modelle durchsuchen"
                       className={`
                         w-full py-1.5 pl-8 pr-8 text-sm rounded-md
                         focus:outline-none focus:ring-1 focus:ring-primary/50
@@ -310,6 +312,8 @@ export function ModelSelector({
                         className={`absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded ${
                           isDark ? 'text-gray-500 hover:text-white' : 'text-gray-400 hover:text-gray-600'
                         }`}
+                        title="Suche leeren"
+                        aria-label="Modell-Suche leeren"
                       >
                         <X size={12} />
                       </button>
@@ -327,6 +331,7 @@ export function ModelSelector({
                         loadModels();
                       }}
                       className="ml-2 underline hover:no-underline"
+                      aria-label="Modelle erneut laden"
                     >
                       Erneut versuchen
                     </button>

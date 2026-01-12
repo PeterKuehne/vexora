@@ -154,6 +154,7 @@ export const ChatTextarea = forwardRef<ChatTextareaRef, ChatTextareaProps>(
         disabled={isDisabled}
         placeholder={placeholder}
         rows={minLines}
+        aria-label="Chat-Nachricht eingeben"
         className={cn(
           // Base styles
           'w-full resize-none outline-none bg-transparent',
@@ -315,6 +316,7 @@ export function ChatTextareaWithControls({
               'cursor-pointer'
             )}
             title="Stoppen"
+            aria-label="Nachricht-Generierung stoppen"
           >
             <Square size={18} />
           </button>
@@ -330,6 +332,7 @@ export function ChatTextareaWithControls({
                 : 'bg-white/10 text-gray-500 cursor-not-allowed'
             )}
             title="Senden"
+            aria-label="Nachricht senden"
           >
             <Send size={18} />
           </button>
