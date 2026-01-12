@@ -24,7 +24,7 @@ export interface GeneralSettingsProps {
  * General Settings tab content component
  */
 export function GeneralSettings({ className = '' }: GeneralSettingsProps) {
-  const { isDark } = useTheme();
+  const { isDark, theme, setTheme } = useTheme();
   const { settings, updateSetting } = useSettings();
   const { info, success: showSuccess, error: showError } = useToast();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -42,9 +42,9 @@ export function GeneralSettings({ className = '' }: GeneralSettingsProps) {
   /**
    * Handle theme change from dropdown
    */
-  const handleThemeChange = (theme: Theme) => {
-    updateSetting('theme', theme);
-    info(`Theme wurde auf "${themeOptions.find(t => t.value === theme)?.label}" geändert`);
+  const handleThemeChange = (newTheme: Theme) => {
+    setTheme(newTheme);
+    info(`Theme wurde auf "${themeOptions.find(t => t.value === newTheme)?.label}" geändert`);
   };
 
   /**
@@ -113,7 +113,7 @@ export function GeneralSettings({ className = '' }: GeneralSettingsProps) {
         </label>
         <div className="relative">
           <select
-            value={settings.theme}
+            value={theme}
             onChange={(e) => handleThemeChange(e.target.value as Theme)}
             className={`
               w-full px-4 py-3 pr-10 rounded-lg
