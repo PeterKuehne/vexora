@@ -6,6 +6,7 @@ import {
   Header,
   OllamaConnectionError,
   SaveIndicator,
+  SettingsModal,
   StorageQuotaAlert,
   ToastContainer,
   type SidebarControls,
@@ -28,6 +29,7 @@ function AppContent() {
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [isRetrying, setIsRetrying] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string>('qwen3:8b');
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   // Ref to store the checkConnectivity function for use in handleRetry
   const checkConnectivityRef = useRef<(() => Promise<boolean>) | null>(null);
@@ -87,10 +89,13 @@ function AppContent() {
     createConversation();
   };
 
-  // Placeholder for settings modal - will be implemented in a future feature
+  // Settings modal handlers
   const handleSettingsClick = () => {
-    // TODO: Open settings modal when implemented
-    console.log('Settings button clicked - modal coming soon!');
+    setIsSettingsModalOpen(true);
+  };
+
+  const handleSettingsModalClose = () => {
+    setIsSettingsModalOpen(false);
   };
 
   // Render header with sidebar controls from AppShell
@@ -159,6 +164,12 @@ function AppContent() {
 
       {/* Toast Notifications - Outside AppShell for proper z-index */}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={handleSettingsModalClose}
+      />
     </>
   );
 }

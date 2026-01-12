@@ -1,0 +1,489 @@
+/**
+ * SettingsModal Component
+ * Modal dialog for application settings using Headless UI
+ * Features tab navigation, form controls, and responsive design
+ */
+
+import { Fragment, useState } from 'react';
+import { Dialog, Transition, Tab } from '@headlessui/react';
+import { X, Settings, Palette, Keyboard, Sliders } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import { useSettings, useFontSize } from '../contexts/SettingsContext';
+import type { Theme, FontSize } from '../types/settings';
+
+export interface SettingsModalProps {
+  /** Whether the modal is open */
+  isOpen: boolean;
+  /** Callback when modal should close */
+  onClose: () => void;
+}
+
+/**
+ * Tab data structure for settings categories
+ */
+interface SettingsTab {
+  id: string;
+  name: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  description: string;
+}
+
+const SETTINGS_TABS: SettingsTab[] = [
+  {
+    id: 'general',
+    name: 'Allgemein',
+    icon: Settings,
+    description: 'Grundlegende App-Einstellungen',
+  },
+  {
+    id: 'appearance',
+    name: 'Darstellung',
+    icon: Palette,
+    description: 'Theme und visuelle Einstellungen',
+  },
+  {
+    id: 'behavior',
+    name: 'Verhalten',
+    icon: Keyboard,
+    description: 'Chat-Verhalten und Interaktion',
+  },
+  {
+    id: 'advanced',
+    name: 'Erweitert',
+    icon: Sliders,
+    description: 'Erweiterte Modell-Parameter',
+  },
+];
+
+/**
+ * Settings Modal with tabbed interface
+ */
+export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+  const { isDark } = useTheme();
+  const { settings, updateSetting, resetSettings } = useSettings();
+  const { fontSize, setFontSize, fontSizeClass } = useFontSize();
+  const [selectedTabIndex, setSelectedTabIndex] = useState(0);
+
+  const handleThemeChange = (newTheme: Theme) => {
+    updateSetting('theme', newTheme);
+  };
+
+  const handleFontSizeChange = (newSize: FontSize) => {
+    setFontSize(newSize);
+  };
+
+  const handleReset = () => {
+    if (confirm('Möchtest du alle Einstellungen auf die Standardwerte zurücksetzen?')) {
+      resetSettings();
+    }
+  };
+
+  return (
+    <Transition appear show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        {/* Backdrop */}
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div
+            className={`
+              fixed inset-0
+              ${isDark ? 'bg-black/50' : 'bg-gray-900/50'}
+            `}
+          />
+        </Transition.Child>
+
+        {/* Modal Container */}
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <Dialog.Panel
+                className={`
+                  w-full max-w-4xl
+                  rounded-lg shadow-2xl
+                  transform overflow-hidden
+                  transition-all
+                  ${isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
+                `}
+              >
+                {/* Header */}
+                <div
+                  className={`
+                    flex items-center justify-between
+                    px-6 py-4
+                    border-b
+                    ${isDark ? 'border-gray-700' : 'border-gray-200'}
+                  `}
+                >
+                  <Dialog.Title as="h2" className="text-xl font-semibold">
+                    Einstellungen
+                  </Dialog.Title>
+                  <button
+                    onClick={onClose}
+                    className={`
+                      p-2 rounded-lg
+                      transition-colors
+                      ${
+                        isDark
+                          ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      }
+                    `}
+                    title="Schließen"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Tab Navigation */}
+                <Tab.Group selectedIndex={selectedTabIndex} onChange={setSelectedTabIndex}>
+                  <div className="flex">
+                    {/* Tab List - Sidebar */}
+                    <div
+                      className={`
+                        w-64 shrink-0
+                        border-r
+                        ${isDark ? 'border-gray-700' : 'border-gray-200'}
+                      `}
+                    >
+                      <Tab.List className="flex flex-col p-2">
+                        {SETTINGS_TABS.map((tab) => (
+                          <Tab key={tab.id} as={Fragment}>
+                            {({ selected }) => (
+                              <button
+                                className={`
+                                  w-full flex items-center gap-3
+                                  px-3 py-3 text-left
+                                  rounded-lg transition-all
+                                  ${
+                                    selected
+                                      ? isDark
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-blue-100 text-blue-900'
+                                      : isDark
+                                        ? 'text-gray-300 hover:text-white hover:bg-gray-700'
+                                        : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                                  }
+                                `}
+                              >
+                                <tab.icon size={18} />
+                                <div>
+                                  <div className="font-medium">{tab.name}</div>
+                                  <div
+                                    className={`
+                                      text-xs opacity-75
+                                      ${selected && !isDark ? 'opacity-60' : ''}
+                                    `}
+                                  >
+                                    {tab.description}
+                                  </div>
+                                </div>
+                              </button>
+                            )}
+                          </Tab>
+                        ))}
+                      </Tab.List>
+                    </div>
+
+                    {/* Tab Panels - Content */}
+                    <div className="flex-1 p-6">
+                      <Tab.Panels className="focus:outline-none">
+                        {/* General Settings */}
+                        <Tab.Panel className="space-y-6 focus:outline-none">
+                          <div>
+                            <h3 className="text-lg font-medium mb-4">Allgemeine Einstellungen</h3>
+
+                            {/* Default Model */}
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium">
+                                Standard-Modell
+                              </label>
+                              <select
+                                value={settings.defaultModel}
+                                onChange={(e) => updateSetting('defaultModel', e.target.value)}
+                                className={`
+                                  w-full px-3 py-2 rounded-lg
+                                  border transition-colors
+                                  focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                                  ${
+                                    isDark
+                                      ? 'bg-gray-700 border-gray-600 text-white'
+                                      : 'bg-white border-gray-300 text-gray-900'
+                                  }
+                                `}
+                              >
+                                <option value="qwen3:8b">Qwen 3 8B</option>
+                                <option value="llama3.2:latest">Llama 3.2</option>
+                              </select>
+                              <p
+                                className={`
+                                  text-xs
+                                  ${isDark ? 'text-gray-400' : 'text-gray-600'}
+                                `}
+                              >
+                                Standardmodell für neue Unterhaltungen
+                              </p>
+                            </div>
+
+                            {/* Streaming */}
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <label className="block text-sm font-medium">
+                                  Streaming aktivieren
+                                </label>
+                                <p
+                                  className={`
+                                    text-xs
+                                    ${isDark ? 'text-gray-400' : 'text-gray-600'}
+                                  `}
+                                >
+                                  Antworten werden in Echtzeit angezeigt
+                                </p>
+                              </div>
+                              <input
+                                type="checkbox"
+                                checked={settings.enableStreaming}
+                                onChange={(e) => updateSetting('enableStreaming', e.target.checked)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                            </div>
+
+                            {/* Timestamps */}
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <label className="block text-sm font-medium">
+                                  Zeitstempel anzeigen
+                                </label>
+                                <p
+                                  className={`
+                                    text-xs
+                                    ${isDark ? 'text-gray-400' : 'text-gray-600'}
+                                  `}
+                                >
+                                  Zeige Datum und Uhrzeit bei Nachrichten
+                                </p>
+                              </div>
+                              <input
+                                type="checkbox"
+                                checked={settings.showTimestamps}
+                                onChange={(e) => updateSetting('showTimestamps', e.target.checked)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                            </div>
+                          </div>
+                        </Tab.Panel>
+
+                        {/* Appearance Settings */}
+                        <Tab.Panel className="space-y-6 focus:outline-none">
+                          <div>
+                            <h3 className="text-lg font-medium mb-4">Darstellung</h3>
+
+                            {/* Theme */}
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium">Design</label>
+                              <div className="flex gap-2">
+                                {(['light', 'dark', 'system'] as Theme[]).map((theme) => (
+                                  <button
+                                    key={theme}
+                                    onClick={() => handleThemeChange(theme)}
+                                    className={`
+                                      px-4 py-2 rounded-lg
+                                      border transition-all
+                                      ${
+                                        settings.theme === theme
+                                          ? 'border-blue-500 bg-blue-100 text-blue-900'
+                                          : isDark
+                                            ? 'border-gray-600 text-gray-300 hover:border-gray-500'
+                                            : 'border-gray-300 text-gray-700 hover:border-gray-400'
+                                      }
+                                    `}
+                                  >
+                                    {theme === 'light' ? 'Hell' : theme === 'dark' ? 'Dunkel' : 'System'}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Font Size */}
+                            <div className="space-y-2">
+                              <label className="block text-sm font-medium">Schriftgröße</label>
+                              <div className="flex gap-2">
+                                {(['small', 'medium', 'large'] as FontSize[]).map((size) => (
+                                  <button
+                                    key={size}
+                                    onClick={() => handleFontSizeChange(size)}
+                                    className={`
+                                      px-4 py-2 rounded-lg
+                                      border transition-all
+                                      ${
+                                        fontSize === size
+                                          ? 'border-blue-500 bg-blue-100 text-blue-900'
+                                          : isDark
+                                            ? 'border-gray-600 text-gray-300 hover:border-gray-500'
+                                            : 'border-gray-300 text-gray-700 hover:border-gray-400'
+                                      }
+                                    `}
+                                  >
+                                    {size === 'small' ? 'Klein' : size === 'medium' ? 'Mittel' : 'Groß'}
+                                  </button>
+                                ))}
+                              </div>
+                              <div className={`text-sm ${fontSizeClass}`}>
+                                Beispieltext in der gewählten Schriftgröße
+                              </div>
+                            </div>
+                          </div>
+                        </Tab.Panel>
+
+                        {/* Behavior Settings */}
+                        <Tab.Panel className="space-y-6 focus:outline-none">
+                          <div>
+                            <h3 className="text-lg font-medium mb-4">Verhalten</h3>
+
+                            {/* Send on Enter */}
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <label className="block text-sm font-medium">
+                                  Enter zum Senden
+                                </label>
+                                <p
+                                  className={`
+                                    text-xs
+                                    ${isDark ? 'text-gray-400' : 'text-gray-600'}
+                                  `}
+                                >
+                                  Neue Zeile mit Shift+Enter, Senden mit Enter
+                                </p>
+                              </div>
+                              <input
+                                type="checkbox"
+                                checked={settings.sendOnEnter}
+                                onChange={(e) => updateSetting('sendOnEnter', e.target.checked)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                            </div>
+
+                            {/* Markdown Preview */}
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <label className="block text-sm font-medium">
+                                  Markdown-Vorschau
+                                </label>
+                                <p
+                                  className={`
+                                    text-xs
+                                    ${isDark ? 'text-gray-400' : 'text-gray-600'}
+                                  `}
+                                >
+                                  Live-Vorschau beim Schreiben
+                                </p>
+                              </div>
+                              <input
+                                type="checkbox"
+                                checked={settings.showMarkdownPreview}
+                                onChange={(e) => updateSetting('showMarkdownPreview', e.target.checked)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                            </div>
+                          </div>
+                        </Tab.Panel>
+
+                        {/* Advanced Settings */}
+                        <Tab.Panel className="space-y-6 focus:outline-none">
+                          <div>
+                            <h3 className="text-lg font-medium mb-4">Erweiterte Einstellungen</h3>
+
+                            <div
+                              className={`
+                                p-4 rounded-lg
+                                ${isDark ? 'bg-gray-700' : 'bg-gray-100'}
+                              `}
+                            >
+                              <p className="text-sm">
+                                Erweiterte Modell-Parameter werden in einem zukünftigen Update verfügbar sein.
+                              </p>
+                            </div>
+                          </div>
+                        </Tab.Panel>
+                      </Tab.Panels>
+                    </div>
+                  </div>
+                </Tab.Group>
+
+                {/* Footer */}
+                <div
+                  className={`
+                    flex items-center justify-between
+                    px-6 py-4
+                    border-t
+                    ${isDark ? 'border-gray-700' : 'border-gray-200'}
+                  `}
+                >
+                  <button
+                    onClick={handleReset}
+                    className={`
+                      px-4 py-2 rounded-lg
+                      text-sm font-medium
+                      border transition-colors
+                      ${
+                        isDark
+                          ? 'border-gray-600 text-gray-300 hover:border-gray-500 hover:text-white'
+                          : 'border-gray-300 text-gray-700 hover:border-gray-400 hover:text-gray-900'
+                      }
+                    `}
+                  >
+                    Zurücksetzen
+                  </button>
+
+                  <button
+                    onClick={onClose}
+                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+                  >
+                    Schließen
+                  </button>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </div>
+      </Dialog>
+    </Transition>
+  );
+}
+
+/**
+ * Compact Settings Modal for smaller screens
+ */
+export interface SettingsModalCompactProps extends SettingsModalProps {
+  /** Whether to show in compact mode */
+  compact?: boolean;
+}
+
+export function SettingsModalCompact({
+  isOpen,
+  onClose,
+  compact = false
+}: SettingsModalCompactProps) {
+  if (compact) {
+    // Simplified mobile version - could be implemented later
+    return <SettingsModal isOpen={isOpen} onClose={onClose} />;
+  }
+
+  return <SettingsModal isOpen={isOpen} onClose={onClose} />;
+}
+
+export default SettingsModal;

@@ -138,6 +138,14 @@ export {
 } from './SettingsButton';
 export type { SettingsButtonIconProps } from './SettingsButton';
 
+// Settings modal
+export {
+  SettingsModal,
+  SettingsModalCompact,
+  type SettingsModalProps,
+  type SettingsModalCompactProps,
+} from './SettingsModal';
+
 // Loading states
 export {
   Skeleton,
