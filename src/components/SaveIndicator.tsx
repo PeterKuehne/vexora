@@ -9,6 +9,7 @@
  */
 
 import { Check, Loader2, AlertCircle, Cloud } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 import type { SaveStatus } from '../contexts/ConversationContext';
 
 interface SaveIndicatorProps {
@@ -18,6 +19,8 @@ interface SaveIndicatorProps {
 }
 
 export function SaveIndicator({ status, lastSavedAt, className = '' }: SaveIndicatorProps) {
+  const { isDark } = useTheme();
+
   // Don't render anything when idle
   if (status === 'idle') {
     return null;
@@ -29,29 +32,29 @@ export function SaveIndicator({ status, lastSavedAt, className = '' }: SaveIndic
         return {
           icon: <Loader2 className="w-3.5 h-3.5 animate-spin" />,
           text: 'Speichere...',
-          textColor: 'text-gray-400',
-          bgColor: 'bg-gray-800/50',
+          textColor: isDark ? 'text-gray-400' : 'text-gray-700',
+          bgColor: isDark ? 'bg-gray-800/50' : 'bg-gray-200',
         };
       case 'saved':
         return {
           icon: <Check className="w-3.5 h-3.5" />,
           text: lastSavedAt ? formatTimeSince(lastSavedAt) : 'Gespeichert',
-          textColor: 'text-green-400',
-          bgColor: 'bg-green-900/30',
+          textColor: isDark ? 'text-green-400' : 'text-green-800',
+          bgColor: isDark ? 'bg-green-900/30' : 'bg-green-100',
         };
       case 'error':
         return {
           icon: <AlertCircle className="w-3.5 h-3.5" />,
           text: 'Fehler beim Speichern',
-          textColor: 'text-red-400',
-          bgColor: 'bg-red-900/30',
+          textColor: isDark ? 'text-red-400' : 'text-red-800',
+          bgColor: isDark ? 'bg-red-900/30' : 'bg-red-100',
         };
       default:
         return {
           icon: <Cloud className="w-3.5 h-3.5" />,
           text: '',
-          textColor: 'text-gray-400',
-          bgColor: 'bg-gray-800/50',
+          textColor: isDark ? 'text-gray-400' : 'text-gray-700',
+          bgColor: isDark ? 'bg-gray-800/50' : 'bg-gray-200',
         };
     }
   };
