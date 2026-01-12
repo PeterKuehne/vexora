@@ -8,12 +8,14 @@
  * Composes the layout with message list, streaming stats, and input.
  */
 
-import { useRef } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { AIMessage } from './AIMessage';
 import { UserMessage } from './UserMessage';
 import { ChatInput } from './ChatInput';
 import { WelcomeScreen } from './WelcomeScreen';
 import { useChat } from '../contexts';
+import { ChevronDown } from 'lucide-react';
+import { useTheme } from '../contexts';
 import {
   ChatArea,
   ChatAreaMessages,
@@ -30,6 +32,8 @@ export interface ChatContainerProps {
 
 export function ChatContainer({ className }: ChatContainerProps) {
   const chatAreaRef = useRef<ChatAreaRef>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const { isDark } = useTheme();
 
   const {
     messages,
@@ -42,6 +46,44 @@ export function ChatContainer({ className }: ChatContainerProps) {
     regenerateLastResponse,
     canRegenerate,
   } = useChat();
+
+  // Handle scroll to check if button should be visible
+  const handleScroll = useCallback(() => {
+    if (!chatAreaRef.current) return;
+
+    const isAtBottom = chatAreaRef.current.isAtBottom();
+    const hasMessages = messages.length > 0;
+
+    setShowScrollButton(hasMessages && !isAtBottom);
+  }, [messages.length]);
+
+  // Listen to scroll events on the messages container
+  useEffect(() => {
+    const container = chatAreaRef.current?.getMessagesContainer();
+    if (!container) return;
+
+    // Throttle scroll events for performance
+    let ticking = false;
+    const throttledHandleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          handleScroll();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    container.addEventListener('scroll', throttledHandleScroll, { passive: true });
+
+    // Initial check - use setTimeout to avoid setState in effect warning
+    const timeoutId = setTimeout(() => handleScroll(), 0);
+
+    return () => {
+      container.removeEventListener('scroll', throttledHandleScroll);
+      clearTimeout(timeoutId);
+    };
+  }, [handleScroll]);
 
   // Format milliseconds to readable time
   const formatTime = (ms: number): string => {
@@ -104,7 +146,7 @@ export function ChatContainer({ className }: ChatContainerProps) {
   };
 
   return (
-    <div className={`h-full ${className || ''}`}>
+    <div className={`h-full relative ${className || ''}`}>
       <ChatArea
         ref={chatAreaRef}
         isEmpty={messages.length === 0}
@@ -148,6 +190,30 @@ export function ChatContainer({ className }: ChatContainerProps) {
           })}
         </ChatAreaMessages>
       </ChatArea>
+
+      {/* Floating Scroll to Bottom Button */}
+      {showScrollButton && (
+        <button
+          onClick={() => {
+            chatAreaRef.current?.scrollToBottom('smooth');
+          }}
+          className={`
+            absolute bottom-24 left-1/2 -translate-x-1/2 z-50
+            w-12 h-12 rounded-full shadow-lg
+            flex items-center justify-center
+            transition-all duration-200 ease-out
+            hover:scale-110 hover:shadow-xl
+            ${isDark
+              ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm'
+              : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200'
+            }
+          `.trim()}
+          aria-label="Zum Ende scrollen"
+          title="Zum Ende scrollen"
+        >
+          <ChevronDown size={20} />
+        </button>
+      )}
     </div>
   );
 }
