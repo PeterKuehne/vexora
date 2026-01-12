@@ -2074,3 +2074,19 @@ Status: 78/111 Features (70.3%)
 
 Status: 79/111 Features (71.2%)
 
+
+
+- [X] Feature #94: UI Polish - Scroll Behavior
+  - Smooth scroll to bottom mit 100px threshold implementiert
+  - Scroll-to-bottom Button mit ChevronDown Icon bei Scroll-away
+  - User scroll detection mit throttled events für Performance  
+  - Scroll position preservation bei Conversation History:
+    - LocalStorage: qwen-chat-scroll-positions
+    - ConversationContext erweitert um saveScrollPosition/getScrollPosition
+    - ChatArea erweitert um conversationId + callback props
+    - Auto-restore bei Conversation-Switch mit height-validation
+  - Browser-Verifikation: Scroll preservation funktional ✓
+  - Screenshot: .playwright-mcp/feature_94_scroll_behavior_evidence.png
+  - Git Commit: be47572
+
+Status: 80/111 Features (72.1%)
