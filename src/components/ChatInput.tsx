@@ -99,11 +99,6 @@ export function ChatInput({
           onStop={handleStop}
         />
       </div>
-
-      {/* Hint */}
-      <p className="mt-1 text-xs text-gray-500 text-center">
-        Enter zum Senden, Shift+Enter für neue Zeile
-      </p>
     </form>
   );
 }
