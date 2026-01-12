@@ -1850,7 +1850,24 @@ Erledigt:
   - Screenshot: .playwright-mcp/feature_78_stream_interrupted.png
   - Git Commit: 7b32b18
 
-Status: 69/111 Features (62.2%)
+=== Session: Coding #52 ===
+Datum: 2026-01-12
+Agent: Coding
+
+Erledigt:
+- [X] Feature #81: Functional - Regenerate Response
+  - Feature war bereits vollständig implementiert aus vorheriger Session
+  - Regenerate Button nach jeder AI-Antwort funktional
+  - Entfernt letzte AI-Response und sendet User-Message erneut
+  - Generiert neue, unterschiedliche AI-Antwort via Streaming
+  - Browser-Verifikation: "Kaktus" vs. "Maus" Witz bei Regeneration
+  - Live-Streaming-Stats: 3.3 tokens/s, 11.8s, 171 tokens
+  - Copy/Regenerate Buttons verfügbar nach Completion
+  - npm run build erfolgreich (Frontend + Backend)
+  - Screenshot: .playwright-mcp/feature_81_regenerate_response.png
+  - Git Commit: 8a0501a
+
+Status: 70/111 Features (63.1%)
 
 Nächstes Feature:
 - adw features next
