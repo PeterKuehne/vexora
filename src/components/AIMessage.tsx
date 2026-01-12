@@ -17,6 +17,7 @@ import { useTheme } from '../contexts';
 import { formatDate, cn } from '../utils';
 import { Markdown } from './Markdown';
 import { TypingIndicator } from './TypingIndicator';
+import { RegenerateButtonIcon } from './RegenerateButton';
 import type { Message } from '../types';
 
 // ============================================
@@ -32,6 +33,12 @@ export interface AIMessageProps {
   compact?: boolean;
   /** Show copy button on hover */
   showCopyButton?: boolean;
+  /** Show regenerate button */
+  showRegenerateButton?: boolean;
+  /** Callback when regenerate is clicked */
+  onRegenerate?: () => void;
+  /** Whether regeneration is in progress */
+  isRegenerating?: boolean;
   /** Optional className */
   className?: string;
 }
@@ -45,6 +52,9 @@ export function AIMessage({
   showTimestamp = true,
   compact = false,
   showCopyButton = true,
+  showRegenerateButton = false,
+  onRegenerate,
+  isRegenerating = false,
   className = '',
 }: AIMessageProps) {
   const { isDark } = useTheme();
@@ -156,17 +166,32 @@ export function AIMessage({
           {/* Note: TypingIndicator is already shown above when isStreaming && !hasContent */}
         </div>
 
-        {/* Timestamp */}
-        {showTimestamp && formattedTime && !isStreaming && (
-          <span
-            className={cn(
-              'mt-1',
-              compact ? 'text-[10px]' : 'text-xs',
-              isDark ? 'text-gray-500' : 'text-gray-400'
+        {/* Timestamp and Actions Row */}
+        {(showTimestamp || showRegenerateButton) && !isStreaming && (
+          <div className="mt-1 flex items-center justify-between">
+            {/* Timestamp */}
+            {showTimestamp && formattedTime && (
+              <span
+                className={cn(
+                  compact ? 'text-[10px]' : 'text-xs',
+                  isDark ? 'text-gray-500' : 'text-gray-400'
+                )}
+              >
+                {formattedTime}
+              </span>
             )}
-          >
-            {formattedTime}
-          </span>
+
+            {/* Regenerate Button */}
+            {showRegenerateButton && onRegenerate && hasContent && !isError && (
+              <RegenerateButtonIcon
+                onRegenerate={onRegenerate}
+                isRegenerating={isRegenerating}
+                disabled={isRegenerating}
+                size={compact ? 'sm' : 'md'}
+                className="opacity-0 group-hover:opacity-100 transition-opacity"
+              />
+            )}
+          </div>
         )}
       </div>
     </div>

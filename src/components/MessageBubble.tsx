@@ -15,9 +15,18 @@ export interface MessageBubbleProps {
   message: Message;
   /** Show timestamp below message */
   showTimestamp?: boolean;
+  /** Show regenerate button for AI messages */
+  showRegenerateButton?: boolean;
+  /** Whether regeneration is in progress */
+  isRegenerating?: boolean;
+  /** Callback when regenerate is clicked */
+  onRegenerate?: () => void;
 }
 
-export function MessageBubble({ message, showTimestamp = true }: MessageBubbleProps) {
+export function MessageBubble({
+  message,
+  showTimestamp = true,
+}: MessageBubbleProps) {
   const { isDark } = useTheme();
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';

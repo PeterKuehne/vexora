@@ -9,7 +9,8 @@
  */
 
 import { useRef } from 'react';
-import { MessageBubble } from './MessageBubble';
+import { AIMessage } from './AIMessage';
+import { UserMessage } from './UserMessage';
 import { ChatInput } from './ChatInput';
 import { useChat } from '../contexts';
 import {
@@ -38,6 +39,8 @@ export function ChatContainer({ className }: ChatContainerProps) {
     error,
     sendMessage,
     stopStream,
+    regenerateLastResponse,
+    canRegenerate,
   } = useChat();
 
   // Format milliseconds to readable time
@@ -128,9 +131,25 @@ export function ChatContainer({ className }: ChatContainerProps) {
     >
       {/* Message List */}
       <ChatAreaMessages>
-        {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
-        ))}
+        {messages.map((message) => {
+          const isLastAiMessage = message.role === 'assistant' &&
+            message.id === messages.filter(m => m.role === 'assistant').pop()?.id;
+
+          return message.role === 'assistant' ? (
+            <AIMessage
+              key={message.id}
+              message={message}
+              showRegenerateButton={isLastAiMessage && canRegenerate}
+              onRegenerate={regenerateLastResponse}
+              isRegenerating={isStreaming}
+            />
+          ) : (
+            <UserMessage
+              key={message.id}
+              message={message}
+            />
+          );
+        })}
       </ChatAreaMessages>
     </ChatArea>
   );

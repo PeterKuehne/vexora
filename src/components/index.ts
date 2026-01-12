@@ -221,6 +221,16 @@ export {
   type SendButtonVariant,
 } from './SendButton';
 
+// Regenerate Button
+export {
+  RegenerateButton,
+  RegenerateButtonIcon,
+  RegenerateButtonCompact,
+  type RegenerateButtonProps,
+  type RegenerateButtonIconProps,
+  type RegenerateButtonCompactProps,
+} from './RegenerateButton';
+
 // Typing Indicator
 export {
   TypingIndicator,

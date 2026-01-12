@@ -49,6 +49,10 @@ interface ChatContextValue {
   model: string | undefined;
   /** Set the model to use for chat */
   setModel: (model: string | undefined) => void;
+  /** Regenerate the last AI response */
+  regenerateLastResponse: () => Promise<void>;
+  /** Whether regeneration is possible (has AI messages) */
+  canRegenerate: boolean;
 }
 
 // ============================================
@@ -72,6 +76,7 @@ export function ChatProvider({ children, initialModel }: ChatProviderProps) {
     activeMessages: messages,
     addMessageToActive,
     updateMessageInActive,
+    removeMessageFromActive,
   } = useConversations();
 
   const toast = useToast();
@@ -303,6 +308,57 @@ export function ChatProvider({ children, initialModel }: ChatProviderProps) {
     setStreamProgress(null);
   }, [updateMessageInActive]);
 
+  /**
+   * Check if regeneration is possible
+   */
+  const canRegenerate = useMemo(() => {
+    if (isStreaming || messages.length === 0) return false;
+
+    // Find the last assistant message
+    const lastAiMessage = messages
+      .slice()
+      .reverse()
+      .find(msg => msg.role === 'assistant');
+
+    // Can regenerate if there's an AI message and it's completed (not streaming)
+    return Boolean(lastAiMessage && !lastAiMessage.isStreaming);
+  }, [messages, isStreaming]);
+
+  /**
+   * Regenerate the last AI response
+   */
+  const regenerateLastResponse = useCallback(
+    async () => {
+      if (!canRegenerate || isStreaming) return;
+
+      // Find the last AI message and the corresponding user message before it
+      const lastAiMessageIndex = messages
+        .map((msg, index) => ({ msg, index }))
+        .reverse()
+        .find(({ msg }) => msg.role === 'assistant')?.index;
+
+      if (lastAiMessageIndex === undefined) return;
+
+      const lastAiMessage = messages[lastAiMessageIndex];
+      const userMessageBeforeAi = messages
+        .slice(0, lastAiMessageIndex)
+        .reverse()
+        .find(msg => msg.role === 'user');
+
+      if (!userMessageBeforeAi) return;
+
+      // Remove the last AI message
+      removeMessageFromActive(lastAiMessage.id);
+
+      // Wait a bit for state to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Resend the user message (which will generate a new AI response)
+      await sendMessage(userMessageBeforeAi.content);
+    },
+    [canRegenerate, isStreaming, messages, removeMessageFromActive, sendMessage]
+  );
+
   const value: ChatContextValue = useMemo(
     () => ({
       messages,
@@ -315,6 +371,8 @@ export function ChatProvider({ children, initialModel }: ChatProviderProps) {
       clearError,
       model,
       setModel,
+      regenerateLastResponse,
+      canRegenerate,
     }),
     [
       messages,
@@ -326,6 +384,8 @@ export function ChatProvider({ children, initialModel }: ChatProviderProps) {
       stopStream,
       clearError,
       model,
+      regenerateLastResponse,
+      canRegenerate,
     ]
   );
 

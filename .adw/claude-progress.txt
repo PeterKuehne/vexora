@@ -1822,7 +1822,35 @@ Erledigt:
   - Screenshot: .playwright-mcp/feature_74_conversation_search.png
   - Git Commit: 564da8c
 
-Status: 68/111 Features (61.3%)
+- [X] Feature #78: Error Handling - Streaming Interrupted
+  - API Layer (src/lib/api.ts): Enhanced streaming error handling
+    - onConnectionInterrupted callback zu StreamCallbacks hinzugefügt
+    - onError callback erweitert um partialResponse parameter
+    - Connection timeout detection (30s) mit graceful fallback
+    - Partial response preservation während stream interruption
+    - Improved error context mit metadata tracking
+  - Error Handler (src/lib/errorHandler.ts): Stream interruption support
+    - Neue 'stream_interrupted' error category
+    - ParsedError interface erweitert um partialResponse field
+    - Deutsche lokalisierte Fehlermeldungen für stream interruption
+    - Stream interruption als retryable category markiert
+    - Partial response propagation durch error parsing chain
+  - Chat Context (src/contexts/ChatContext.tsx): Graceful recovery
+    - Connection interruption handling mit partial content preservation
+    - Enhanced error toast notifications mit warning type für interruptions
+    - Automatic retry functionality für interrupted streams
+    - Graceful message status updates (complete vs error)
+    - Info toast notifications für connection interruptions
+  - npm run build erfolgreich (Frontend + Backend)
+  - Browser-Verifikation:
+    - Stream interruption korrekt erkannt (ERR_INCOMPLETE_CHUNKED_ENCODING)
+    - Toast notification erscheint: "Netzwerkfehler" mit retry button
+    - Ollama connection error UI angezeigt mit user guidance
+    - Graceful degradation - app bleibt funktional während interruptions
+  - Screenshot: .playwright-mcp/feature_78_stream_interrupted.png
+  - Git Commit: 7b32b18
+
+Status: 69/111 Features (62.2%)
 
 Nächstes Feature:
 - adw features next

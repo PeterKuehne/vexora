@@ -75,6 +75,8 @@ interface ConversationContextValue {
   addMessageToActive: (message: Message) => void;
   /** Update a message in the active conversation */
   updateMessageInActive: (messageId: string, updates: Partial<Message>) => void;
+  /** Remove a message from the active conversation */
+  removeMessageFromActive: (messageId: string) => void;
   /** Clear all messages in active conversation */
   clearActiveMessages: () => void;
   /** Get messages for active conversation */
@@ -438,6 +440,28 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
   );
 
   /**
+   * Remove a message from the active conversation
+   */
+  const removeMessageFromActive = useCallback(
+    (messageId: string) => {
+      if (!activeConversationId) return;
+
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === activeConversationId
+            ? {
+                ...conv,
+                messages: conv.messages.filter((msg) => msg.id !== messageId),
+                updatedAt: new Date(),
+              }
+            : conv
+        )
+      );
+    },
+    [activeConversationId]
+  );
+
+  /**
    * Clear messages in active conversation
    */
   const clearActiveMessages = useCallback(() => {
@@ -489,6 +513,7 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
     updateConversationTitle,
     addMessageToActive,
     updateMessageInActive,
+    removeMessageFromActive,
     clearActiveMessages,
     activeMessages,
   };
