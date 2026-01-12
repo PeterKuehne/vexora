@@ -182,14 +182,14 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(function ChatArea
         </div>
       )}
 
-      {/* Floating Scroll to Bottom Button */}
+      {/* Floating Scroll to Bottom Button - Centered above input */}
       {showScrollButton && (
         <button
           onClick={() => {
             scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
           }}
           className={`
-            absolute bottom-20 right-6 z-50
+            absolute bottom-24 left-1/2 -translate-x-1/2 z-50
             w-12 h-12 rounded-full shadow-lg
             flex items-center justify-center
             transition-all duration-200 ease-out
