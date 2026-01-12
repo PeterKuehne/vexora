@@ -13,7 +13,7 @@ import { AIMessage } from './AIMessage';
 import { UserMessage } from './UserMessage';
 import { ChatInput } from './ChatInput';
 import { WelcomeScreen } from './WelcomeScreen';
-import { useChat, useConversations } from '../contexts';
+import { useChat } from '../contexts';
 import {
   ChatArea,
   ChatAreaMessages,
@@ -42,12 +42,6 @@ export function ChatContainer({ className }: ChatContainerProps) {
     regenerateLastResponse,
     canRegenerate,
   } = useChat();
-
-  const {
-    activeConversationId,
-    saveScrollPosition,
-    getScrollPosition
-  } = useConversations();
 
   // Format milliseconds to readable time
   const formatTime = (ms: number): string => {
@@ -110,52 +104,50 @@ export function ChatContainer({ className }: ChatContainerProps) {
   };
 
   return (
-    <ChatArea
-      ref={chatAreaRef}
-      className={className}
-      isEmpty={messages.length === 0}
-      autoScroll={true}
-      scrollDependency={messages}
-      conversationId={activeConversationId || undefined}
-      onSaveScrollPosition={saveScrollPosition}
-      onRestoreScrollPosition={getScrollPosition}
-      emptyState={
-        <WelcomeScreen onExamplePromptClick={sendMessage} />
-      }
-      statusBar={renderStatusBar()}
-      inputArea={
-        <ChatAreaInputWrapper hint="Enter zum Senden, Shift+Enter für neue Zeile">
-          <ChatInput
-            onSend={sendMessage}
-            onStop={stopStream}
-            isStreaming={isStreaming}
-            placeholder="Schreibe eine Nachricht..."
-          />
-        </ChatAreaInputWrapper>
-      }
-    >
-      {/* Message List */}
-      <ChatAreaMessages>
-        {messages.map((message) => {
-          const isLastAiMessage = message.role === 'assistant' &&
-            message.id === messages.filter(m => m.role === 'assistant').pop()?.id;
+    <div className={`h-full ${className || ''}`}>
+      <ChatArea
+        ref={chatAreaRef}
+        isEmpty={messages.length === 0}
+        autoScroll={true}
+        scrollDependency={messages}
+        emptyState={
+          <WelcomeScreen onExamplePromptClick={sendMessage} />
+        }
+        statusBar={renderStatusBar()}
+        inputArea={
+          <ChatAreaInputWrapper hint="Enter zum Senden, Shift+Enter für neue Zeile">
+            <ChatInput
+              onSend={sendMessage}
+              onStop={stopStream}
+              isStreaming={isStreaming}
+              placeholder="Schreibe eine Nachricht..."
+            />
+          </ChatAreaInputWrapper>
+        }
+      >
+        {/* Message List */}
+        <ChatAreaMessages>
+          {messages.map((message) => {
+            const isLastAiMessage = message.role === 'assistant' &&
+              message.id === messages.filter(m => m.role === 'assistant').pop()?.id;
 
-          return message.role === 'assistant' ? (
-            <AIMessage
-              key={message.id}
-              message={message}
-              showRegenerateButton={isLastAiMessage && canRegenerate}
-              onRegenerate={regenerateLastResponse}
-              isRegenerating={isStreaming}
-            />
-          ) : (
-            <UserMessage
-              key={message.id}
-              message={message}
-            />
-          );
-        })}
-      </ChatAreaMessages>
-    </ChatArea>
+            return message.role === 'assistant' ? (
+              <AIMessage
+                key={message.id}
+                message={message}
+                showRegenerateButton={isLastAiMessage && canRegenerate}
+                onRegenerate={regenerateLastResponse}
+                isRegenerating={isStreaming}
+              />
+            ) : (
+              <UserMessage
+                key={message.id}
+                message={message}
+              />
+            );
+          })}
+        </ChatAreaMessages>
+      </ChatArea>
+    </div>
   );
 }
