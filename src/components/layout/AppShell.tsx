@@ -4,7 +4,7 @@
  * Uses CSS Flexbox for responsive layout with breakpoints
  */
 
-import { type ReactNode, useState, useCallback } from 'react';
+import { type ReactNode, useState, useCallback, useEffect } from 'react';
 import { Menu } from 'lucide-react';
 import { useTheme } from '../../contexts';
 
@@ -48,13 +48,42 @@ export function AppShell({
   className = '',
 }: AppShellProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(defaultSidebarCollapsed);
+  const [isMobile, setIsMobile] = useState(false);
   const { isDark } = useTheme();
+
+  // Detect mobile screen size
+  const checkMobile = useCallback(() => {
+    setIsMobile(window.innerWidth < 1024); // lg breakpoint
+  }, []);
+
+  // Handle responsive layout on mount and window resize
+  useEffect(() => {
+    checkMobile();
+
+    const handleResize = () => {
+      checkMobile();
+      // Auto-close sidebar on mobile when resizing
+      if (window.innerWidth >= 1024 && isSidebarCollapsed) {
+        setIsSidebarCollapsed(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [checkMobile, isSidebarCollapsed]);
 
   const handleToggleSidebar = useCallback(() => {
     const newState = !isSidebarCollapsed;
     setIsSidebarCollapsed(newState);
     onSidebarToggle?.(newState);
   }, [isSidebarCollapsed, onSidebarToggle]);
+
+  // Close sidebar when clicking overlay (mobile only)
+  const handleOverlayClick = useCallback(() => {
+    if (isMobile && !isSidebarCollapsed) {
+      setIsSidebarCollapsed(true);
+    }
+  }, [isMobile, isSidebarCollapsed]);
 
   // Expose toggle function and state for Header component
   const sidebarControls = {
@@ -118,15 +147,30 @@ export function AppShell({
       )}
 
       {/* Main Layout: Sidebar + Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Mobile Overlay - only visible when sidebar is open on mobile */}
+        {isMobile && !isSidebarCollapsed && sidebar && (
+          <div
+            className="mobile-overlay"
+            onClick={handleOverlayClick}
+            aria-label="Close sidebar"
+          />
+        )}
+
         {/* Sidebar Container */}
         {sidebar && (
           <aside
             className={`
-              shrink-0
-              transition-all duration-200 ease-in-out
-              ${isSidebarCollapsed ? 'hidden' : 'flex'}
-              lg:flex
+              shrink-0 transition-all duration-200 ease-in-out
+              ${
+                isMobile
+                  ? `mobile-sidebar ${
+                      isSidebarCollapsed
+                        ? '-translate-x-full opacity-0'
+                        : 'translate-x-0 opacity-100 slide-in-left'
+                    }`
+                  : `${isSidebarCollapsed ? 'hidden' : 'flex'} lg:flex`
+              }
             `.trim()}
             aria-label="Sidebar"
           >
@@ -135,7 +179,10 @@ export function AppShell({
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-hidden">
+        <main className={`
+          flex-1 overflow-hidden transition-all duration-200
+          ${isMobile && !isSidebarCollapsed ? 'pointer-events-none' : ''}
+        `.trim()}>
           {children}
         </main>
       </div>

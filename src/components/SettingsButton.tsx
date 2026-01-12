@@ -29,12 +29,12 @@ function getSizeStyles(size: 'sm' | 'md' | 'lg'): {
 } {
   switch (size) {
     case 'sm':
-      return { iconSize: 14, padding: 'px-1.5 py-1', textSize: 'text-xs' };
+      return { iconSize: 14, padding: 'touch-target px-1.5 py-1', textSize: 'text-xs' };
     case 'lg':
-      return { iconSize: 20, padding: 'px-3 py-2', textSize: 'text-base' };
+      return { iconSize: 20, padding: 'touch-target px-3 py-2', textSize: 'text-base' };
     case 'md':
     default:
-      return { iconSize: 16, padding: 'px-2 py-1.5', textSize: 'text-sm' };
+      return { iconSize: 16, padding: 'touch-target px-2 py-1.5', textSize: 'text-sm' };
   }
 }
 

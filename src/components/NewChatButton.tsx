@@ -48,9 +48,9 @@ export function NewChatButton({
 }: NewChatButtonProps) {
   // Size classes
   const sizeClasses = {
-    sm: 'px-2.5 py-1.5 text-xs gap-1',
-    md: 'px-3 py-2 text-sm gap-1.5',
-    lg: 'px-4 py-2.5 text-base gap-2',
+    sm: 'touch-target px-2.5 py-1.5 text-xs gap-1',
+    md: 'touch-target px-3 py-2 text-sm gap-1.5',
+    lg: 'touch-target px-4 py-2.5 text-base gap-2',
   };
 
   // Icon size

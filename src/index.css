@@ -39,6 +39,12 @@
 
   /* Sidebar */
   --sidebar-width: 280px;
+  --sidebar-mobile-width: 100vw;
+
+  /* Mobile Breakpoints & Touch */
+  --mobile-touch-target: 44px;
+  --mobile-padding: 16px;
+  --mobile-header-height: 64px;
 }
 
 /* CSS Custom Properties for runtime access */
@@ -215,6 +221,68 @@ textarea:focus-visible {
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  /* Mobile Touch Targets */
+  .touch-target {
+    min-height: var(--mobile-touch-target);
+    min-width: var(--mobile-touch-target);
+  }
+
+  /* Mobile Overlay for Sidebar */
+  .mobile-overlay {
+    @apply fixed inset-0 bg-black/50 z-40 lg:hidden;
+    backdrop-filter: blur(2px);
+  }
+
+  .mobile-sidebar {
+    @apply fixed left-0 top-0 h-full z-50 lg:static lg:z-auto;
+    width: var(--sidebar-mobile-width);
+    max-width: 320px;
+  }
+
+  /* Slide animations for mobile sidebar */
+  .slide-in-left {
+    animation: slideInLeft 0.3s ease-out;
+  }
+
+  .slide-out-left {
+    animation: slideOutLeft 0.3s ease-out;
+  }
+
+  @keyframes slideInLeft {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideOutLeft {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-100%);
+    }
+  }
+
+  /* Enhanced touch targets for mobile */
+  @media (max-width: 1023px) {
+    button {
+      min-height: var(--mobile-touch-target);
+    }
+
+    input[type="text"],
+    input[type="search"],
+    textarea {
+      min-height: var(--mobile-touch-target);
+    }
+
+    .touch-optimize {
+      padding: 12px 16px;
     }
   }
 }

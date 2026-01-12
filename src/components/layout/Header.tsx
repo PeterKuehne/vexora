@@ -100,7 +100,7 @@ export function Header({
           <button
             onClick={onToggleSidebar}
             className={`
-              p-1.5 rounded-lg transition-colors
+              touch-target p-2 rounded-lg transition-colors
               lg:hidden
               ${
                 isDark
