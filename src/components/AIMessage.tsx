@@ -148,7 +148,7 @@ export function AIMessage({
 
         {/* Timestamp and Actions Row */}
         {(showTimestamp || showRegenerateButton) && !isStreaming && (
-          <div className="mt-1 flex items-center justify-between">
+          <div className="mt-1 flex items-center gap-4">
             {/* Timestamp */}
             {showTimestamp && formattedTime && (
               <span
