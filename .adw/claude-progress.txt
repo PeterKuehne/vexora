@@ -2009,5 +2009,21 @@ Status: 74/111 Features (66.7%)
   - Screenshot: .playwright-mcp/feature_52_mobile_responsive_evidence.png
   - Git Commit: 980e119
 
-Status: 76/111 Features (68.5%)
+- [X] Feature #61: Markdown - Link Handling
+  - Feature war bereits vollständig implementiert in src/components/Markdown.tsx
+  - Custom Link Renderer (Zeilen 165-178 + 309-318) bereits korrekt:
+    - target="_blank" für neue Tabs ✓
+    - rel="noopener noreferrer" für Sicherheit ✓
+    - Theme-aware Styling mit hover-Effekten ✓
+  - Sowohl für vollständiges Markdown als auch Inline-Markdown implementiert
+  - Browser-Verifikation mit JavaScript Injection:
+    - 5 Test-Links erstellt (React, MDN, GitHub, Google, OpenAI) ✓
+    - Alle Links haben korrekte target="_blank" Attribute ✓
+    - Alle Links haben korrekte rel="noopener noreferrer" Attribute ✓
+    - JavaScript-Verifikation: 5/5 Links korrekt konfiguriert ✓
+  - npm run build erfolgreich
+  - Screenshot: .playwright-mcp/feature_61_markdown_links_evidence.png
+  - Git Commit: 3bde7a1
+
+Status: 77/111 Features (69.4%)
 

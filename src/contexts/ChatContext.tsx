@@ -15,6 +15,7 @@ import {
   useRef,
   useState,
   useMemo,
+  useEffect,
   type ReactNode,
 } from 'react';
 import { useConversations } from './ConversationContext';
@@ -69,9 +70,11 @@ interface ChatProviderProps {
   children: ReactNode;
   /** Initial model to use */
   initialModel?: string | undefined;
+  /** Currently selected model from parent */
+  selectedModel?: string | undefined;
 }
 
-export function ChatProvider({ children, initialModel }: ChatProviderProps) {
+export function ChatProvider({ children, initialModel, selectedModel }: ChatProviderProps) {
   const {
     activeMessages: messages,
     addMessageToActive,
@@ -91,6 +94,35 @@ export function ChatProvider({ children, initialModel }: ChatProviderProps) {
   // Refs for tracking current stream
   const abortControllerRef = useRef<AbortController | null>(null);
   const currentAssistantIdRef = useRef<string | null>(null);
+
+  // Track model changes and show info message
+  useEffect(() => {
+    if (selectedModel && model && selectedModel !== model && messages.length > 0) {
+      // Model changed during an active conversation
+      setModel(selectedModel);
+
+      // Create info message about model change
+      const infoMessage: Message = {
+        id: generateId(),
+        role: 'system',
+        content: `Modell gewechselt zu **${selectedModel}**. Neue Nachrichten verwenden das neue Modell.`,
+        timestamp: new Date(),
+        status: 'complete',
+        isSystemMessage: true,
+      };
+
+      addMessageToActive(infoMessage);
+
+      // Show toast notification
+      toast.info(`Modell gewechselt zu ${selectedModel}`, {
+        title: 'Modell geändert',
+        duration: 3000,
+      });
+    } else if (selectedModel && selectedModel !== model) {
+      // Initial model setting or conversation start
+      setModel(selectedModel);
+    }
+  }, [selectedModel, model, messages.length, addMessageToActive, toast]);
 
   /**
    * Clear the current error

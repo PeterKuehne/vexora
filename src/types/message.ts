@@ -35,6 +35,8 @@ export interface Message {
   tokenCount?: number | undefined;
   /** Error message if status is 'error' */
   error?: string | undefined;
+  /** Whether this is a system message (info, model change, etc.) */
+  isSystemMessage?: boolean | undefined;
 }
 
 /**

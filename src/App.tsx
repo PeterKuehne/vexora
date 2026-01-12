@@ -138,7 +138,7 @@ function AppContent() {
       <div className="text-gray-400">Lade Unterhaltungen...</div>
     </div>
   ) : activeConversation ? (
-    <ChatProvider key={activeConversation.id} initialModel={selectedModel}>
+    <ChatProvider key={activeConversation.id} initialModel={selectedModel} selectedModel={selectedModel}>
       <div className="flex flex-col h-full">
         {/* Storage Quota Alert - Show when approaching limits */}
         <div className="shrink-0 p-4">
