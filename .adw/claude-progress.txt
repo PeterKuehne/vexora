@@ -1955,6 +1955,39 @@ Erledigt:
 
 Status: 74/111 Features (66.7%)
 
-Nächstes Feature:
-- #51: UI Component - Settings Modal (Headless UI Dialog, Tab Navigation)
+- [X] Feature #51: UI Component - Settings Modal
+  - SettingsModal.tsx mit vollständigem Headless UI Dialog implementiert
+  - 4 Tab Navigation mit Icons: Allgemein, Darstellung, Verhalten, Erweitert
+  - Tab-Sidebar Layout mit responsive Design und Transition-Animationen
+  - Allgemein Tab:
+    - Standard-Modell Dropdown (Qwen 3 8B, Llama 3.2)
+    - Streaming aktivieren Checkbox mit Beschreibung
+    - Zeitstempel anzeigen Checkbox mit Beschreibung
+  - Darstellung Tab:
+    - Theme Selection (Hell/Dunkel/System) mit aktiver Markierung
+    - Schriftgröße Selection (Klein/Mittel/Groß) mit Live Preview
+    - Beispieltext in gewählter Schriftgröße angezeigt
+  - Verhalten Tab:
+    - "Enter zum Senden" Checkbox mit Shift+Enter Hinweis
+    - "Markdown-Vorschau" Checkbox für Live-Preview beim Schreiben
+  - Erweitert Tab:
+    - Placeholder für zukünftige Modell-Parameter
+  - Integration mit SettingsContext für Live Settings-Updates
+  - Modal State Management in App.tsx mit useState
+  - Close Button (X), Footer mit Zurücksetzen/Schließen Buttons
+  - Backdrop mit Transition-Animationen (Enter/Leave)
+  - Theme-aware Styling (Dark/Light Mode) durchgängig
+  - Responsive Design für verschiedene Bildschirmgrößen
+  - npm run build erfolgreich (TypeScript Strict Mode)
+  - Browser-Verifikation mit Playwright MCP:
+    - Modal öffnet über Einstellungen Button ✓
+    - Tab Navigation funktional (alle 4 Tabs) ✓
+    - Theme Change von Dunkel auf Hell funktional ✓
+    - Settings Updates werden Live angewendet ✓
+    - Close Button schließt Modal vollständig ✓
+    - Footer Buttons funktional ✓
+  - Screenshot: .playwright-mcp/feature_51_settings_modal.png
+  - Git Commit: 13121e4
+
+Status: 75/111 Features (67.6%)
 
