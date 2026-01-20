@@ -132,7 +132,7 @@ SUCCESS CRITERIA:
 - Response quality is noticeably better with reranking
 
 LIBRARIES:
-- Ollama jina-reranker-v2-base-multilingual
+- Ollama Qwen3-Reranker-4B (dengcao/Qwen3-Reranker-4B:Q5_K_M)
 
 OUT OF SCOPE:
 - Custom reranking model training
@@ -309,10 +309,12 @@ Embedding Model:
 - nomic-embed-text (via Ollama, 768-dim)
 
 Reranking Model:
-- jina-reranker-v2-base-multilingual (via Ollama)
+- Qwen3-Reranker-4B (via Ollama, dengcao/Qwen3-Reranker-4B:Q5_K_M)
+- NOTE: jina-reranker NOT available in Ollama, using Qwen3 instead
 
 PDF Processing:
-- pdf-parse (npm) or PyMuPDF (Python fallback)
+- unpdf (npm, modern TypeScript alternative to pdf-parse)
+- NOTE: pdf-parse is unmaintained, use unpdf instead
 
 Orchestration:
 - LlamaIndex (fastest query time, lowest token consumption)
