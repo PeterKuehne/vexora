@@ -83,6 +83,13 @@ export const chatRequestSchema = z.object({
     .max(100, 'messages array cannot exceed 100 messages'),
   stream: z.boolean().optional().default(true),
   options: generationOptionsSchema,
+  // RAG options
+  rag: z.object({
+    enabled: z.boolean(),
+    query: z.string().min(1, 'RAG query cannot be empty').optional(),
+    searchLimit: z.number().int().min(1).max(20).optional().default(5),
+    searchThreshold: z.number().min(0).max(1).optional().default(0.5),
+  }).optional(),
 })
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>

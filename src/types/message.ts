@@ -3,6 +3,8 @@
  * Defines the structure for chat messages
  */
 
+import type { RAGSource } from '../lib/api';
+
 /**
  * Role of a message in a conversation
  */
@@ -37,6 +39,10 @@ export interface Message {
   error?: string | undefined;
   /** Whether this is a system message (info, model change, etc.) */
   isSystemMessage?: boolean | undefined;
+  /** RAG sources for this message (if RAG was used) */
+  sources?: RAGSource[] | undefined;
+  /** Whether RAG was enabled for this message */
+  hasRAGSources?: boolean | undefined;
 }
 
 /**

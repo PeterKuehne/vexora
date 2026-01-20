@@ -21,7 +21,8 @@ import {
 import { useConversations } from './ConversationContext';
 import { useToast } from './ToastContext';
 import { useSettings } from './SettingsContext';
-import { streamChat, type StreamMetadata, type StreamProgress } from '../lib/api';
+import { useRAG } from './RAGContext';
+import { streamChat, type StreamMetadata, type StreamProgress, type RAGSource } from '../lib/api';
 import { parseError } from '../lib/errorHandler';
 import { generateId } from '../utils';
 import type { Message } from '../types/message';
@@ -85,6 +86,7 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
 
   const toast = useToast();
   const { settings } = useSettings();
+  const { isRAGEnabled } = useRAG();
 
   // Chat state
   const [isStreaming, setIsStreaming] = useState(false);
@@ -236,6 +238,15 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
             onProgress: (progress) => {
               setStreamProgress(progress);
             },
+            onSources: (sources: RAGSource[], hasRelevantSources: boolean) => {
+              // Update the assistant message with RAG sources
+              if (currentAssistantIdRef.current) {
+                updateMessageInActive(currentAssistantIdRef.current, {
+                  sources,
+                  hasRAGSources: hasRelevantSources,
+                });
+              }
+            },
             onComplete: (fullResponse, metadata) => {
               // Finalize the assistant message
               if (currentAssistantIdRef.current) {
@@ -324,6 +335,14 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
           {
             model,
             signal: abortControllerRef.current.signal,
+            ...(isRAGEnabled && {
+              ragOptions: {
+                enabled: true,
+                query: content.trim(), // Use the user's message as query
+                searchLimit: 5,
+                searchThreshold: 0.5,
+              }
+            }),
           }
         );
       } catch (err) {

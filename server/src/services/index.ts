@@ -24,3 +24,18 @@ export {
   type DocumentUploadRequest,
   documentUploadSchema,
 } from './DocumentService.js'
+
+export {
+  vectorService,
+  type DocumentChunk,
+  type SearchResult,
+  type VectorSearchRequest,
+  type VectorSearchResponse,
+} from './VectorService.js'
+
+export {
+  ragService,
+  type RAGRequest,
+  type RAGSource,
+  type RAGResponse,
+} from './RAGService.js'

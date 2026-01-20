@@ -25,11 +25,28 @@ export interface ChatOptions {
   stop?: string[];
 }
 
+export interface RAGOptions {
+  enabled: boolean;
+  query?: string;
+  searchLimit?: number;
+  searchThreshold?: number;
+}
+
 export interface ChatRequest {
   messages: ChatMessage[];
   model?: string | undefined;
   stream?: boolean | undefined;
   options?: ChatOptions | undefined;
+  rag?: RAGOptions;
+}
+
+export interface RAGSource {
+  documentId: string;
+  documentName: string;
+  content: string;
+  pageNumber?: number;
+  chunkIndex: number;
+  score: number;
 }
 
 export interface StreamChunk {
@@ -42,6 +59,10 @@ export interface StreamChunk {
   total_duration?: number;
   prompt_eval_count?: number;
   eval_count?: number;
+  // RAG-specific fields
+  type?: 'sources' | 'message';
+  sources?: RAGSource[];
+  hasRelevantSources?: boolean;
 }
 
 export interface StreamCallbacks {
@@ -52,6 +73,8 @@ export interface StreamCallbacks {
   onProgress?: (progress: StreamProgress) => void;
   /** Optional callback for connection interruption */
   onConnectionInterrupted?: (partialResponse: string, metadata: Partial<StreamMetadata>) => void;
+  /** Callback for RAG sources received */
+  onSources?: (sources: RAGSource[], hasRelevantSources: boolean) => void;
 }
 
 export interface StreamMetadata {
@@ -88,10 +111,11 @@ export async function streamChat(
     model?: string | undefined;
     chatOptions?: ChatOptions | undefined;
     signal?: AbortSignal | null | undefined;
+    ragOptions?: RAGOptions;
   }
 ): Promise<void> {
-  const { onToken, onComplete, onError, onProgress } = callbacks;
-  const { model, chatOptions, signal } = options ?? {};
+  const { onToken, onComplete, onError, onProgress, onSources } = callbacks;
+  const { model, chatOptions, signal, ragOptions } = options ?? {};
 
   // Convert Message[] to ChatMessage[] (API format)
   const chatMessages: ChatMessage[] = messages.map((msg) => ({
@@ -104,6 +128,7 @@ export async function streamChat(
     model: model,
     stream: true,
     options: chatOptions,
+    ...(ragOptions && { rag: ragOptions }),
   };
 
   // Variables to track response and metadata across try/catch blocks
@@ -189,6 +214,12 @@ export async function streamChat(
               try {
                 const parsed: StreamChunk = JSON.parse(data);
 
+                // Handle RAG sources (received first)
+                if (parsed.type === 'sources' && parsed.sources && onSources) {
+                  onSources(parsed.sources, parsed.hasRelevantSources ?? false);
+                }
+
+                // Handle regular message content
                 if (parsed.message?.content) {
                   const token = parsed.message.content;
                   fullResponse += token;

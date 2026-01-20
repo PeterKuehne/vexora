@@ -15,7 +15,7 @@ import {
   type ChatRequest,
   type ModelQuery,
 } from './validation/index.js'
-import { ollamaService, documentService } from './services/index.js'
+import { ollamaService, documentService, ragService } from './services/index.js'
 import { processingJobService } from './services/ProcessingJobService.js'
 
 const app = express()
@@ -68,7 +68,7 @@ const upload = multer({
     if (file.mimetype === 'application/pdf') {
       cb(null, true)
     } else {
-      cb(new Error('Nur PDF-Dateien sind erlaubt'), false)
+      cb(new Error('Nur PDF-Dateien sind erlaubt'))
     }
   }
 })
@@ -143,6 +143,12 @@ app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
 
   const chatRequest: ChatRequest = validation.data
   const stream = chatRequest.stream // Zod sets default to true
+  const ragEnabled = chatRequest.rag?.enabled === true
+
+  // Determine the query for RAG search
+  const ragQuery = ragEnabled
+    ? (chatRequest.rag?.query || chatRequest.messages[chatRequest.messages.length - 1]?.content || '')
+    : ''
 
   if (stream) {
     // Set up streaming response with SSE headers
@@ -151,76 +157,185 @@ app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
     res.setHeader('Connection', 'keep-alive')
     res.setHeader('X-Accel-Buffering', 'no') // Disable nginx buffering
 
-    // Get streaming response from OllamaService
-    const ollamaResponse = await ollamaService.chatStream({
-      messages: chatRequest.messages,
-      model: chatRequest.model,
-      options: chatRequest.options,
-    })
-
-    const reader = ollamaResponse.body?.getReader()
-    if (!reader) {
-      res.status(500).json({ error: 'Failed to get response stream' })
-      return
-    }
-
-    const decoder = new TextDecoder()
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
     let clientDisconnected = false
 
-    // Handle client disconnect - cancel the stream to Ollama
+    // Handle client disconnect - cancel any active streams
     req.on('close', () => {
       clientDisconnected = true
-      reader.cancel().catch(() => {
+      reader?.cancel().catch(() => {
         // Ignore cancel errors
       })
       console.log('🔌 Client disconnected, stream cancelled')
     })
 
-    try {
-      while (!clientDisconnected) {
-        const { done, value } = await reader.read()
-        if (done) break
+    if (ragEnabled && ragQuery) {
+      // RAG-enabled streaming response
+      try {
+        const ragResponse = await ragService.generateStreamingResponse({
+          messages: chatRequest.messages,
+          model: chatRequest.model || 'qwen3:8b',
+          query: ragQuery,
+          searchLimit: chatRequest.rag?.searchLimit || 5,
+          searchThreshold: chatRequest.rag?.searchThreshold || 0.5,
+        })
 
-        const chunk = decoder.decode(value, { stream: true })
-        // Ollama sends NDJSON (newline-delimited JSON)
-        const lines = chunk.split('\n').filter((line) => line.trim())
+        // Send sources first (as metadata)
+        if (!clientDisconnected) {
+          const sourcesMetadata = {
+            type: 'sources',
+            sources: ragResponse.sources,
+            hasRelevantSources: ragResponse.hasRelevantSources,
+          }
+          res.write(`data: ${JSON.stringify(sourcesMetadata)}\n\n`)
+        }
 
-        for (const line of lines) {
-          if (clientDisconnected) break
+        reader = ragResponse.stream.getReader()
+        if (!reader) {
+          res.status(500).json({ error: 'Failed to get RAG response stream' })
+          return
+        }
 
-          try {
-            const parsed = JSON.parse(line)
-            // Send as SSE format
-            res.write(`data: ${JSON.stringify(parsed)}\n\n`)
-          } catch {
-            // Skip malformed JSON lines
+        const decoder = new TextDecoder()
+
+        try {
+          while (!clientDisconnected) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            const chunk = decoder.decode(value, { stream: true })
+            const lines = chunk.split('\n').filter((line) => line.trim())
+
+            for (const line of lines) {
+              if (clientDisconnected) break
+
+              try {
+                const parsed = JSON.parse(line)
+                // Send as SSE format
+                res.write(`data: ${JSON.stringify(parsed)}\n\n`)
+              } catch {
+                // Skip malformed JSON lines
+              }
+            }
+          }
+
+          // End the stream (only if client still connected)
+          if (!clientDisconnected) {
+            res.write('data: [DONE]\n\n')
+            res.end()
+          }
+        } catch (streamError) {
+          if (!clientDisconnected) {
+            console.error('RAG stream error:', streamError)
+            res.write(
+              `data: ${JSON.stringify({ error: 'RAG stream interrupted' })}\n\n`
+            )
+            res.end()
           }
         }
+      } catch (ragError) {
+        if (!clientDisconnected) {
+          console.error('RAG generation failed, falling back to standard chat:', ragError)
+          res.write(
+            `data: ${JSON.stringify({ error: 'RAG nicht verfügbar, verwende Standard-Chat' })}\n\n`
+          )
+          res.end()
+        }
       }
+    } else {
+      // Standard streaming response (non-RAG)
+      try {
+        const ollamaResponse = await ollamaService.chatStream({
+          messages: chatRequest.messages,
+          model: chatRequest.model,
+          options: chatRequest.options,
+        })
 
-      // End the stream (only if client still connected)
-      if (!clientDisconnected) {
-        res.write('data: [DONE]\n\n')
-        res.end()
-      }
-    } catch (streamError) {
-      // Only log and respond if not caused by client disconnect
-      if (!clientDisconnected) {
-        console.error('Stream error:', streamError)
-        res.write(
-          `data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`
-        )
-        res.end()
+        reader = ollamaResponse.body?.getReader()
+        if (!reader) {
+          res.status(500).json({ error: 'Failed to get response stream' })
+          return
+        }
+
+        const decoder = new TextDecoder()
+
+        try {
+          while (!clientDisconnected) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            const chunk = decoder.decode(value, { stream: true })
+            const lines = chunk.split('\n').filter((line) => line.trim())
+
+            for (const line of lines) {
+              if (clientDisconnected) break
+
+              try {
+                const parsed = JSON.parse(line)
+                res.write(`data: ${JSON.stringify(parsed)}\n\n`)
+              } catch {
+                // Skip malformed JSON lines
+              }
+            }
+          }
+
+          if (!clientDisconnected) {
+            res.write('data: [DONE]\n\n')
+            res.end()
+          }
+        } catch (streamError) {
+          if (!clientDisconnected) {
+            console.error('Stream error:', streamError)
+            res.write(
+              `data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`
+            )
+            res.end()
+          }
+        }
+      } catch (ollamaError) {
+        if (!clientDisconnected) {
+          console.error('Ollama stream failed:', ollamaError)
+          res.status(500).json({ error: 'Failed to get chat response' })
+        }
       }
     }
   } else {
-    // Non-streaming response using OllamaService
-    const response = await ollamaService.chat({
-      messages: chatRequest.messages,
-      model: chatRequest.model,
-      options: chatRequest.options,
-    })
-    res.json(response)
+    // Non-streaming response
+    if (ragEnabled && ragQuery) {
+      // RAG-enabled non-streaming response
+      try {
+        const ragResponse = await ragService.generateResponse({
+          messages: chatRequest.messages,
+          model: chatRequest.model || 'qwen3:8b',
+          query: ragQuery,
+          searchLimit: chatRequest.rag?.searchLimit || 5,
+          searchThreshold: chatRequest.rag?.searchThreshold || 0.5,
+        })
+
+        res.json({
+          message: { content: ragResponse.message },
+          sources: ragResponse.sources,
+          hasRelevantSources: ragResponse.hasRelevantSources,
+          type: 'rag',
+        })
+      } catch (ragError) {
+        console.error('RAG generation failed:', ragError)
+        res.status(500).json({ error: 'RAG generation failed' })
+      }
+    } else {
+      // Standard non-streaming response
+      try {
+        const response = await ollamaService.chat({
+          messages: chatRequest.messages,
+          model: chatRequest.model,
+          options: chatRequest.options,
+        })
+        res.json(response)
+      } catch (ollamaError) {
+        console.error('Ollama chat failed:', ollamaError)
+        res.status(500).json({ error: 'Chat generation failed' })
+      }
+    }
   }
 }))
 
@@ -299,7 +414,7 @@ app.post('/api/documents/upload', upload.single('document'), asyncHandler(async 
 // Get processing job status
 app.get('/api/processing/:jobId', asyncHandler(async (req: Request, res: Response) => {
   const { jobId } = req.params
-  const job = processingJobService.getJob(jobId)
+  const job = processingJobService.getJob(jobId || '')
 
   if (!job) {
     throw new ValidationError('Processing Job nicht gefunden', {
@@ -327,7 +442,7 @@ app.get('/api/documents', asyncHandler(async (_req: Request, res: Response) => {
 // Get single document endpoint
 app.get('/api/documents/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params
-  const document = await documentService.getDocument(id)
+  const document = await documentService.getDocument(id || '')
 
   if (!document) {
     res.status(404).json({
@@ -343,7 +458,7 @@ app.get('/api/documents/:id', asyncHandler(async (req: Request, res: Response) =
 // Delete document endpoint
 app.delete('/api/documents/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params
-  const success = await documentService.deleteDocument(id)
+  const success = await documentService.deleteDocument(id || '')
 
   if (!success) {
     res.status(404).json({

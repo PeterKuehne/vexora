@@ -1,7 +1,8 @@
-import * as unpdf from 'unpdf';
+import { extractText } from 'unpdf';
 import fs from 'fs/promises';
 import path from 'path';
 import { z } from 'zod';
+import { vectorService } from './VectorService.js';
 
 /**
  * DocumentService - Handles PDF processing and document management
@@ -63,7 +64,7 @@ class DocumentService {
 
       // Extract text from PDF using unpdf
       const data = await fs.readFile(filePath);
-      const { text, totalPages } = await unpdf(data, { mergePages: true });
+      const { text, totalPages } = await extractText(data, { mergePages: true });
 
       // Generate unique ID
       const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -81,6 +82,15 @@ class DocumentService {
 
       // Store document metadata (in production, this would go to PostgreSQL)
       this.documentsStorage.set(documentId, document);
+
+      // Store document chunks in vector database for RAG
+      try {
+        await vectorService.storeDocument(document);
+        console.log(`✅ Document stored in vector database: ${document.originalName}`);
+      } catch (vectorError) {
+        console.warn(`⚠️  Failed to store in vector database: ${vectorError}`);
+        // Continue without vector storage - document is still usable
+      }
 
       return {
         success: true,
@@ -118,6 +128,15 @@ class DocumentService {
 
     // Remove from storage
     this.documentsStorage.delete(id);
+
+    // Remove from vector database
+    try {
+      await vectorService.deleteDocument(id);
+      console.log(`✅ Document removed from vector database: ${id}`);
+    } catch (vectorError) {
+      console.warn(`⚠️  Failed to remove from vector database: ${vectorError}`);
+      // Continue with deletion
+    }
 
     // Clean up file (attempt, but don't fail if it doesn't exist)
     try {

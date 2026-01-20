@@ -10,6 +10,7 @@ import { cn, formatDate } from '../utils';
 import { useTheme } from '../contexts';
 import type { Message } from '../types/message';
 import { Markdown } from './Markdown';
+import { RAGSources } from './RAGSources';
 
 export interface MessageBubbleProps {
   message: Message;
@@ -115,6 +116,14 @@ export function MessageBubble({
           {/* Loading Indicator for empty streaming messages */}
           {isAssistant && isStreaming && !message.content && (
             <Loader2 size={16} className="animate-spin text-gray-400" />
+          )}
+
+          {/* RAG Sources */}
+          {isAssistant && message.sources && message.hasRAGSources && (
+            <RAGSources
+              sources={message.sources}
+              hasRelevantSources={message.hasRAGSources}
+            />
           )}
         </div>
 
