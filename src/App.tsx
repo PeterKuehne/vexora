@@ -21,6 +21,7 @@ import {
   ChatProvider,
   ToastProvider,
   DocumentProvider,
+  RAGProvider,
   useToast,
   useToasts,
 } from './contexts';
@@ -182,7 +183,9 @@ function App() {
         <ToastProvider>
           <ConversationProvider>
             <DocumentProvider>
-              <AppContent />
+              <RAGProvider>
+                <AppContent />
+              </RAGProvider>
             </DocumentProvider>
           </ConversationProvider>
         </ToastProvider>

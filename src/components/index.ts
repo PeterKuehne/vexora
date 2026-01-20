@@ -289,6 +289,9 @@ export { DocumentSidebar } from './DocumentSidebar';
 export { MainSidebar } from './MainSidebar';
 export { SidebarTabs, type SidebarTab } from './SidebarTabs';
 
+// RAG components
+export { RAGToggle } from './RAGToggle';
+
 // UI components will be exported here
 // export { Button } from './ui/Button';
 // export { Input } from './ui/Input';

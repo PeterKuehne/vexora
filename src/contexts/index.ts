@@ -39,7 +39,13 @@ export {
   useDocuments,
 } from './DocumentContext';
 
+export {
+  RAGProvider,
+  useRAG,
+} from './RAGContext';
+
 export type { SettingsContextValue } from './SettingsContext';
 export type { ChatContextValue } from './ChatContext';
 export type { Toast, ToastType } from './ToastContext';
 export type { DocumentContextValue, DocumentMetadata, UploadProgress } from './DocumentContext';
+export type { RAGContextType } from './RAGContext';

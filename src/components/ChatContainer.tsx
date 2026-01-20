@@ -12,8 +12,9 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { AIMessage } from './AIMessage';
 import { UserMessage } from './UserMessage';
 import { ChatInput } from './ChatInput';
+import { RAGToggle } from './RAGToggle';
 import { WelcomeScreen } from './WelcomeScreen';
-import { useChat } from '../contexts';
+import { useChat, useRAG, useDocuments } from '../contexts';
 import { ChevronDown } from 'lucide-react';
 import { useTheme } from '../contexts';
 import {
@@ -47,6 +48,10 @@ export function ChatContainer({ className }: ChatContainerProps) {
     canRegenerate,
   } = useChat();
 
+  // RAG state management
+  const { isRAGEnabled, setRAGEnabled, setRAGAvailable } = useRAG();
+  const { documents } = useDocuments();
+
   // Handle scroll to check if button should be visible
   const handleScroll = useCallback(() => {
     if (!chatAreaRef.current) return;
@@ -56,6 +61,12 @@ export function ChatContainer({ className }: ChatContainerProps) {
 
     setShowScrollButton(hasMessages && !isAtBottom);
   }, [messages.length]);
+
+  // Update RAG availability based on documents
+  useEffect(() => {
+    const hasDocuments = documents && documents.length > 0;
+    setRAGAvailable(hasDocuments);
+  }, [documents, setRAGAvailable]);
 
   // Listen to scroll events on the messages container
   useEffect(() => {
@@ -158,11 +169,24 @@ export function ChatContainer({ className }: ChatContainerProps) {
         statusBar={renderStatusBar()}
         inputArea={
           <ChatAreaInputWrapper hint="Enter zum Senden, Shift+Enter für neue Zeile">
+            {/* RAG Toggle */}
+            <div className="mb-3">
+              <RAGToggle
+                enabled={isRAGEnabled}
+                onChange={setRAGEnabled}
+                disabled={false}
+              />
+            </div>
+            {/* Chat Input */}
             <ChatInput
               onSend={sendMessage}
               onStop={stopStream}
               isStreaming={isStreaming}
-              placeholder="Schreibe eine Nachricht..."
+              placeholder={
+                isRAGEnabled
+                  ? "Stelle eine Frage zu deinen Dokumenten..."
+                  : "Schreibe eine Nachricht..."
+              }
             />
           </ChatAreaInputWrapper>
         }
