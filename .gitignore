@@ -30,3 +30,31 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Test results
+test-results/
+playwright-report/
+coverage/
+
+# RAG System Data (Docker volumes & uploads)
+weaviate_data/
+postgres_data/
+pg_data/
+qdrant_storage/
+redis_data/
+uploads/
+*.pdf
+*.db
+*.sqlite
+
+# Python (for PDF processing)
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+venv/
+env/
+*.egg-info/
+
+# Docker
+docker-compose.override.yml
