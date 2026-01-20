@@ -23,9 +23,9 @@ import type { Conversation, CreateConversationInput } from '../types/conversatio
 import type { Message } from '../types/message';
 
 // LocalStorage keys
-const STORAGE_KEY = 'qwen-chat-conversations';
-const ACTIVE_ID_KEY = 'qwen-chat-active-conversation';
-const SCROLL_POSITIONS_KEY = 'qwen-chat-scroll-positions';
+const STORAGE_KEY = 'vexora-conversations';
+const ACTIVE_ID_KEY = 'vexora-active-conversation';
+const SCROLL_POSITIONS_KEY = 'vexora-scroll-positions';
 
 // Auto-save debounce delay (ms)
 const SAVE_DEBOUNCE_DELAY = 500;

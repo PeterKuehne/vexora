@@ -67,7 +67,7 @@ export function Logo({
           <Bot size={config.icon} />
         </span>
       )}
-      {showText && <span>Qwen Chat</span>}
+      {showText && <span>Vexora</span>}
     </span>
   );
 

@@ -70,7 +70,7 @@ export function WelcomeScreen({ onExamplePromptClick, className }: WelcomeScreen
         <div className="flex items-center gap-3 mb-4">
           <Bot size={48} className="text-primary" />
           <div className="text-left">
-            <h1 className="text-3xl font-bold text-foreground">Qwen Chat</h1>
+            <h1 className="text-3xl font-bold text-foreground">Vexora</h1>
             <p className="text-lg text-muted-foreground">KI-Assistent powered by Ollama</p>
           </div>
         </div>
@@ -82,7 +82,7 @@ export function WelcomeScreen({ onExamplePromptClick, className }: WelcomeScreen
           Willkommen bei deinem lokalen KI-Assistenten
         </h2>
         <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
-          Qwen Chat läuft komplett lokal über Ollama. Deine Daten bleiben privat und sicher auf deinem Gerät.
+          Vexora läuft komplett lokal über Ollama. Deine Daten bleiben privat und sicher auf deinem Gerät.
           Starte eine Unterhaltung oder wähle eines der Beispiele unten.
         </p>
       </div>
@@ -145,7 +145,7 @@ export function WelcomeScreenCompact({ onExamplePromptClick, className }: Welcom
   return (
     <div className={`flex flex-col items-center justify-center py-8 px-4 text-center ${className || ''}`}>
       <Bot size={32} className="text-primary mb-4" />
-      <h2 className="text-xl font-semibold text-foreground mb-2">Willkommen bei Qwen Chat</h2>
+      <h2 className="text-xl font-semibold text-foreground mb-2">Willkommen bei Vexora</h2>
       <p className="text-muted-foreground text-sm mb-6 max-w-md">
         Starte eine Unterhaltung mit deinem lokalen KI-Assistenten
       </p>
@@ -170,7 +170,7 @@ export function WelcomeScreenMinimal({ className }: WelcomeScreenProps) {
   return (
     <div className={`flex flex-col items-center justify-center py-6 px-4 text-center ${className || ''}`}>
       <Bot size={24} className="text-primary mb-3" />
-      <h3 className="text-lg font-medium text-foreground mb-2">Qwen Chat</h3>
+      <h3 className="text-lg font-medium text-foreground mb-2">Vexora</h3>
       <p className="text-sm text-muted-foreground">Schreibe eine Nachricht um zu starten</p>
     </div>
   );

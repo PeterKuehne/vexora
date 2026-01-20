@@ -55,7 +55,7 @@ describe('useLocalStorage', () => {
     it('should return stored value when it exists', () => {
       // Pre-populate storage
       localStorageMock.setItem(
-        'qwen-chat-test-key',
+        'vexora-test-key',
         JSON.stringify({ value: 'stored' })
       );
 
@@ -77,7 +77,7 @@ describe('useLocalStorage', () => {
 
       expect(result.current.value).toBe('updated');
       expect(localStorageMock.setItem).toHaveBeenCalledWith(
-        'qwen-chat-test-key',
+        'vexora-test-key',
         JSON.stringify({ value: 'updated' })
       );
     });
@@ -114,7 +114,7 @@ describe('useLocalStorage', () => {
 
       expect(result.current.value).toBe('default');
       expect(localStorageMock.removeItem).toHaveBeenCalledWith(
-        'qwen-chat-test-key'
+        'vexora-test-key'
       );
     });
   });
@@ -209,7 +209,7 @@ describe('useLocalStorage', () => {
 
       // Simulate external change to storage
       localStorageMock.setItem(
-        'qwen-chat-test-key',
+        'vexora-test-key',
         JSON.stringify({ value: 'external-update' })
       );
 

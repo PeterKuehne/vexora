@@ -1,5 +1,5 @@
 /**
- * Custom Error Types for the Qwen Chat API
+ * Custom Error Types for the Vexora API
  *
  * These error classes provide structured error handling with:
  * - HTTP status codes

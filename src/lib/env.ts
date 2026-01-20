@@ -11,7 +11,7 @@ export const env = {
   WS_URL: import.meta.env.VITE_WS_URL ?? 'http://localhost:3001',
 
   // App Info
-  APP_NAME: import.meta.env.VITE_APP_NAME ?? 'Qwen Chat',
+  APP_NAME: import.meta.env.VITE_APP_NAME ?? 'Vexora',
   APP_VERSION: import.meta.env.VITE_APP_VERSION ?? '0.1.0',
 
   // Build Mode

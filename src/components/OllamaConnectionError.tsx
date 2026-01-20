@@ -31,7 +31,7 @@ export function OllamaConnectionError({
 
       {/* Error Description */}
       <p className="text-gray-400 max-w-lg mb-6">
-        Qwen Chat benötigt Ollama, um mit lokalen KI-Modellen zu kommunizieren.
+        Vexora benötigt Ollama, um mit lokalen KI-Modellen zu kommunizieren.
         Stelle sicher, dass Ollama installiert ist und läuft.
       </p>
 

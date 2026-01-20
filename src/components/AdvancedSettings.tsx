@@ -150,7 +150,7 @@ export function AdvancedSettings({ className = '' }: AdvancedSettingsProps) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `qwen-chat-settings-${new Date().toISOString().split('T')[0]}.json`;
+      link.download = `vexora-settings-${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

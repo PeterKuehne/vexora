@@ -1,5 +1,5 @@
 /**
- * API Client for Qwen Chat Backend
+ * API Client for Vexora Backend
  *
  * Handles communication with the Express backend,
  * including SSE streaming for chat responses.

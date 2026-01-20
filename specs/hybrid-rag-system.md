@@ -8,7 +8,7 @@
 ## 1. Systemübersicht
 
 ### 1.1 Zweck
-Das System erweitert den bestehenden Qwen Chat um Retrieval-Augmented Generation (RAG) Funktionalität, um Antworten basierend auf unternehmensinternen Dokumenten und strukturierten Daten zu generieren.
+Das System erweitert den bestehenden Vexora um Retrieval-Augmented Generation (RAG) Funktionalität, um Antworten basierend auf unternehmensinternen Dokumenten und strukturierten Daten zu generieren.
 
 ### 1.2 Scope
 - PDF-Dokumente indizieren und durchsuchbar machen
@@ -712,8 +712,8 @@ Docker Compose Setup:
 - weaviate (Vector DB)
 - postgres (Structured Data + pgvector)
 - redis (Cache + Queue)
-- qwen-chat-backend (Express API)
-- qwen-chat-frontend (Vite Dev Server / Nginx für Production)
+- vexora-backend (Express API)
+- vexora-frontend (Vite Dev Server / Nginx für Production)
 - ollama (existing, external oder Container)
 ```
 
@@ -724,7 +724,7 @@ Docker Compose Setup:
 - `uploads`: PDF Files (vor Processing)
 
 ### 10.3 Networks
-- `qwen-chat-network`: Internal network für alle Services
+- `vexora-network`: Internal network für alle Services
 
 ### 10.4 Environment Variables
 ```
@@ -734,8 +734,8 @@ WEAVIATE_URL=http://weaviate:8080
 # PostgreSQL
 DB_HOST=postgres
 DB_PORT=5432
-DB_NAME=qwen_rag
-DB_USER=qwen
+DB_NAME=vexora_rag
+DB_USER=vexora
 DB_PASSWORD=${DB_PASSWORD}
 
 # Redis

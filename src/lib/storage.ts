@@ -300,10 +300,10 @@ export class StorageService {
 // ============================================
 
 /**
- * Default storage service instance with 'qwen-chat' prefix
+ * Default storage service instance with 'vexora' prefix
  * Use this for all app storage operations
  */
-export const storage = new StorageService('qwen-chat');
+export const storage = new StorageService('vexora');
 
 // ============================================
 // Convenience Functions

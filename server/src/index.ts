@@ -82,7 +82,7 @@ app.get('/api/health', asyncHandler(async (_req: Request, res: Response) => {
 
 app.get('/', (_req: Request, res: Response) => {
   res.json({
-    name: 'Qwen Chat API',
+    name: 'Vexora API',
     version: '0.1.0',
     environment: env.NODE_ENV,
     endpoints: {

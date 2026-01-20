@@ -1,8 +1,8 @@
-project_name: "Qwen Chat"
+project_name: "Vexora"
 description: "Modern, minimalistic chat interface for local LLMs powered by Ollama. Claude-inspired design with conversation management, streaming responses, and markdown support."
 
 apps:
-  - name: qwen-chat
+  - name: vexora
     path: "."
     type: frontend
     default_port: 3000
@@ -41,7 +41,7 @@ ui_layout:
     position: "top"
     fixed: true
     components:
-      - "Logo/Title (Qwen Chat)"
+      - "Logo/Title (Vexora)"
       - "Model Dropdown (current model: Qwen 3:8B)"
       - "Settings Button (opens modal)"
       - "Theme Toggle (Dark/Light)"

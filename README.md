@@ -1,8 +1,8 @@
-# Qwen Chat
+# Vexora
 
 Modern, minimalistic chat interface for local LLMs powered by Ollama. Claude-inspired design with conversation management, streaming responses, and markdown support.
 
-![Qwen Chat Interface](docs/screenshot.png)
+![Vexora Interface](docs/screenshot.png)
 
 ## Features
 
@@ -20,7 +20,7 @@ Modern, minimalistic chat interface for local LLMs powered by Ollama. Claude-ins
 
 ### Ollama Installation
 
-Qwen Chat requires **Ollama** to run AI models locally.
+Vexora requires **Ollama** to run AI models locally.
 
 1. **Install Ollama:**
    - **macOS/Linux:** `curl -fsSL https://ollama.ai/install.sh | sh`
@@ -49,7 +49,7 @@ Qwen Chat requires **Ollama** to run AI models locally.
 1. **Clone the repository:**
    ```bash
    git clone <repository-url>
-   cd qwen-chat
+   cd vexora
    ```
 
 2. **Install dependencies:**
@@ -72,7 +72,7 @@ Qwen Chat requires **Ollama** to run AI models locally.
 ### Getting Started
 
 1. **Ensure Ollama is running** with `ollama serve`
-2. **Open Qwen Chat** in your browser
+2. **Open Vexora** in your browser
 3. **Click "New Chat"** to start a conversation
 4. **Type your message** and press Enter or click Send
 
@@ -115,7 +115,7 @@ Qwen Chat requires **Ollama** to run AI models locally.
 ### Project Structure
 
 ```
-qwen-chat/
+vexora/
 ├── src/                    # React frontend
 │   ├── components/         # Reusable UI components
 │   ├── contexts/          # React contexts (theme, conversations)

@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 /**
- * Custom environment variables for Qwen Chat
+ * Custom environment variables for Vexora
  * Extends Vite's built-in ImportMetaEnv
  */
 interface ImportMetaEnv {
