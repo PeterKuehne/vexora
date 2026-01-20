@@ -1,0 +1,441 @@
+PROJECT: Vexora Hybrid RAG System
+
+================================================================================
+CURRENT STATE
+================================================================================
+
+Vexora is an existing AI chat application with the following functionality:
+
+- Users can have conversations with Ollama-powered LLMs (currently supports Qwen and other models)
+- Real-time streaming responses from LLM
+- Multiple conversation management (create, switch, delete conversations)
+- Persistent conversation history (stored in browser localStorage)
+- Ollama model selection and management
+- Advanced LLM settings (temperature, top_p, top_k, tokens)
+- Persistent system prompt configuration
+- Light/Dark theme support
+- Markdown rendering with code syntax highlighting
+- Message editing and regeneration
+- Auto-save functionality
+- Settings import/export
+
+TECH STACK:
+- Frontend: React 19 + TypeScript + Vite
+- Backend: Express.js + TypeScript
+- LLM: Ollama (local)
+- Storage: Browser localStorage only (no database)
+- Styling: Tailwind CSS
+
+DEPLOYMENT:
+- Runs completely local
+- No cloud services
+- Single-user application
+
+================================================================================
+FEATURES TO IMPLEMENT
+================================================================================
+
+MAIN GOAL:
+Add Retrieval-Augmented Generation (RAG) capabilities to Vexora so users can chat with their own documents and structured data.
+
+---
+
+REQUIREMENT 1: Document Upload and Indexing
+Priority: HIGH
+
+Users should be able to:
+- Upload PDF documents through the UI
+- See list of all uploaded documents
+- View document processing status (pending, processing, completed, failed)
+- Delete documents they no longer need
+- Filter documents by category or tags
+- Add metadata to documents (category, tags, custom fields)
+
+Documents must be:
+- Split into searchable chunks
+- Converted to vector embeddings
+- Indexed for fast retrieval
+- Stored with metadata (filename, upload date, page numbers)
+
+CONSTRAINTS:
+- Maximum file size: 50MB per PDF
+- Must handle multi-page PDFs
+- Processing must not block the UI
+- Users must see upload progress
+- Failed uploads must show clear error messages
+
+SUCCESS CRITERIA:
+- User can upload a 20-page PDF and see it indexed within 30 seconds
+- User can see processing progress in real-time
+- User receives notification when processing completes or fails
+- Uploaded documents persist across browser sessions
+
+OUT OF SCOPE:
+- Word documents, Excel files (only PDF for MVP)
+- Batch upload of multiple files simultaneously
+- OCR for scanned PDFs
+- Document versioning
+
+---
+
+REQUIREMENT 2: Hybrid Search (Vector + Keyword)
+Priority: HIGH
+
+The system must retrieve relevant document chunks using:
+- Semantic search (vector similarity)
+- Keyword search (exact/fuzzy matching)
+- Combined scoring (hybrid approach)
+
+Users should be able to:
+- Configure search behavior (more semantic vs more keyword-based)
+- Filter search by document metadata
+- See which documents were used in the response
+
+CONSTRAINTS:
+- Search latency must be under 300ms
+- Must support German and English documents
+- Must handle documents up to 1000 pages
+- Minimum 1000 documents supported
+
+SUCCESS CRITERIA:
+- Finding "Datenschutz DSGVO Artikel 6" returns relevant chunks from privacy policy
+- Searching for exact product codes works reliably
+- Users can understand why certain documents were retrieved
+
+LIBRARIES:
+- Weaviate (vector database with built-in hybrid search)
+- Ollama nomic-embed-text (embedding model)
+
+OUT OF SCOPE:
+- Multi-language search across more than 2 languages
+- Image/diagram search within PDFs
+- Real-time document updates
+
+---
+
+REQUIREMENT 3: Reranking for Better Accuracy
+Priority: MEDIUM
+
+After initial retrieval, the system must:
+- Re-score candidate chunks for relevance
+- Use cross-encoder model for accurate ranking
+- Return only top 3-5 most relevant chunks
+
+CONSTRAINTS:
+- Reranking must complete within 100ms
+- Must work offline (local model)
+- Must support German and English
+
+SUCCESS CRITERIA:
+- Retrieval precision improves by at least 15% with reranking enabled
+- Users can toggle reranking on/off in settings
+- Response quality is noticeably better with reranking
+
+LIBRARIES:
+- Ollama jina-reranker-v2-base-multilingual
+
+OUT OF SCOPE:
+- Custom reranking model training
+- A/B testing framework
+
+---
+
+REQUIREMENT 4: RAG-Enhanced Chat
+Priority: HIGH
+
+Users should be able to:
+- Enable/disable RAG per conversation
+- See source citations in LLM responses
+- Click on citations to view original document/page
+- Configure how many chunks to retrieve (top-K)
+- Filter which documents to search (by category/tags)
+
+The system must:
+- Retrieve relevant chunks before generating response
+- Include chunk context in LLM prompt
+- Stream responses with citations
+- Show which documents contributed to answer
+
+CONSTRAINTS:
+- RAG must not significantly slow down response time (max +500ms)
+- Citations must be accurate (correct document and page number)
+- RAG must work with existing streaming architecture
+- Must gracefully handle no relevant documents found
+
+SUCCESS CRITERIA:
+- User asks "What does our privacy policy say about GDPR Article 6?" and gets accurate answer with source citation
+- Citations link directly to the source document/page
+- Response indicates "Based on 3 documents: privacy_policy.pdf (page 12), gdpr_guide.pdf (page 5)..."
+- User can disable RAG and get normal chat behavior
+
+OUT OF SCOPE:
+- Multi-hop reasoning across documents
+- Automatic follow-up questions
+- Citation confidence scores
+
+---
+
+REQUIREMENT 5: Structured Data Queries
+Priority: MEDIUM
+
+Users should be able to:
+- Query structured data from PostgreSQL database
+- Combine document search with database queries
+- Get answers that merge both sources
+
+The system must:
+- Store structured business data in PostgreSQL
+- Support natural language to SQL conversion
+- Combine database results with document retrieval
+- Provide clear indication when database was queried
+
+CONSTRAINTS:
+- Read-only database access (no writes/updates)
+- Must work with existing PostgreSQL schemas
+- Queries must complete within 2 seconds
+- Must prevent SQL injection
+
+SUCCESS CRITERIA:
+- User asks "How many customers do we have in Berlin?" and gets answer from database
+- User asks "What does the manual say about customer onboarding?" and gets answer from documents
+- System can handle questions requiring both sources
+
+OUT OF SCOPE:
+- Database schema modifications
+- Complex multi-table joins
+- Real-time database syncing
+- Write operations to database
+
+---
+
+REQUIREMENT 6: Document Management UI
+Priority: HIGH
+
+Users need a dashboard to:
+- View all uploaded documents
+- See processing status and errors
+- Search/filter documents
+- Delete documents
+- Preview document metadata
+- Bulk delete multiple documents
+
+CONSTRAINTS:
+- Must be responsive (mobile-friendly)
+- Must show real-time processing updates
+- Must handle 1000+ documents without performance issues
+- Must integrate seamlessly with existing UI theme
+
+SUCCESS CRITERIA:
+- User can find any document within 3 clicks
+- User can see why a document failed to process
+- User can delete multiple documents at once
+- Dashboard loads in under 1 second even with 1000 documents
+
+OUT OF SCOPE:
+- Document preview/reader
+- Collaborative document sharing
+- Document annotations
+
+---
+
+REQUIREMENT 7: RAG Configuration & Settings
+Priority: MEDIUM
+
+Users should be able to configure:
+- Hybrid search balance (semantic vs keyword weight: alpha parameter)
+- Number of chunks to retrieve (top-K: 1-10)
+- Enable/disable reranking
+- Default categories/tags
+- Chunk size and overlap (advanced setting)
+
+CONSTRAINTS:
+- Settings must persist across sessions
+- Changes must apply immediately
+- Must provide sensible defaults
+- Must include helpful tooltips
+
+SUCCESS CRITERIA:
+- User can adjust alpha from 0.0 (pure keyword) to 1.0 (pure semantic)
+- User can increase top-K to 10 for more context
+- Settings UI is intuitive for non-technical users
+
+OUT OF SCOPE:
+- A/B testing of different configurations
+- Automatic parameter tuning
+
+---
+
+REQUIREMENT 8: Analytics & Monitoring
+Priority: LOW
+
+Users should be able to see:
+- Total number of documents indexed
+- Storage usage
+- Most frequently queried documents
+- Average retrieval time
+- Query success rate
+
+CONSTRAINTS:
+- Analytics must not impact performance
+- Data stored locally (no external analytics)
+- Basic visualizations only
+
+SUCCESS CRITERIA:
+- User can see total documents and storage used
+- User can identify which documents are never used
+- System logs errors for debugging
+
+OUT OF SCOPE:
+- Advanced analytics dashboard
+- Query optimization recommendations
+- Cost tracking
+
+================================================================================
+TECHNICAL STACK
+================================================================================
+
+NEW DEPENDENCIES:
+
+Vector Database:
+- Weaviate (native hybrid search, runs in Docker)
+
+Structured Data:
+- PostgreSQL 16+ with pgvector extension
+
+Cache & Queue:
+- Redis (for caching and background job processing)
+
+Embedding Model:
+- nomic-embed-text (via Ollama, 768-dim)
+
+Reranking Model:
+- jina-reranker-v2-base-multilingual (via Ollama)
+
+PDF Processing:
+- pdf-parse (npm) or PyMuPDF (Python fallback)
+
+Orchestration:
+- LlamaIndex (fastest query time, lowest token consumption)
+
+================================================================================
+APIS TO CREATE
+================================================================================
+
+Document Management:
+- POST   /api/rag/documents          (upload document)
+- GET    /api/rag/documents          (list documents with filters)
+- GET    /api/rag/documents/:id      (get document details)
+- DELETE /api/rag/documents/:id      (delete document)
+- GET    /api/rag/documents/:id/status (check processing status)
+
+Search:
+- POST   /api/rag/search             (search in documents)
+
+RAG Chat:
+- POST   /api/rag/chat               (chat with RAG context, streaming)
+
+Configuration:
+- GET    /api/rag/config             (get RAG settings)
+- PUT    /api/rag/config             (update RAG settings)
+
+Analytics:
+- GET    /api/rag/analytics/queries  (query statistics)
+- GET    /api/rag/analytics/documents (document statistics)
+
+================================================================================
+DATABASE CHANGES
+================================================================================
+
+NEW TABLES (PostgreSQL):
+
+documents:
+- id, filename, file_type, file_size, upload_date, processed_date
+- status (pending, processing, completed, failed)
+- metadata (category, tags, custom_fields as JSON)
+- chunk_count, error_message
+
+processing_jobs:
+- id, document_id, status, priority, created_at, started_at, completed_at
+- progress (0-100), retry_count, error_message
+
+query_logs:
+- id, query_text, conversation_id, timestamp, retrieval_time
+- chunks_retrieved, response_time, user_rating (optional)
+
+VECTOR STORAGE (Weaviate):
+- Document chunks with embeddings
+- Metadata (document_id, page_number, chunk_index)
+- Support for hybrid search (vector + BM25)
+
+================================================================================
+DEPLOYMENT CHANGES
+================================================================================
+
+Docker Compose setup required for:
+- Weaviate container (port 8080)
+- PostgreSQL container (port 5432)
+- Redis container (port 6379)
+
+All containers must:
+- Run locally (no cloud)
+- Have persistent volumes
+- Be easily restartable
+- Support development and production
+
+================================================================================
+PERFORMANCE REQUIREMENTS
+================================================================================
+
+- Document processing: 10+ pages/second
+- Retrieval latency: <200ms without reranking, <300ms with reranking
+- End-to-end RAG response: <2 seconds (including LLM generation start)
+- Support 1000+ documents
+- Support 10 concurrent queries
+- Uptime: 99%
+
+================================================================================
+SECURITY REQUIREMENTS
+================================================================================
+
+- All data stored locally (no cloud services)
+- File upload restricted to PDF only
+- Maximum file size enforced (50MB)
+- SQL injection prevention for database queries
+- API endpoints protected against malicious input
+- No sensitive data in logs
+
+================================================================================
+SUCCESS METRICS
+================================================================================
+
+RETRIEVAL QUALITY:
+- Precision@5 ≥ 85%
+- Mean Reciprocal Rank (MRR) ≥ 0.48
+- User satisfaction: 80% of responses rated helpful
+
+PERFORMANCE:
+- Retrieval latency p95 < 300ms
+- Document processing success rate ≥ 95%
+- Zero data loss on system restarts
+
+USER EXPERIENCE:
+- User can upload and query document within 2 minutes
+- Citations are accurate 95%+ of the time
+- System responds even when no relevant documents found
+
+================================================================================
+OUT OF SCOPE (FUTURE ENHANCEMENTS)
+================================================================================
+
+- GraphRAG (knowledge graph layer)
+- Multi-user support with permissions
+- Real-time collaboration
+- Cloud deployment
+- Mobile app
+- Audio/video document processing
+- Automatic document crawling/syncing
+- Integration with external knowledge bases (Confluence, SharePoint)
+- Advanced analytics and dashboards
+- Cost optimization recommendations
+- A/B testing framework
+- Custom embedding model training
