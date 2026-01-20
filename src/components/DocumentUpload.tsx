@@ -1,0 +1,236 @@
+/**
+ * DocumentUpload - PDF Upload Component
+ *
+ * Features:
+ * - Drag & drop area
+ * - File picker button
+ * - Upload progress indicator
+ * - File validation (PDF only, 50MB max)
+ * - Visual feedback during upload
+ */
+
+import { useCallback, useState, useRef } from 'react';
+import { Upload, File } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
+import { useDocuments } from '../contexts/DocumentContext';
+
+export function DocumentUpload() {
+  const { isDark } = useTheme();
+  const { uploadPDF, isUploading, uploadProgress } = useDocuments();
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * Handle file drop
+   */
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const pdfFile = files.find(file => file.type === 'application/pdf');
+
+    if (pdfFile) {
+      uploadPDF(pdfFile);
+    }
+  }, [uploadPDF]);
+
+  /**
+   * Handle file input change
+   */
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      uploadPDF(file);
+      // Reset input to allow same file upload again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }, [uploadPDF]);
+
+  /**
+   * Handle drag events
+   */
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    // Only set drag over to false if leaving the component entirely
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  }, []);
+
+  /**
+   * Trigger file picker
+   */
+  const handleButtonClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  /**
+   * Format file size for display
+   */
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Upload progress display
+  if (isUploading && uploadProgress) {
+    const { progress, loaded, total, phase } = uploadProgress;
+
+    return (
+      <div
+        className={`
+          p-6 border-2 border-dashed rounded-lg
+          ${isDark ? 'border-gray-600 bg-gray-800/50' : 'border-gray-300 bg-gray-50/50'}
+        `}
+      >
+        <div className="text-center">
+          <div className="mb-4">
+            {phase === 'uploading' ? (
+              <Upload
+                className={`w-12 h-12 mx-auto animate-pulse ${
+                  isDark ? 'text-blue-400' : 'text-blue-500'
+                }`}
+              />
+            ) : (
+              <File
+                className={`w-12 h-12 mx-auto animate-pulse ${
+                  isDark ? 'text-yellow-400' : 'text-yellow-500'
+                }`}
+              />
+            )}
+          </div>
+
+          <h3
+            className={`text-lg font-medium mb-2 ${
+              isDark ? 'text-gray-200' : 'text-gray-800'
+            }`}
+          >
+            {phase === 'uploading' ? 'Hochladen...' : 'Verarbeitung...'}
+          </h3>
+
+          {/* Progress Bar */}
+          <div
+            className={`w-full h-2 rounded-full mb-2 ${
+              isDark ? 'bg-gray-700' : 'bg-gray-200'
+            }`}
+          >
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${
+                phase === 'uploading'
+                  ? 'bg-blue-500'
+                  : 'bg-yellow-500'
+              }`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          <p
+            className={`text-sm ${
+              isDark ? 'text-gray-400' : 'text-gray-600'
+            }`}
+          >
+            {formatFileSize(loaded)} von {formatFileSize(total)} ({progress}%)
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
+      {/* Drop Zone */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        className={`
+          p-8 border-2 border-dashed rounded-lg cursor-pointer
+          transition-all duration-200
+          ${isDragOver
+            ? isDark
+              ? 'border-blue-400 bg-blue-900/20'
+              : 'border-blue-500 bg-blue-50'
+            : isDark
+              ? 'border-gray-600 bg-gray-800/30 hover:border-gray-500 hover:bg-gray-800/50'
+              : 'border-gray-300 bg-gray-50/50 hover:border-gray-400 hover:bg-gray-100'
+          }
+        `}
+        onClick={handleButtonClick}
+      >
+        <div className="text-center">
+          <Upload
+            className={`w-12 h-12 mx-auto mb-4 ${
+              isDragOver
+                ? isDark
+                  ? 'text-blue-400'
+                  : 'text-blue-500'
+                : isDark
+                  ? 'text-gray-500'
+                  : 'text-gray-400'
+            }`}
+          />
+
+          <h3
+            className={`text-lg font-medium mb-2 ${
+              isDark ? 'text-gray-200' : 'text-gray-800'
+            }`}
+          >
+            PDF-Dokument hochladen
+          </h3>
+
+          <p
+            className={`text-sm mb-4 ${
+              isDark ? 'text-gray-400' : 'text-gray-600'
+            }`}
+          >
+            Ziehen Sie eine PDF-Datei hierher oder klicken Sie zum Auswählen
+          </p>
+
+          <button
+            className={`
+              px-4 py-2 rounded-lg font-medium transition-colors
+              ${isDark
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+              }
+            `}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleButtonClick();
+            }}
+          >
+            Datei auswählen
+          </button>
+
+          <p
+            className={`text-xs mt-3 ${
+              isDark ? 'text-gray-500' : 'text-gray-400'
+            }`}
+          >
+            Maximal 50MB • Nur PDF-Dateien
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

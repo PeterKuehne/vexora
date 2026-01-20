@@ -354,3 +354,137 @@ export async function checkHealth(): Promise<{
 
   return response.json();
 }
+
+// ============================================
+// Documents API
+// ============================================
+
+export interface DocumentMetadata {
+  id: string;
+  filename: string;
+  originalName: string;
+  size: number;
+  type: 'pdf';
+  uploadedAt: string;
+  pages: number;
+  text?: string;
+}
+
+export interface UploadProgress {
+  progress: number; // 0-100
+  loaded: number;   // bytes loaded
+  total: number;    // total bytes
+  phase: 'uploading' | 'processing';
+}
+
+/**
+ * Upload a PDF document with progress tracking
+ */
+export async function uploadDocument(
+  file: File,
+  onProgress?: (progress: UploadProgress) => void
+): Promise<DocumentMetadata> {
+  const formData = new FormData();
+  formData.append('document', file);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    // Track upload progress
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        const progress = Math.round((event.loaded / event.total) * 100);
+        onProgress({
+          progress,
+          loaded: event.loaded,
+          total: event.total,
+          phase: 'uploading',
+        });
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          // Notify processing phase
+          if (onProgress) {
+            onProgress({
+              progress: 100,
+              loaded: file.size,
+              total: file.size,
+              phase: 'processing',
+            });
+          }
+
+          const response = JSON.parse(xhr.responseText);
+          resolve(response.document);
+        } catch (error) {
+          reject(new Error('Failed to parse upload response'));
+        }
+      } else {
+        try {
+          const errorResponse = JSON.parse(xhr.responseText);
+          reject(new Error(errorResponse.message || `Upload failed: ${xhr.statusText}`));
+        } catch {
+          reject(new Error(`Upload failed: ${xhr.statusText}`));
+        }
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error('Network error during upload'));
+    };
+
+    xhr.open('POST', `${env.API_URL}/api/documents/upload`);
+    xhr.send(formData);
+  });
+}
+
+/**
+ * Fetch all documents
+ */
+export async function fetchDocuments(): Promise<{
+  documents: DocumentMetadata[];
+  totalCount: number;
+}> {
+  const response = await fetch(`${env.API_URL}/api/documents`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch documents: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch single document by ID
+ */
+export async function fetchDocument(id: string): Promise<DocumentMetadata> {
+  const response = await fetch(`${env.API_URL}/api/documents/${id}`);
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Document not found');
+    }
+    throw new Error(`Failed to fetch document: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.document;
+}
+
+/**
+ * Delete document by ID
+ */
+export async function deleteDocument(id: string): Promise<void> {
+  const response = await fetch(`${env.API_URL}/api/documents/${id}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Document not found');
+    }
+    throw new Error(`Failed to delete document: ${response.statusText}`);
+  }
+}

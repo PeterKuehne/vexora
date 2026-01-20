@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   AppShell,
   ChatContainer,
-  ConversationSidebar,
+  MainSidebar,
   Header,
   OllamaConnectionError,
   SaveIndicator,
@@ -20,6 +20,7 @@ import {
   SettingsProvider,
   ChatProvider,
   ToastProvider,
+  DocumentProvider,
   useToast,
   useToasts,
 } from './contexts';
@@ -121,7 +122,7 @@ function AppContent() {
 
   // Sidebar Content - receives controls from AppShell
   const renderSidebar = (sidebarControls: SidebarControls) => (
-    <ConversationSidebar
+    <MainSidebar
       isCollapsed={sidebarControls.isCollapsed}
       onToggleCollapse={sidebarControls.toggle}
     />
@@ -180,7 +181,9 @@ function App() {
       <ThemeProvider defaultTheme="dark">
         <ToastProvider>
           <ConversationProvider>
-            <AppContent />
+            <DocumentProvider>
+              <AppContent />
+            </DocumentProvider>
           </ConversationProvider>
         </ToastProvider>
       </ThemeProvider>

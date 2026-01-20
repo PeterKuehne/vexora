@@ -16,3 +16,11 @@ export {
   type OllamaChatResponse,
   type OllamaChatStreamChunk,
 } from './OllamaService.js'
+
+export {
+  documentService,
+  type DocumentMetadata,
+  type ProcessingResult,
+  type DocumentUploadRequest,
+  documentUploadSchema,
+} from './DocumentService.js'

@@ -1,5 +1,7 @@
 import express, { type Request, type Response } from 'express'
 import cors from 'cors'
+import multer from 'multer'
+import path from 'path'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { env } from './config/env.js'
@@ -13,7 +15,7 @@ import {
   type ChatRequest,
   type ModelQuery,
 } from './validation/index.js'
-import { ollamaService } from './services/index.js'
+import { ollamaService, documentService } from './services/index.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -39,6 +41,36 @@ app.use(
 
 // JSON body parser
 app.use(express.json())
+
+// ============================================
+// File Upload Configuration
+// ============================================
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: './uploads/',
+  filename: (_req, file, cb) => {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`)
+  }
+})
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB
+    files: 1,
+  },
+  fileFilter: (_req, file, cb) => {
+    // Only allow PDF files
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true)
+    } else {
+      cb(new Error('Nur PDF-Dateien sind erlaubt'), false)
+    }
+  }
+})
 
 // ============================================
 // Health Check Endpoint
@@ -216,6 +248,95 @@ app.get('/api/models', asyncHandler(async (req: Request, res: Response) => {
     models: result.models,
     defaultModel: ollamaService.getDefaultModel(),
     totalCount: result.totalCount,
+  })
+}))
+
+// ============================================
+// Documents Endpoints
+// ============================================
+
+// Upload document endpoint
+app.post('/api/documents/upload', upload.single('document'), asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) {
+    throw new ValidationError('Keine Datei hochgeladen', {
+      field: 'document',
+      details: ['Ein PDF-Dokument ist erforderlich'],
+    })
+  }
+
+  // Validate file with DocumentService
+  const fileValidation = documentService.validateFile(req.file)
+  if (!fileValidation.valid) {
+    throw new ValidationError(fileValidation.error || 'Datei-Validierung fehlgeschlagen', {
+      field: 'document',
+      details: [fileValidation.error || 'Unbekannter Validierungsfehler'],
+    })
+  }
+
+  // Process PDF
+  const result = await documentService.processPDF(req.file.path, {
+    filename: req.file.filename,
+    originalName: req.file.originalname,
+    size: req.file.size,
+    type: 'pdf',
+  })
+
+  if (!result.success) {
+    throw new ValidationError(result.error || 'Fehler beim Verarbeiten der PDF', {
+      field: 'processing',
+      details: [result.error || 'Unbekannter Verarbeitungsfehler'],
+    })
+  }
+
+  res.status(201).json({
+    success: true,
+    document: result.document,
+    message: 'Dokument erfolgreich hochgeladen und verarbeitet',
+  })
+}))
+
+// Get all documents endpoint
+app.get('/api/documents', asyncHandler(async (_req: Request, res: Response) => {
+  const documents = await documentService.getDocuments()
+
+  res.json({
+    documents,
+    totalCount: documents.length,
+  })
+}))
+
+// Get single document endpoint
+app.get('/api/documents/:id', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params
+  const document = await documentService.getDocument(id)
+
+  if (!document) {
+    res.status(404).json({
+      error: 'Dokument nicht gefunden',
+      id,
+    })
+    return
+  }
+
+  res.json({ document })
+}))
+
+// Delete document endpoint
+app.delete('/api/documents/:id', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params
+  const success = await documentService.deleteDocument(id)
+
+  if (!success) {
+    res.status(404).json({
+      error: 'Dokument nicht gefunden',
+      id,
+    })
+    return
+  }
+
+  res.json({
+    success: true,
+    message: 'Dokument erfolgreich gelöscht',
   })
 }))
 

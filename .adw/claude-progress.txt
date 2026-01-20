@@ -54,3 +54,41 @@ Kritische Hinweise:
 - Keine hardcodierten Model-Namen - alles konfigurierbar
 - Maximum 50MB für PDF Upload
 - Search Latency muss unter 300ms bleiben
+
+=== Session: Coding Agent - Feature 1 ===
+Datum: 2026-01-20
+Agent: Coding Agent
+
+Erledigt:
+- [X] Feature 1: Infrastructure Setup mit Docker Compose
+- [X] docker-compose.yaml erstellt mit Weaviate, PostgreSQL, Redis
+- [X] init-db.sql mit pgvector Extension und 6 Tabellen
+- [X] Alle Services starten erfolgreich mit Health Checks
+- [X] Browser-Test: Weaviate API auf http://localhost:8080 erreichbar
+- [X] pgvector 0.8.1 Extension verifiziert
+- [X] Git Commit: 1412a97
+
+Erstellte Dateien:
+- docker-compose.yaml (Infrastructure Definition)
+- docker/init-db.sql (PostgreSQL Schema + pgvector)
+- .adw/screenshots/feature_1_infrastructure.png (Evidence)
+
+Infrastructure Details:
+- Weaviate 1.28.4 auf Port 8080 (Vector DB)
+- PostgreSQL 16 mit pgvector 0.8.1 auf Port 5432
+- Redis 7 auf Port 6379
+- Memory Limits: Weaviate 2GB, PostgreSQL 1GB, Redis 512MB
+
+Datenbank-Tabellen:
+- documents (Dokument-Metadaten)
+- document_embeddings (Embedding-Tracking)
+- processing_jobs (Job Queue)
+- query_logs (Analytics)
+- model_configurations (Model Profiles)
+- rag_settings (User Preferences)
+
+Progress: 1/44 Features (2.3%)
+
+Nächste Session:
+- Feature 2: "User kann PDF-Dokument hochladen" (ID: 2, Priorität 95)
+- Benötigt: unpdf Library, Upload Endpoint, UI Component

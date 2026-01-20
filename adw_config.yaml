@@ -1,265 +1,389 @@
-project_name: "Vexora"
-description: "Modern, minimalistic chat interface for local LLMs powered by Ollama. Claude-inspired design with conversation management, streaming responses, and markdown support."
-
+project_name: Vexora
+description: 'Implementing: Document Upload and Indexing, Hybrid Search (Vector + Keyword), Reranking for Better Accuracy
+  (+6 more)'
+existing_functionality:
+- Conversations with Ollama-powered LLMs (Qwen and other models)
+- Real-time streaming responses from LLM
+- Multiple conversation management (create, switch, delete)
+- Persistent conversation history in browser localStorage
+- Ollama model selection and management
+- Advanced LLM settings (temperature, top_p, top_k, tokens)
+- Persistent system prompt configuration
+- Light/Dark theme support
+- Markdown rendering with code syntax highlighting
+- Message editing and regeneration
+- Auto-save functionality
+- Settings import/export
+requirements:
+- name: Document Upload and Indexing
+  priority: high
+  libraries:
+  - unpdf
+  implementation_scope:
+  - PDF document upload through UI
+  - Document list view with processing status (pending, processing, completed, failed)
+  - Document deletion functionality
+  - Document filtering by category or tags
+  - Metadata management (category, tags, custom fields)
+  - Document chunking for searchable segments
+  - Vector embedding conversion
+  - Fast retrieval indexing
+  - Metadata storage (filename, upload date, page numbers)
+  constraints:
+  - 'Maximum file size: 50MB per PDF'
+  - Must handle multi-page PDFs
+  - Processing must not block the UI
+  - Users must see upload progress
+  - Failed uploads must show clear error messages
+  success_criteria:
+  - User can upload a 20-page PDF and see it indexed within 30 seconds
+  - User can see processing progress in real-time
+  - User receives notification when processing completes or fails
+  - Uploaded documents persist across browser sessions
+  out_of_scope:
+  - Word documents, Excel files (only PDF for MVP)
+  - Batch upload of multiple files simultaneously
+  - OCR for scanned PDFs
+  - Document versioning
+- name: Hybrid Search (Vector + Keyword)
+  priority: high
+  libraries:
+  - weaviate-client
+  implementation_scope:
+  - Semantic search via vector similarity
+  - Keyword search with exact/fuzzy matching
+  - Combined scoring (hybrid approach)
+  - User-configurable search behavior (semantic vs keyword balance)
+  - Search filtering by document metadata
+  - Display of documents used in response
+  constraints:
+  - Search latency must be under 300ms
+  - Must support German and English documents
+  - Must handle documents up to 1000 pages
+  - Minimum 1000 documents supported
+  success_criteria:
+  - Finding 'Datenschutz DSGVO Artikel 6' returns relevant chunks from privacy policy
+  - Searching for exact product codes works reliably
+  - Users can understand why certain documents were retrieved
+  out_of_scope:
+  - Multi-language search across more than 2 languages
+  - Image/diagram search within PDFs
+  - Real-time document updates
+- name: Reranking for Better Accuracy
+  priority: medium
+  libraries: []
+  implementation_scope:
+  - Re-scoring of candidate chunks for relevance
+  - Cross-encoder model for accurate ranking via Ollama
+  - Return only top 3-5 most relevant chunks
+  - Toggle reranking on/off in settings
+  constraints:
+  - Reranking must complete within 100ms
+  - Must work offline (local model)
+  - Must support German and English
+  success_criteria:
+  - Retrieval precision improves by at least 15% with reranking enabled
+  - Users can toggle reranking on/off in settings
+  - Response quality is noticeably better with reranking
+  out_of_scope:
+  - Custom reranking model training
+  - A/B testing framework
+- name: RAG-Enhanced Chat
+  priority: high
+  libraries:
+  - llamaindex
+  implementation_scope:
+  - Enable/disable RAG per conversation
+  - Source citations in LLM responses
+  - Clickable citations to view original document/page
+  - Configurable chunk retrieval count (top-K)
+  - Document filtering by category/tags for search
+  - Retrieve relevant chunks before generating response
+  - Include chunk context in LLM prompt
+  - Stream responses with citations
+  - Display contributing documents
+  constraints:
+  - RAG must not significantly slow down response time (max +500ms)
+  - Citations must be accurate (correct document and page number)
+  - RAG must work with existing streaming architecture
+  - Must gracefully handle no relevant documents found
+  success_criteria:
+  - User asks 'What does our privacy policy say about GDPR Article 6?' and gets accurate answer with source citation
+  - Citations link directly to the source document/page
+  - 'Response indicates ''Based on 3 documents: privacy_policy.pdf (page 12), gdpr_guide.pdf (page 5)...'''
+  - User can disable RAG and get normal chat behavior
+  out_of_scope:
+  - Multi-hop reasoning across documents
+  - Automatic follow-up questions
+  - Citation confidence scores
+- name: Structured Data Queries
+  priority: medium
+  libraries: []
+  implementation_scope:
+  - Query structured data from PostgreSQL database
+  - Combine document search with database queries
+  - Merge answers from both sources
+  - Store structured business data in PostgreSQL
+  - Natural language to SQL conversion
+  - Clear indication when database was queried
+  constraints:
+  - Read-only database access (no writes/updates)
+  - Must work with existing PostgreSQL schemas
+  - Queries must complete within 2 seconds
+  - Must prevent SQL injection
+  success_criteria:
+  - User asks 'How many customers do we have in Berlin?' and gets answer from database
+  - User asks 'What does the manual say about customer onboarding?' and gets answer from documents
+  - System can handle questions requiring both sources
+  out_of_scope:
+  - Database schema modifications
+  - Complex multi-table joins
+  - Real-time database syncing
+  - Write operations to database
+- name: Document Management UI
+  priority: high
+  libraries: []
+  implementation_scope:
+  - Dashboard to view all uploaded documents
+  - Processing status and error display
+  - Document search and filtering
+  - Document deletion
+  - Document metadata preview
+  - Bulk delete multiple documents
+  constraints:
+  - Must be responsive (mobile-friendly)
+  - Must show real-time processing updates
+  - Must handle 1000+ documents without performance issues
+  - Must integrate seamlessly with existing UI theme
+  success_criteria:
+  - User can find any document within 3 clicks
+  - User can see why a document failed to process
+  - User can delete multiple documents at once
+  - Dashboard loads in under 1 second even with 1000 documents
+  out_of_scope:
+  - Document preview/reader
+  - Collaborative document sharing
+  - Document annotations
+- name: Model Configuration & Flexibility
+  priority: high
+  libraries: []
+  implementation_scope:
+  - Select LLM model from available Ollama models
+  - Select embedding model from available Ollama models
+  - Select reranker model from available Ollama models
+  - Switch between model profiles (e.g., 'MacBook 16GB', 'Workstation 64GB')
+  - Create custom model configurations
+  - View current model memory usage
+  - Test model configuration before applying
+  - Auto-discover available Ollama models
+  - Detect embedding dimension changes
+  - Offer to re-index documents when embedding model changes
+  - Show model compatibility warnings
+  - Support profile presets for different hardware configurations
+  constraints:
+  - Must not hardcode model names in application code
+  - Must handle different embedding dimensions (768, 1024, 8192, etc.)
+  - Must work on MacBook M2 16GB unified memory
+  - Must support future hardware upgrades without code changes
+  - Settings must persist across sessions
+  success_criteria:
+  - User can switch from 8B to 32B LLM model without code changes
+  - User can upgrade embedding model and system handles re-indexing
+  - System shows 'Model incompatible with 16GB memory' warning appropriately
+  - Profile switching works seamlessly (select preset -> apply -> done)
+  - New models pulled via Ollama automatically appear in UI
+  out_of_scope:
+  - Cloud API providers (OpenAI, Anthropic) in MVP
+  - Custom model training
+  - Automatic model selection based on query complexity
+- name: RAG Configuration & Settings
+  priority: medium
+  libraries: []
+  implementation_scope:
+  - 'Hybrid search balance configuration (semantic vs keyword weight: alpha parameter)'
+  - 'Number of chunks to retrieve (top-K: 1-10)'
+  - Enable/disable reranking toggle
+  - Default categories/tags configuration
+  - Chunk size and overlap settings (advanced)
+  constraints:
+  - Settings must persist across sessions
+  - Changes must apply immediately
+  - Must provide sensible defaults
+  - Must include helpful tooltips
+  success_criteria:
+  - User can adjust alpha from 0.0 (pure keyword) to 1.0 (pure semantic)
+  - User can increase top-K to 10 for more context
+  - Settings UI is intuitive for non-technical users
+  out_of_scope:
+  - A/B testing of different configurations
+  - Automatic parameter tuning
+- name: Analytics & Monitoring
+  priority: low
+  libraries: []
+  implementation_scope:
+  - Display total number of documents indexed
+  - Storage usage display
+  - Most frequently queried documents
+  - Average retrieval time
+  - Query success rate
+  constraints:
+  - Analytics must not impact performance
+  - Data stored locally (no external analytics)
+  - Basic visualizations only
+  success_criteria:
+  - User can see total documents and storage used
+  - User can identify which documents are never used
+  - System logs errors for debugging
+  out_of_scope:
+  - Advanced analytics dashboard
+  - Query optimization recommendations
+  - Cost tracking
+tech_stack:
+  new_dependencies:
+    npm:
+    - unpdf
+    - llamaindex
+    - weaviate-client
+    pip: []
+    docker:
+    - weaviate/weaviate:1.34.8
+    - postgres:16
+    - redis:7
+  apis_to_create:
+  - endpoint: POST /api/rag/documents
+    description: Upload document
+    authentication: None (single-user local)
+  - endpoint: GET /api/rag/documents
+    description: List documents with filters
+    authentication: None (single-user local)
+  - endpoint: GET /api/rag/documents/:id
+    description: Get document details
+    authentication: None (single-user local)
+  - endpoint: DELETE /api/rag/documents/:id
+    description: Delete document
+    authentication: None (single-user local)
+  - endpoint: GET /api/rag/documents/:id/status
+    description: Check processing status
+    authentication: None (single-user local)
+  - endpoint: POST /api/rag/search
+    description: Search in documents (hybrid search)
+    authentication: None (single-user local)
+  - endpoint: POST /api/rag/chat
+    description: Chat with RAG context, streaming
+    authentication: None (single-user local)
+  - endpoint: GET /api/rag/config
+    description: Get RAG settings
+    authentication: None (single-user local)
+  - endpoint: PUT /api/rag/config
+    description: Update RAG settings
+    authentication: None (single-user local)
+  - endpoint: GET /api/rag/models
+    description: List available Ollama models
+    authentication: None (single-user local)
+  - endpoint: GET /api/rag/models/profiles
+    description: Get model profile presets
+    authentication: None (single-user local)
+  - endpoint: POST /api/rag/models/test
+    description: Test model configuration
+    authentication: None (single-user local)
+  - endpoint: PUT /api/rag/models/active
+    description: Set active model profile
+    authentication: None (single-user local)
+  - endpoint: GET /api/rag/analytics/queries
+    description: Query statistics
+    authentication: None (single-user local)
+  - endpoint: GET /api/rag/analytics/documents
+    description: Document statistics
+    authentication: None (single-user local)
+  database_changes:
+  - Add documents table (id, filename, file_type, file_size, upload_date, processed_date, status, metadata, chunk_count, error_message)
+  - Add document_embeddings table (document_id, embedding_model, embedding_dimensions, indexed_at)
+  - Add processing_jobs table (id, document_id, status, priority, created_at, started_at, completed_at, progress, retry_count,
+    error_message)
+  - Add query_logs table (id, query_text, conversation_id, timestamp, retrieval_time, chunks_retrieved, response_time, user_rating)
+  - Add model_configurations table (id, profile_id, profile_name, is_active, llm_model, llm_provider, embedding_model, embedding_dimensions,
+    reranker_model, chunk_size, chunk_overlap, retrieval_top_k, created_at, updated_at)
+  - 'Weaviate: Document chunks collection with flexible dimension embeddings'
+  - 'Weaviate: Metadata (document_id, page_number, chunk_index, embedding_model)'
+  - 'Weaviate: Multiple collections for different embedding dimensions if needed'
+  - Install pgvector 0.8.1 extension for PostgreSQL
+  infrastructure:
+    docker_services:
+    - name: weaviate
+      image: weaviate/weaviate:1.34.8+
+      port: 8080
+      memory_limit: 2GB
+      description: Vector database with native hybrid search
+    - name: postgresql
+      image: postgres:16+
+      port: 5432
+      memory_limit: 1GB
+      description: Structured data storage with pgvector extension
+    - name: redis
+      image: redis:7.x
+      port: 6379
+      memory_limit: 512MB
+      description: Caching and background job processing
+    ollama_models:
+      recommended_starter:
+        llm: qwen3:8b-q4_K_M (~5GB)
+        embedding: nomic-embed-text (~0.5GB, 768-dim)
+        reranker: qwen3-reranker-0.6B (~0.5GB)
+        total_memory: ~6GB
+      note: Models are user-configurable via settings, not hardcoded
 apps:
-  - name: vexora
-    path: "."
-    type: frontend
-    default_port: 3000
-
-technology_stack:
-  frontend:
-    framework: "React"
-    build_tool: "Vite"
-    styling: "Tailwind CSS"
-    language: "TypeScript"
-    ui_components: "Headless UI"
-    markdown: "react-markdown"
-    code_highlighting: "Prism.js"
-    icons: "Lucide React"
-  backend:
-    framework: "Express"
-    language: "TypeScript"
-    websockets: "Socket.io"
-    api: "Ollama API (localhost:11434)"
-  storage:
-    type: "LocalStorage"
-    purpose: "Conversations"
-  ai_ml:
-    model: "Qwen 3:8B (via Ollama)"
-    api: "Ollama REST API"
-    streaming: "Server-Sent Events (SSE) or WebSocket"
-
-ui_layout:
-  main_structure:
-    - "Sidebar (left, 280px) - Conversation list and navigation"
-    - "Header (top, fixed) - Model selector, settings, theme toggle"
-    - "Main Chat Area (center) - Message list with streaming"
-    - "Input Area (bottom, fixed) - Textarea and send button"
-
-  header:
-    position: "top"
-    fixed: true
-    components:
-      - "Logo/Title (Vexora)"
-      - "Model Dropdown (current model: Qwen 3:8B)"
-      - "Settings Button (opens modal)"
-      - "Theme Toggle (Dark/Light)"
-      - "Hamburger Menu (mobile)"
-
-  sidebar:
-    position: "left"
-    width: "280px"
-    collapsible: true
-    mobile: "slide-over"
-    components:
-      - "New Chat Button (prominent)"
-      - "Search Input (filter conversations)"
-      - "Conversation Groups (Today, Yesterday, Last 7 Days, Older)"
-      - "Conversation Items (title, preview, timestamp)"
-      - "Settings Link (bottom)"
-
-  main_content:
-    layout: "flex-column"
-    components:
-      - "Welcome Screen (empty state)"
-      - "Message List (scrollable)"
-      - "User Message Bubble (right-aligned, blue)"
-      - "AI Message Bubble (left-aligned, gray)"
-      - "Timestamp (below message)"
-      - "Copy Button (for AI messages)"
-      - "Typing Indicator (when AI responding)"
-
-  input_area:
-    position: "bottom"
-    fixed: true
-    components:
-      - "Textarea (auto-resize, max 4 lines)"
-      - "Send Button (disabled when empty)"
-      - "Attachment Icon (future)"
-      - "Token Counter (bottom-right)"
-
-  settings_modal:
-    tabs:
-      - "General (theme, auto-save, clear all)"
-      - "Model (list, temperature, system prompt, max tokens)"
-      - "Advanced (API URL, export/import, keyboard shortcuts)"
-
-design_system:
-  color_palette:
-    dark_mode:
-      primary: "#3b82f6"
-      background: "#0a0a0a"
-      surface: "#1a1a1a"
-      surface_secondary: "#2a2a2a"
-      border: "#333333"
-      text_primary: "#e5e5e5"
-      text_secondary: "#a0a0a0"
-      user_bubble: "#3b82f6"
-      ai_bubble: "#2a2a2a"
-      code_background: "#1e1e1e"
-    light_mode:
-      primary: "#2563eb"
-      background: "#ffffff"
-      surface: "#f5f5f5"
-      surface_secondary: "#e5e5e5"
-      border: "#d4d4d4"
-      text_primary: "#171717"
-      text_secondary: "#737373"
-      user_bubble: "#2563eb"
-      ai_bubble: "#f5f5f5"
-      code_background: "#f9f9f9"
-
-  typography:
-    font_family:
-      ui: "Inter, system-ui, sans-serif"
-      code: "JetBrains Mono, monospace"
-    heading_sizes:
-      h1: "text-3xl (30px)"
-      h2: "text-2xl (24px)"
-      h3: "text-xl (20px)"
-    body: "text-base (16px)"
-    small: "text-sm (14px)"
-    code: "text-sm"
-
-  spacing:
-    unit: "px"
-    base: 4
-    scale: [4, 8, 12, 16, 20, 24, 32, 40, 48, 64]
-    message_padding: 16
-    section_padding: 24
-    page_padding: 32
-
-  components:
-    message_bubble:
-      padding: "12px 16px"
-      border_radius: "16px"
-      max_width_desktop: "70%"
-      max_width_mobile: "85%"
-      shadow: "0 1px 2px rgba(0,0,0,0.1)"
-
-    button:
-      variants:
-        - "Primary: Blue background, white text"
-        - "Secondary: Gray background, white text"
-        - "Ghost: Transparent, hover background"
-      height: "40px (default), 36px (small)"
-      padding: "12px 20px"
-      border_radius: "8px"
-
-    input_textarea:
-      border: "1px solid"
-      padding: "12px 16px"
-      border_radius: "12px"
-      focus: "Blue ring"
-
-    sidebar_item:
-      height: "48px"
-      padding: "12px 16px"
-      hover: "Subtle background change"
-      active: "Blue accent on left border"
-
-data_models:
-  conversation:
-    id: "string (UUID)"
-    title: "string (auto-generated from first message)"
-    created_at: "Date"
-    updated_at: "Date"
-    messages: "Message[]"
-    model: "string (e.g., qwen2.5:8b)"
-    system_prompt: "string (optional)"
-    temperature: "number (optional)"
-
-  message:
-    id: "string (UUID)"
-    role: "user | assistant | system"
-    content: "string"
-    timestamp: "Date"
-    tokens: "number (optional)"
-
-  settings:
-    theme: "dark | light | system"
-    default_model: "string"
-    default_system_prompt: "string"
-    default_temperature: "number"
-    ollama_api_url: "string"
-    auto_save: "boolean"
-
-api_integration:
-  ollama_endpoints:
-    - "GET /api/tags - List available models"
-    - "POST /api/generate - Generate completion (streaming)"
-    - "POST /api/chat - Chat completion (streaming)"
-
-  backend_routes:
-    - "GET /api/models - Proxy to Ollama, list models"
-    - "POST /api/chat - Proxy to Ollama, handle streaming"
-    - "GET /api/health - Check if Ollama is running"
-
-  frontend_backend:
-    - "POST /chat - Send message, receive stream"
-    - "GET /models - Get available models"
-    - "GET /health - Check backend/Ollama status"
-
-quality_criteria:
-  performance:
-    streaming: "Sub-100ms first token"
-    ui: "60fps animations"
-    storage: "Efficient LocalStorage usage (max 5MB)"
-    lazy_loading: "Virtualized conversation list for 100+ chats"
-
-  browser_support:
-    - "Chrome, Firefox, Safari, Edge (last 2 versions)"
-    - "Modern JavaScript (ES2020+)"
-    - "No IE11 support"
-
-  accessibility:
-    keyboard_navigation: "Tab through UI elements"
-    screen_reader: "ARIA labels for buttons/inputs"
-    contrast: "WCAG AA compliance"
-    focus_indicators: "Clear focus states"
-
-  mobile:
-    touch_targets: "Minimum 44x44px"
-    viewport: "Responsive down to 320px"
-    sidebar: "Slide-over on mobile"
-    input: "Native keyboard handling"
-
-  error_handling:
-    ollama_down: "Clear error message + retry button"
-    network_errors: "Toast notifications"
-    invalid_models: "Fallback to default"
-    storage_full: "Warning + cleanup option"
-
-  developer_experience:
-    typescript: "Strict mode, full type coverage"
-    eslint: "Standard config"
-    prettier: "Consistent formatting"
-    hot_reload: "Fast development iteration"
-
-features_summary:
-  total: 25
-  categories:
-    core_chat: 6
-    conversation_management: 6
-    model_settings: 4
-    ui_ux: 5
-    advanced: 4
-  note: "Features will be generated by Initializer Agent from this config"
-
-edge_cases:
-  - "Empty Conversation: Show welcome screen with example prompts"
-  - "Very Long Messages: Truncate in sidebar, full in chat"
-  - "Code Blocks Without Language: Auto-detect or default to plaintext"
-  - "Ollama Not Running: Show setup instructions"
-  - "Streaming Interrupted: Resume or error gracefully"
-  - "LocalStorage Full: Warn user, offer to delete old conversations"
-  - "No Internet: Works fully offline (Ollama is local)"
-  - "Model Deleted: Detect and switch to available model"
-
-notes:
-  - "Ollama Setup: User must have Ollama installed and running"
-  - "Default Model: Qwen 3:8B, but support any Ollama model"
-  - "Conversations: Stored client-side only (no backend DB)"
-  - "Privacy: All data stays local, no external API calls"
-  - "Future: File uploads, voice input, multi-modal support"
+- name: frontend
+  path: .
+  type: frontend
+  default_port: 5173
+conventions:
+  version: 4
+  created_at: '2026-01-20T11:37:51.936316Z'
+  source: agent-discovered
+  styling:
+    system: tailwind
+    discovered_in_feature: 2
+    discovered_at: '2026-01-20T11:37:51.936541Z'
+    import_path: tailwindcss
+    reference_files:
+    - src/components/DocumentUpload.tsx:13
+    - src/components/DocumentList.tsx:30
+    - src/components/SidebarTabs.tsx:25
+    usage_pattern: 'Theme-aware conditional classes: ${isDark ? ''bg-gray-800 text-white'' : ''bg-white text-gray-900''}"'
+    guidelines:
+    - Always use isDark conditional styling
+    - Use semantic color names (bg-surface, text-primary)
+    - Apply hover states consistently
+    - Use transition-all for smooth animations
+  last_updated: '2026-01-20T11:38:04.589310Z'
+  updated_by_feature: 2
+  api:
+    system: express_rest
+    discovered_in_feature: 2
+    discovered_at: '2026-01-20T11:37:58.225759Z'
+    import_path: express
+    reference_files:
+    - server/src/index.ts:258
+    - src/lib/api.ts:383
+    usage_pattern: REST endpoints with asyncHandler, FormData for uploads, Zod validation, proper HTTP status codes"
+    guidelines:
+    - Use asyncHandler for all async routes
+    - Validate with Zod schemas
+    - Use multer for file uploads
+    - Return consistent JSON responses
+    - Use proper HTTP status codes (201 for creation, 404 for not found)
+  state_management:
+    system: react_context
+    discovered_in_feature: 2
+    discovered_at: '2026-01-20T11:38:04.589302Z'
+    import_path: react
+    reference_files:
+    - src/contexts/DocumentContext.tsx:45
+    - src/contexts/DocumentContext.tsx:163
+    usage_pattern: React Context + Provider pattern with custom hooks, useCallback for performance"
+    guidelines:
+    - Create Context + Provider + Hook trio
+    - Use useCallback for async actions
+    - Include loading/error states
+    - Export types for TypeScript
+    - Use custom hooks like useDocuments()

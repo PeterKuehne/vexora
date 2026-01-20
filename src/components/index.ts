@@ -282,6 +282,13 @@ export {
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 
+// Document Management components
+export { DocumentUpload } from './DocumentUpload';
+export { DocumentList } from './DocumentList';
+export { DocumentSidebar } from './DocumentSidebar';
+export { MainSidebar } from './MainSidebar';
+export { SidebarTabs, type SidebarTab } from './SidebarTabs';
+
 // UI components will be exported here
 // export { Button } from './ui/Button';
 // export { Input } from './ui/Input';

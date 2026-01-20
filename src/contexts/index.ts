@@ -34,6 +34,12 @@ export {
   useToasts,
 } from './ToastContext';
 
+export {
+  DocumentProvider,
+  useDocuments,
+} from './DocumentContext';
+
 export type { SettingsContextValue } from './SettingsContext';
 export type { ChatContextValue } from './ChatContext';
 export type { Toast, ToastType } from './ToastContext';
+export type { DocumentContextValue, DocumentMetadata, UploadProgress } from './DocumentContext';
