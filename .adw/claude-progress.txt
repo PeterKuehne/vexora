@@ -138,8 +138,74 @@ Frontend Features:
 - Empty State für neue Installation
 - Responsive Design mit Dark/Light Theme
 
-Progress: 2/44 Features (4.5%)
+Progress: 3/44 Features (6.8%)
+
+=== Session: Coding Agent - Feature 3 ===
+Datum: 2026-01-20
+Agent: Coding Agent
+
+Erledigt:
+- [X] Feature 3: "User kann Upload-Status in Echtzeit sehen"
+- [X] Asynchrones Processing-System mit ProcessingJobService
+- [X] Socket.io Events für Real-time Updates (processing:update, processing:active_jobs)
+- [X] Job Queue mit Event-basierten Status-Updates
+- [X] Frontend Processing Progress Komponenten
+- [X] useProcessing Hook für Socket.io Event-Management
+- [X] DocumentUpload erweitert um Live-Status Anzeige
+- [X] Chunk-basierte Progress-Tracking (currentChunk/totalChunks)
+- [X] Browser-Test: API Tests erfolgreich (Upload → Job → Processing → Complete)
+- [X] Git Commit: e6be0aa
+
+Erstellte Dateien:
+- server/src/types/processing.ts (TypeScript Interfaces für Processing)
+- server/src/services/ProcessingJobService.ts (Event-based Job Queue System)
+- src/hooks/useProcessing.ts (React Hook für Socket.io Processing Events)
+- src/components/ProcessingProgress.tsx (UI Komponenten für Status-Anzeige)
+- Erweitert: server/src/index.ts (Socket.io Processing Events)
+- Erweitert: src/lib/socket.ts (Processing Event Types + Handlers)
+- Erweitert: src/lib/api.ts (uploadDocumentAsync für Job-System)
+- Erweitert: src/contexts/DocumentContext.tsx (Async Upload Integration)
+- Erweitert: src/components/DocumentUpload.tsx (Live Status + Recent Jobs)
+
+Conventions dokumentiert:
+- async_processing: Event-based Job Queue System mit Socket.io Real-time Updates
+
+Backend Features implementiert:
+- Asynchrone PDF-Upload API (POST /documents/upload → 202 + jobId)
+- Job Status API (GET /processing/:jobId)
+- ProcessingJobService mit Queue-Management
+- Socket.io Broadcast für processing:update Events
+- Status-Transitions: pending → processing → completed/failed
+- Chunk-basierte Progress mit currentChunk/totalChunks
+- Error Handling für failed Jobs
+
+Frontend Features implementiert:
+- Real-time Status Updates via Socket.io
+- ProcessingProgress Komponente mit Status-spezifischen UI
+- ProcessingStatusIcon für kompakte Anzeige
+- useProcessing Hook mit Job-State Management
+- DocumentUpload zeigt Active + Recent Jobs
+- Progress Bars mit Prozent + Chunk-Info
+- Theme-aware Styling (Dark/Light Mode)
+
+API Tests verifiziert:
+- Upload startet Job erfolgreich (status: pending)
+- Processing läuft automatisch (status: processing, currentChunk: 1-8)
+- Status wechselt zu completed (progress: 100%)
+- Alle Timestamps korrekt (createdAt, startedAt, completedAt)
+- Real-time Updates funktionieren über Socket.io
+
+Technical Implementation Details:
+- Event-driven Architecture mit EventEmitter
+- Type-safe Socket.io Events (ProcessingEvent, ProcessingUpdate)
+- Frontend State Management mit useCallback + useEffect
+- Optimistic Updates für bessere UX
+- Error Boundaries für failed Jobs
+- Memory Management für Job Cleanup
+
+Progress: 3/44 Features (6.8%)
 
 Nächste Session:
-- Feature 3: Nächstes Feature aus der Queue
-- Wahrscheinlich: "User kann RAG aktivieren und Dokument für Chat auswählen" (ID: 3, Priorität 95)
+- Feature 4: Nächstes Feature aus der Queue
+- Wahrscheinlich: "User kann RAG aktivieren und Dokument für Chat auswählen" (ID: 4, Priorität 95)
+- Processing System ist bereit für weitere Document-Features
