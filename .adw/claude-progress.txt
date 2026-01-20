@@ -89,6 +89,57 @@ Datenbank-Tabellen:
 
 Progress: 1/44 Features (2.3%)
 
+=== Session: Coding Agent - Feature 2 ===
+Datum: 2026-01-20
+Agent: Coding Agent
+
+Erledigt:
+- [X] Feature 2: "User kann PDF-Dokument hochladen"
+- [X] Document Management UI mit Tab-Navigation (Chat/Dokumente)
+- [X] PDF Upload Area mit Drag & Drop und File Picker
+- [X] File Validation (50MB max, nur PDF)
+- [X] Upload Progress Indicator mit Phase-Tracking
+- [X] Backend API Endpoints für documents
+- [X] DocumentContext für State Management
+- [X] Integration in MainSidebar mit SidebarTabs
+- [X] Browser-Test: Tab-Navigation und Upload-Dialog funktionieren
+- [X] Git Commit: 080a4e0
+
+Erstellte Dateien:
+- server/src/services/DocumentService.ts (PDF Processing mit unpdf)
+- src/contexts/DocumentContext.tsx (State Management)
+- src/components/DocumentUpload.tsx (Upload UI mit Progress)
+- src/components/DocumentList.tsx (Document Display)
+- src/components/DocumentSidebar.tsx (Sidebar Layout)
+- src/components/MainSidebar.tsx (Tab Navigation)
+- src/components/SidebarTabs.tsx (Tab Component)
+- .adw/screenshots/feature_2_document_upload.png (Evidence)
+
+Conventions dokumentiert:
+- styling: Tailwind mit theme-aware conditional classes
+- api: Express REST mit asyncHandler, Zod validation, multer
+- state_management: React Context + Provider + custom hooks
+
+Backend Features:
+- /api/documents/upload (POST) - PDF Upload mit Validierung
+- /api/documents (GET) - Liste aller Dokumente
+- /api/documents/:id (GET) - Einzelnes Dokument
+- /api/documents/:id (DELETE) - Dokument löschen
+- File Storage in ./uploads/ mit unique naming
+- PDF Text-Extraktion mit unpdf library
+
+Frontend Features:
+- Tab-Navigation zwischen Chat/Documents
+- Drag & Drop Upload Area
+- File Picker Integration
+- Upload Progress mit "uploading"/"processing" Phasen
+- File Size/Type Validation (Client + Server)
+- Error Handling mit Toast Notifications
+- Empty State für neue Installation
+- Responsive Design mit Dark/Light Theme
+
+Progress: 2/44 Features (4.5%)
+
 Nächste Session:
-- Feature 2: "User kann PDF-Dokument hochladen" (ID: 2, Priorität 95)
-- Benötigt: unpdf Library, Upload Endpoint, UI Component
+- Feature 3: Nächstes Feature aus der Queue
+- Wahrscheinlich: "User kann RAG aktivieren und Dokument für Chat auswählen" (ID: 3, Priorität 95)
