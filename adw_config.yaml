@@ -337,7 +337,7 @@ apps:
   type: frontend
   default_port: 5173
 conventions:
-  version: 6
+  version: 7
   created_at: '2026-01-20T11:37:51.936316Z'
   source: agent-discovered
   styling:
@@ -355,8 +355,8 @@ conventions:
     - Use semantic color names (bg-surface, text-primary)
     - Apply hover states consistently
     - Use transition-all for smooth animations
-  last_updated: '2026-01-20T21:48:54.428872Z'
-  updated_by_feature: 10
+  last_updated: '2026-01-20T22:46:09.325622Z'
+  updated_by_feature: 11
   api:
     system: express_rest
     discovered_in_feature: 2
@@ -421,3 +421,21 @@ conventions:
     - Theme-aware conditional styling
     - Disabled state when feature unavailable
     - Visual feedback with icons and colors
+  rag_processing:
+    system: weaviate_bm25_vector_search
+    discovered_in_feature: 11
+    discovered_at: '2026-01-20T22:46:09.323489Z'
+    import_path: server/src/services/RAGService.ts
+    reference_files:
+    - server/src/services/RAGService.ts:44
+    - server/src/services/VectorService.ts:232
+    - server/src/index.ts:172
+    usage_pattern: 'Async document chunking + Weaviate storage + BM25 search + LLM context injection: vectorService.storeDocument()
+      → ragService.generateStreamingResponse() → source citations'
+    guidelines:
+    - Use UUID for Weaviate object IDs
+    - Convert Buffer to Uint8Array for unpdf
+    - Set search threshold to 0.1 for BM25
+    - Always provide source citations in responses
+    - Handle no-sources-found gracefully
+    - Use streaming responses for real-time UX

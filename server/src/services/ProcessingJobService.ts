@@ -1,5 +1,6 @@
 import { ProcessingJob, ProcessingStatus, ProcessingUpdate, ProcessingEvent } from '../types/processing.js';
 import { EventEmitter } from 'events';
+import { documentService } from './DocumentService.js';
 
 /**
  * ProcessingJobService - Manages asynchronous document processing jobs
@@ -151,32 +152,78 @@ class ProcessingJobService extends EventEmitter {
       startedAt: new Date().toISOString(),
     });
 
-    // Simulate chunk-based processing
-    const totalChunks = 8; // Simulate 8 processing steps
+    try {
+      // Call the actual document processing service
+      console.log(`📄 Starting document processing for: ${job.originalName}`);
 
-    this.updateJob(job.id, {
-      currentChunk: 0,
-      totalChunks,
-    });
-
-    for (let chunk = 1; chunk <= totalChunks; chunk++) {
-      // Simulate processing time
-      await this.delay(200 + Math.random() * 300);
-
-      const progress = Math.round((chunk / totalChunks) * 100);
-
+      // Progress update: Starting
       this.updateJob(job.id, {
-        progress,
-        currentChunk: chunk,
+        currentChunk: 1,
+        totalChunks: 4,
+        progress: 25,
       });
-    }
 
-    // Mark as completed
-    this.updateJob(job.id, {
-      status: 'completed',
-      progress: 100,
-      completedAt: new Date().toISOString(),
-    });
+      // Process the document using DocumentService
+      const filePath = `uploads/${job.filename}`;
+
+      // Get file size
+      const fs = await import('fs/promises');
+      const stats = await fs.stat(filePath);
+
+      console.log(`📄 Processing PDF: ${filePath} (${stats.size} bytes)`);
+      const result = await documentService.processPDF(filePath, {
+        filename: job.filename,
+        originalName: job.originalName,
+        size: stats.size,
+        type: "pdf"
+      });
+
+      if (result.success) {
+        console.log(`✅ PDF processed successfully: ${result.document?.id}`);
+      } else {
+        console.error(`❌ PDF processing failed: ${result.error}`);
+        throw new Error(result.error);
+      }
+
+      // Progress update: Completed processing
+      this.updateJob(job.id, {
+        currentChunk: 2,
+        totalChunks: 4,
+        progress: 50,
+      });
+
+      // Small delay to show intermediate progress
+      await this.delay(500);
+
+      // Progress update: Storing metadata
+      this.updateJob(job.id, {
+        currentChunk: 3,
+        totalChunks: 4,
+        progress: 75,
+      });
+
+      // Final delay for completion
+      await this.delay(300);
+
+      // Progress update: Finalizing
+      this.updateJob(job.id, {
+        currentChunk: 4,
+        totalChunks: 4,
+        progress: 100,
+      });
+
+      // Mark as completed
+      this.updateJob(job.id, {
+        status: 'completed',
+        progress: 100,
+        completedAt: new Date().toISOString(),
+      });
+
+      console.log(`✅ Document processing completed: ${job.originalName}`);
+    } catch (error) {
+      console.error(`❌ Document processing failed: ${job.originalName}`, error);
+      throw error;
+    }
   }
 
   /**

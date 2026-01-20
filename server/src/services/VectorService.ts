@@ -10,6 +10,7 @@
 import weaviate from 'weaviate-ts-client'
 import type { WeaviateClient } from 'weaviate-ts-client'
 import { type DocumentMetadata } from './DocumentService.js'
+import { randomUUID } from 'crypto'
 
 // ============================================
 // Types
@@ -196,7 +197,7 @@ class VectorService {
       let batcher = this.client.batch.objectsBatcher()
 
       for (let i = 0; i < chunks.length; i++) {
-        const chunkId = `${document.id}_chunk_${i}`
+        const chunkId = randomUUID() // Generate UUID for Weaviate
 
         const chunkObject = {
           class: COLLECTION_NAME,
@@ -237,6 +238,8 @@ class VectorService {
     const { query, limit = 5, threshold = 0.7 } = request
 
     try {
+      console.log(`🔍 Vector search: "${query}" (limit: ${limit}, threshold: ${threshold})`);
+
       // For now, use BM25 search (keyword-based) since we don't have embeddings
       // In production, this would use semantic search with vectors
       const response = await this.client.graphql
@@ -253,9 +256,14 @@ class VectorService {
         .do()
 
       const objects = response.data?.Get?.[COLLECTION_NAME] || []
+      console.log(`📋 Search returned ${objects.length} raw objects`);
 
       const results: SearchResult[] = objects
-        .filter((obj: any) => obj._additional?.score >= threshold)
+        .filter((obj: any) => {
+          const score = obj._additional?.score || 0;
+          console.log(`   - Object score: ${score} (threshold: ${threshold})`);
+          return score >= threshold;
+        })
         .map((obj: any) => ({
           chunk: {
             id: `${obj.documentId}_chunk_${obj.chunkIndex}`,

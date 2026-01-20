@@ -64,7 +64,9 @@ class DocumentService {
 
       // Extract text from PDF using unpdf
       const data = await fs.readFile(filePath);
-      const { text, totalPages } = await extractText(data, { mergePages: true });
+      // Convert Buffer to Uint8Array for unpdf
+      const uint8Data = new Uint8Array(data);
+      const { text, totalPages } = await extractText(uint8Data, { mergePages: true });
 
       // Generate unique ID
       const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
