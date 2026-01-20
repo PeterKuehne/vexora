@@ -104,7 +104,7 @@ SUCCESS CRITERIA:
 
 LIBRARIES:
 - Weaviate (vector database with built-in hybrid search)
-- Ollama nomic-embed-text (embedding model)
+- Ollama (for embedding models - configurable via settings)
 
 OUT OF SCOPE:
 - Multi-language search across more than 2 languages
@@ -132,7 +132,7 @@ SUCCESS CRITERIA:
 - Response quality is noticeably better with reranking
 
 LIBRARIES:
-- Ollama Qwen3-Reranker-4B (dengcao/Qwen3-Reranker-4B:Q5_K_M)
+- Ollama (for reranker models - configurable via settings)
 
 OUT OF SCOPE:
 - Custom reranking model training
@@ -238,7 +238,47 @@ OUT OF SCOPE:
 
 ---
 
-REQUIREMENT 7: RAG Configuration & Settings
+REQUIREMENT 7: Model Configuration & Flexibility
+Priority: HIGH
+
+Users should be able to configure:
+- Select LLM model from available Ollama models
+- Select embedding model from available Ollama models
+- Select reranker model from available Ollama models
+- Switch between model profiles (e.g., "MacBook 16GB", "Workstation 64GB")
+- Create custom model configurations
+- View current model memory usage
+- Test model configuration before applying
+
+The system must:
+- Auto-discover available Ollama models
+- Detect embedding dimension changes
+- Offer to re-index documents when embedding model changes
+- Show model compatibility warnings
+- Support profile presets for different hardware configurations
+
+CONSTRAINTS:
+- Must not hardcode model names in application code
+- Must handle different embedding dimensions (768, 1024, 8192, etc.)
+- Must work on MacBook M2 16GB unified memory
+- Must support future hardware upgrades without code changes
+- Settings must persist across sessions
+
+SUCCESS CRITERIA:
+- User can switch from 8B to 32B LLM model without code changes
+- User can upgrade embedding model and system handles re-indexing
+- System shows "Model incompatible with 16GB memory" warning appropriately
+- Profile switching works seamlessly (select preset → apply → done)
+- New models pulled via Ollama automatically appear in UI
+
+OUT OF SCOPE:
+- Cloud API providers (OpenAI, Anthropic) in MVP
+- Custom model training
+- Automatic model selection based on query complexity
+
+---
+
+REQUIREMENT 8: RAG Configuration & Settings
 Priority: MEDIUM
 
 Users should be able to configure:
@@ -265,7 +305,7 @@ OUT OF SCOPE:
 
 ---
 
-REQUIREMENT 8: Analytics & Monitoring
+REQUIREMENT 9: Analytics & Monitoring
 Priority: LOW
 
 Users should be able to see:
@@ -297,27 +337,34 @@ TECHNICAL STACK
 NEW DEPENDENCIES:
 
 Vector Database:
-- Weaviate (native hybrid search, runs in Docker)
+- Weaviate 1.34.8+ (native hybrid search, runs in Docker)
 
 Structured Data:
-- PostgreSQL 16+ with pgvector extension
+- PostgreSQL 16+ with pgvector 0.8.1 extension
 
 Cache & Queue:
-- Redis (for caching and background job processing)
+- Redis 7.x (for caching and background job processing)
 
-Embedding Model:
-- nomic-embed-text (via Ollama, 768-dim)
-
-Reranking Model:
-- Qwen3-Reranker-4B (via Ollama, dengcao/Qwen3-Reranker-4B:Q5_K_M)
-- NOTE: jina-reranker NOT available in Ollama, using Qwen3 instead
+AI Models (via Ollama - User Configurable):
+- LLM: Any Ollama model (e.g., qwen3:8b, llama3, mistral)
+- Embedding: Any Ollama embedding model (e.g., nomic-embed-text, qwen3-embedding)
+- Reranker: Any Ollama reranker model (e.g., qwen3-reranker series)
+- NOTE: Models are NOT hardcoded - users can switch via settings
+- NOTE: System provides preset profiles for different hardware configs
 
 PDF Processing:
 - unpdf (npm, modern TypeScript alternative to pdf-parse)
 - NOTE: pdf-parse is unmaintained, use unpdf instead
 
 Orchestration:
-- LlamaIndex (fastest query time, lowest token consumption)
+- LlamaIndex (TypeScript version, 0.12.0+)
+
+RECOMMENDED STARTER CONFIGURATION (MacBook M2 16GB):
+- LLM: qwen3:8b-q4_K_M (~5GB)
+- Embedding: nomic-embed-text (~0.5GB, 768-dim)
+- Reranker: qwen3-reranker-0.6B (~0.5GB)
+- Total: ~6GB (leaves 10GB for system + Docker)
+- See: specs/macbook-m2-setup.md for details
 
 ================================================================================
 APIS TO CREATE
@@ -340,6 +387,12 @@ Configuration:
 - GET    /api/rag/config             (get RAG settings)
 - PUT    /api/rag/config             (update RAG settings)
 
+Model Management:
+- GET    /api/rag/models             (list available Ollama models)
+- GET    /api/rag/models/profiles    (get model profile presets)
+- POST   /api/rag/models/test        (test model configuration)
+- PUT    /api/rag/models/active      (set active model profile)
+
 Analytics:
 - GET    /api/rag/analytics/queries  (query statistics)
 - GET    /api/rag/analytics/documents (document statistics)
@@ -356,6 +409,10 @@ documents:
 - metadata (category, tags, custom_fields as JSON)
 - chunk_count, error_message
 
+document_embeddings:
+- document_id, embedding_model, embedding_dimensions
+- indexed_at (track which model was used for indexing)
+
 processing_jobs:
 - id, document_id, status, priority, created_at, started_at, completed_at
 - progress (0-100), retry_count, error_message
@@ -364,36 +421,87 @@ query_logs:
 - id, query_text, conversation_id, timestamp, retrieval_time
 - chunks_retrieved, response_time, user_rating (optional)
 
+model_configurations:
+- id, profile_id, profile_name, is_active
+- llm_model, llm_provider, embedding_model, embedding_dimensions
+- reranker_model, chunk_size, chunk_overlap, retrieval_top_k
+- created_at, updated_at (store user's model configs)
+
 VECTOR STORAGE (Weaviate):
-- Document chunks with embeddings
-- Metadata (document_id, page_number, chunk_index)
+- Document chunks with embeddings (dimension flexible based on model)
+- Metadata (document_id, page_number, chunk_index, embedding_model)
 - Support for hybrid search (vector + BM25)
+- Multiple collections for different embedding dimensions if needed
 
 ================================================================================
 DEPLOYMENT CHANGES
 ================================================================================
 
+TARGET DEVELOPMENT ENVIRONMENT:
+- MacBook with Apple M2 chip
+- 16GB unified memory (shared CPU/GPU)
+- macOS
+- Docker Desktop for Mac
+
 Docker Compose setup required for:
-- Weaviate container (port 8080)
-- PostgreSQL container (port 5432)
-- Redis container (port 6379)
+- Weaviate container (port 8080, max 2GB memory)
+- PostgreSQL container (port 5432, max 1GB memory)
+- Redis container (port 6379, max 512MB memory)
+- Total Docker memory: ~3-4GB
 
 All containers must:
 - Run locally (no cloud)
 - Have persistent volumes
 - Be easily restartable
 - Support development and production
+- Have memory limits (for MacBook compatibility)
+
+OLLAMA SETUP:
+- Runs natively on macOS (not in Docker)
+- Uses unified memory (~6GB for models)
+- Loads models on-demand
+- Supports Metal acceleration on M2
+
+MEMORY BUDGET (MacBook M2 16GB):
+- macOS System: ~3-4GB
+- Docker Containers: ~3-4GB
+- Ollama Models: ~6GB
+- Browser/Apps: ~2-3GB
+- Working Buffer: ~1-2GB
+- Total: ~14-16GB (tight but workable)
+
+SCALABILITY:
+- System must work on MacBook M2 16GB
+- System must scale to workstations with 64GB+ VRAM
+- No code changes required when upgrading hardware
+- Only model configuration changes needed
 
 ================================================================================
 PERFORMANCE REQUIREMENTS
 ================================================================================
 
+MACBOOK M2 16GB BASELINE (Development):
 - Document processing: 10+ pages/second
 - Retrieval latency: <200ms without reranking, <300ms with reranking
-- End-to-end RAG response: <2 seconds (including LLM generation start)
-- Support 1000+ documents
-- Support 10 concurrent queries
-- Uptime: 99%
+- End-to-end RAG response: <3 seconds (including LLM generation start)
+- LLM generation: 20-30 tokens/second (8B model, Q4 quantization)
+- Support 5,000-10,000 documents
+- Support 2-5 concurrent queries
+- Uptime: 95%+
+
+WORKSTATION 64GB+ (Production):
+- Document processing: 20+ pages/second
+- Retrieval latency: <150ms without reranking, <250ms with reranking
+- End-to-end RAG response: <2 seconds
+- LLM generation: 50+ tokens/second (32B model)
+- Support 100,000+ documents
+- Support 10+ concurrent queries
+- Uptime: 99%+
+
+REQUIREMENTS ARE HARDWARE-DEPENDENT:
+- System must gracefully handle memory constraints
+- System must warn user if configuration exceeds available memory
+- System must provide performance estimates based on hardware
 
 ================================================================================
 SECURITY REQUIREMENTS
@@ -411,7 +519,8 @@ SUCCESS METRICS
 ================================================================================
 
 RETRIEVAL QUALITY:
-- Precision@5 ≥ 85%
+- Precision@5 ≥ 80% (baseline on M2 16GB)
+- Precision@5 ≥ 85% (target on better hardware)
 - Mean Reciprocal Rank (MRR) ≥ 0.48
 - User satisfaction: 80% of responses rated helpful
 
@@ -419,11 +528,19 @@ PERFORMANCE:
 - Retrieval latency p95 < 300ms
 - Document processing success rate ≥ 95%
 - Zero data loss on system restarts
+- System remains responsive on MacBook M2 16GB
 
 USER EXPERIENCE:
 - User can upload and query document within 2 minutes
 - Citations are accurate 95%+ of the time
 - System responds even when no relevant documents found
+- User can switch models without technical knowledge
+- System warns if configuration incompatible with hardware
+
+FLEXIBILITY:
+- User can upgrade from M2 16GB to workstation without code changes
+- System handles model changes gracefully
+- Re-indexing is automatic when embedding model changes
 
 ================================================================================
 OUT OF SCOPE (FUTURE ENHANCEMENTS)
@@ -441,3 +558,33 @@ OUT OF SCOPE (FUTURE ENHANCEMENTS)
 - Cost optimization recommendations
 - A/B testing framework
 - Custom embedding model training
+
+================================================================================
+IMPORTANT DESIGN PRINCIPLES
+================================================================================
+
+MODEL AGNOSTIC ARCHITECTURE:
+- NO hardcoded model names in application code
+- Models are configured via settings, not code
+- System must work with any Ollama-compatible model
+- Users can switch models via UI without developer intervention
+- Embedding dimension changes trigger automatic re-indexing
+
+HARDWARE FLEXIBILITY:
+- Primary development target: MacBook M2 16GB
+- Must scale to high-end workstations (64GB+ VRAM)
+- Memory limits enforced in Docker containers
+- Performance requirements are hardware-dependent
+- System warns if configuration exceeds available memory
+
+UPGRADE PATH:
+- User starts with 8B models on M2 16GB
+- User upgrades hardware → switches to 32B/70B models
+- No code changes required, only configuration
+- System handles model migration automatically
+
+REFERENCE DOCUMENTATION:
+- specs/macbook-m2-setup.md - M2 16GB optimized configuration
+- specs/model-recommendations-2026.md - Model benchmarks and recommendations
+- specs/flexible-model-configuration.md - Model configuration system design
+- specs/tech-stack-versions-2026.md - Current library versions and breaking changes
