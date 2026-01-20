@@ -17,7 +17,7 @@ import {
 } from 'react';
 import {
   fetchDocuments,
-  uploadDocument,
+  uploadDocumentAsync,
   deleteDocument as apiDeleteDocument,
 } from '../lib/api';
 import { useToast } from './ToastContext';
@@ -119,18 +119,28 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     setUploadProgress(null);
 
     try {
-      const document = await uploadDocument(file, (progress) => {
+      // Use new async upload system with job-based processing
+      const uploadResponse = await uploadDocumentAsync(file, (progress) => {
         setUploadProgress(progress);
       });
 
-      // Add to document list (prepend to show newest first)
-      setDocuments(prev => [document, ...prev]);
-
-      addToast('success', `"${file.name}" wurde hochgeladen und verarbeitet`, {
-        title: 'Upload erfolgreich',
+      addToast('success', `"${file.name}" wird verarbeitet. Sie sehen den Fortschritt in Echtzeit.`, {
+        title: 'Upload gestartet',
       });
 
-      return document;
+      // Return a placeholder document with the job info
+      // The real document will be available once processing completes
+      const placeholder: DocumentMetadata = {
+        id: uploadResponse.documentId,
+        filename: `processing_${uploadResponse.jobId}`,
+        originalName: file.name,
+        size: file.size,
+        type: 'pdf',
+        uploadedAt: new Date().toISOString(),
+        pages: 0, // Will be updated when processing completes
+      };
+
+      return placeholder;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Upload failed';
       addToast('error', errorMessage, {

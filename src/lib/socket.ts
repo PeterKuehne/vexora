@@ -29,6 +29,44 @@ export interface ChatStreamEvent {
   conversationId: string
 }
 
+// Processing event types for document upload status
+export interface ProcessingJob {
+  id: string
+  documentId: string
+  filename: string
+  originalName: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  progress: number
+  currentChunk?: number
+  totalChunks?: number
+  error?: string
+  createdAt: string
+  startedAt?: string
+  completedAt?: string
+}
+
+export interface ProcessingUpdate {
+  jobId: string
+  documentId: string
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  progress: number
+  currentChunk?: number
+  totalChunks?: number
+  error?: string
+  timestamp: string
+}
+
+export interface ProcessingEvent {
+  type: 'job:created' | 'job:started' | 'job:progress' | 'job:completed' | 'job:failed'
+  jobId: string
+  data: ProcessingUpdate
+}
+
+export interface ActiveJobsPayload {
+  jobs: ProcessingJob[]
+  timestamp: string
+}
+
 // Get or create socket connection
 export function getSocket(): Socket {
   if (!socket) {
@@ -113,6 +151,19 @@ export function onChatStreamEnd(callback: (data: ChatStreamEvent) => void): () =
   const sock = getSocket()
   sock.on('chat:stream:end', callback)
   return () => sock.off('chat:stream:end', callback)
+}
+
+// Processing event subscription functions
+export function onProcessingUpdate(callback: (event: ProcessingEvent) => void): () => void {
+  const sock = getSocket()
+  sock.on('processing:update', callback)
+  return () => sock.off('processing:update', callback)
+}
+
+export function onActiveJobs(callback: (data: ActiveJobsPayload) => void): () => void {
+  const sock = getSocket()
+  sock.on('processing:active_jobs', callback)
+  return () => sock.off('processing:active_jobs', callback)
 }
 
 // Export socket instance for direct access if needed

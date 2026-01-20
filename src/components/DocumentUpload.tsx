@@ -13,12 +13,26 @@ import { useCallback, useState, useRef } from 'react';
 import { Upload, File } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useDocuments } from '../contexts/DocumentContext';
+import { useProcessing } from '../hooks/useProcessing';
+import { ProcessingProgress } from './ProcessingProgress';
 
 export function DocumentUpload() {
   const { isDark } = useTheme();
   const { uploadPDF, isUploading, uploadProgress } = useDocuments();
+  const { jobs } = useProcessing();
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Get active processing jobs
+  const activeJobs = jobs.filter(job =>
+    job.status === 'pending' || job.status === 'processing'
+  );
+
+  // Get recent completed/failed jobs (last 5)
+  const recentJobs = jobs
+    .filter(job => job.status === 'completed' || job.status === 'failed')
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
 
   /**
    * Handle file drop
@@ -230,6 +244,38 @@ export function DocumentUpload() {
             Maximal 50MB • Nur PDF-Dateien
           </p>
         </div>
+
+        {/* Active Processing Jobs */}
+        {activeJobs.length > 0 && (
+          <div className="mt-6 space-y-3">
+            <h4 className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              Verarbeitung läuft...
+            </h4>
+            {activeJobs.map((job) => (
+              <ProcessingProgress
+                key={job.id}
+                job={job}
+                className="transition-all duration-300 ease-in-out"
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Recent Completed/Failed Jobs */}
+        {recentJobs.length > 0 && (
+          <div className="mt-6 space-y-2">
+            <h4 className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              Letzte Aktivität
+            </h4>
+            {recentJobs.map((job) => (
+              <ProcessingProgress
+                key={job.id}
+                job={job}
+                className="opacity-80 transition-all duration-300 ease-in-out"
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -378,7 +378,69 @@ export interface UploadProgress {
 }
 
 /**
- * Upload a PDF document with progress tracking
+ * Upload response for new job-based system
+ */
+export interface UploadJobResponse {
+  success: boolean;
+  jobId: string;
+  documentId: string;
+  status: 'pending';
+  message: string;
+}
+
+/**
+ * Upload a PDF document with job-based async processing
+ */
+export async function uploadDocumentAsync(
+  file: File,
+  onProgress?: (progress: UploadProgress) => void
+): Promise<UploadJobResponse> {
+  const formData = new FormData();
+  formData.append('document', file);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    // Track upload progress
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        const progress = Math.round((event.loaded / event.total) * 100);
+        onProgress({
+          progress,
+          loaded: event.loaded,
+          total: event.total,
+          phase: 'uploading',
+        });
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response: UploadJobResponse = JSON.parse(xhr.responseText);
+          resolve(response);
+        } catch (error) {
+          reject(new Error('Invalid response format'));
+        }
+      } else {
+        try {
+          const errorData = JSON.parse(xhr.responseText);
+          reject(new Error(errorData.message || 'Upload failed'));
+        } catch {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Network error during upload'));
+
+    xhr.open('POST', `${env.API_URL}/api/documents/upload`);
+    xhr.send(formData);
+  });
+}
+
+/**
+ * Upload a PDF document with progress tracking (Legacy)
  */
 export async function uploadDocument(
   file: File,

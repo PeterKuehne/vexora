@@ -16,6 +16,7 @@ import {
   type ModelQuery,
 } from './validation/index.js'
 import { ollamaService, documentService } from './services/index.js'
+import { processingJobService } from './services/ProcessingJobService.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -273,25 +274,43 @@ app.post('/api/documents/upload', upload.single('document'), asyncHandler(async 
     })
   }
 
-  // Process PDF
-  const result = await documentService.processPDF(req.file.path, {
-    filename: req.file.filename,
-    originalName: req.file.originalname,
-    size: req.file.size,
-    type: 'pdf',
-  })
+  // Generate document ID for async processing
+  const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-  if (!result.success) {
-    throw new ValidationError(result.error || 'Fehler beim Verarbeiten der PDF', {
-      field: 'processing',
-      details: [result.error || 'Unbekannter Verarbeitungsfehler'],
+  // Create processing job for async execution
+  const job = processingJobService.createJob(
+    documentId,
+    req.file.filename,
+    req.file.originalname
+  )
+
+  // TODO: In a production system, we would store the file reference and process it
+  // For now, we'll simulate the processing with the job system
+
+  res.status(202).json({
+    success: true,
+    jobId: job.id,
+    documentId,
+    status: 'pending',
+    message: 'Dokument wird verarbeitet. Sie erhalten Updates über den Status.',
+  })
+}))
+
+// Get processing job status
+app.get('/api/processing/:jobId', asyncHandler(async (req: Request, res: Response) => {
+  const { jobId } = req.params
+  const job = processingJobService.getJob(jobId)
+
+  if (!job) {
+    throw new ValidationError('Processing Job nicht gefunden', {
+      field: 'jobId',
+      details: ['Der angegebene Job existiert nicht'],
     })
   }
 
-  res.status(201).json({
+  res.json({
     success: true,
-    document: result.document,
-    message: 'Dokument erfolgreich hochgeladen und verarbeitet',
+    job,
   })
 }))
 
@@ -344,8 +363,24 @@ app.delete('/api/documents/:id', asyncHandler(async (req: Request, res: Response
 // Socket.io Connection Handling
 // ============================================
 
+// ============================================
+// Processing Job Events
+// ============================================
+
+// Listen for processing updates and broadcast to connected clients
+processingJobService.on('processingUpdate', (event) => {
+  console.log(`📋 Processing update: ${event.type} - Job ${event.jobId}`)
+  io.emit('processing:update', event)
+})
+
 io.on('connection', (socket) => {
   console.log(`🔌 Client connected: ${socket.id}`)
+
+  // Send active jobs to newly connected client
+  socket.emit('processing:active_jobs', {
+    jobs: processingJobService.getActiveJobs(),
+    timestamp: new Date().toISOString(),
+  })
 
   // Handle chat message - will be used for LLM streaming
   socket.on('chat:message', (data: { conversationId: string; message: string }) => {
