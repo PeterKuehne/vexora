@@ -354,7 +354,7 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
         setIsStreaming(false);
       }
     },
-    [messages, isStreaming, model, settings.systemPrompt, addMessageToActive, updateMessageInActive, showErrorToast]
+    [messages, isStreaming, model, settings.systemPrompt, isRAGEnabled, addMessageToActive, updateMessageInActive, showErrorToast]
   );
 
   /**

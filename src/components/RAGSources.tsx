@@ -3,11 +3,14 @@
  *
  * Displays source citations for RAG-enhanced messages.
  * Shows document sources with relevance scores and content previews.
+ * Supports clicking on sources to view full content in modal.
  */
 
+import { useState } from 'react'
 import { FileText, ExternalLink, Hash } from 'lucide-react'
 import { cn } from '../utils'
 import { useTheme } from '../contexts'
+import { SourceDetailModal } from './SourceDetailModal'
 import type { RAGSource } from '../lib/api'
 
 export interface RAGSourcesProps {
@@ -22,9 +25,23 @@ export function RAGSources({
   className = ''
 }: RAGSourcesProps) {
   const { isDark } = useTheme()
+  const [selectedSource, setSelectedSource] = useState<RAGSource | null>(null)
+  const [selectedSourceIndex, setSelectedSourceIndex] = useState<number>(0)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   if (!hasRelevantSources || sources.length === 0) {
     return null
+  }
+
+  const handleSourceClick = (source: RAGSource, index: number) => {
+    setSelectedSource(source)
+    setSelectedSourceIndex(index + 1) // 1-indexed for display
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setSelectedSource(null)
   }
 
   return (
@@ -50,9 +67,18 @@ export function RAGSources({
             key={`${source.documentId}-${source.chunkIndex}`}
             source={source}
             index={index + 1}
+            onClick={() => handleSourceClick(source, index)}
           />
         ))}
       </div>
+
+      {/* Source Detail Modal */}
+      <SourceDetailModal
+        isOpen={isModalOpen}
+        source={selectedSource}
+        sourceIndex={selectedSourceIndex}
+        onClose={handleCloseModal}
+      />
     </div>
   )
 }
@@ -60,9 +86,10 @@ export function RAGSources({
 interface RAGSourceItemProps {
   source: RAGSource
   index: number
+  onClick?: () => void
 }
 
-function RAGSourceItem({ source, index }: RAGSourceItemProps) {
+function RAGSourceItem({ source, index, onClick }: RAGSourceItemProps) {
   const { isDark } = useTheme()
 
   // Calculate relevance color based on score
@@ -79,12 +106,17 @@ function RAGSourceItem({ source, index }: RAGSourceItemProps) {
   }
 
   return (
-    <div className={cn(
-      'rounded border p-3 space-y-2 transition-colors',
-      isDark
-        ? 'bg-gray-700/30 border-gray-600 hover:bg-gray-700/50'
-        : 'bg-white border-gray-200 hover:bg-gray-50'
-    )}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'w-full rounded border p-3 space-y-2 transition-colors text-left cursor-pointer',
+        isDark
+          ? 'bg-gray-700/30 border-gray-600 hover:bg-gray-700/50 hover:border-gray-500'
+          : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+      )}
+      aria-label={`Quelle ${index}: ${source.documentName} öffnen`}
+    >
       {/* Source Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
@@ -137,6 +169,6 @@ function RAGSourceItem({ source, index }: RAGSourceItemProps) {
           <span className="italic">&rdquo;</span>
         </div>
       )}
-    </div>
+    </button>
   )
 }

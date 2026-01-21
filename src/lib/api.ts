@@ -118,10 +118,13 @@ export async function streamChat(
   const { model, chatOptions, signal, ragOptions } = options ?? {};
 
   // Convert Message[] to ChatMessage[] (API format)
-  const chatMessages: ChatMessage[] = messages.map((msg) => ({
-    role: msg.role,
-    content: msg.content,
-  }));
+  // Filter out messages with empty content (e.g., incomplete streaming messages)
+  const chatMessages: ChatMessage[] = messages
+    .filter((msg) => msg.content && msg.content.trim().length > 0)
+    .map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
 
   const request: ChatRequest = {
     messages: chatMessages,

@@ -292,6 +292,7 @@ export { SidebarTabs, type SidebarTab } from './SidebarTabs';
 // RAG components
 export { RAGToggle } from './RAGToggle';
 export { RAGSources } from './RAGSources';
+export { SourceDetailModal } from './SourceDetailModal';
 
 // UI components will be exported here
 // export { Button } from './ui/Button';
