@@ -2,6 +2,7 @@
  * ModelSettings Component
  *
  * Model settings tab component with:
+ * - Model Profile Selector (predefined hardware configurations)
  * - Default Model Selector
  * - Embedding Model Selector (for RAG)
  * - Temperature Slider (0-2)
@@ -11,13 +12,14 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Cpu, Thermometer, MessageSquare, Hash, Info, Database, AlertTriangle } from 'lucide-react';
+import { Cpu, Thermometer, MessageSquare, Hash, Info, Database, AlertTriangle, Monitor, MemoryStick } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useToast } from '../contexts/ToastContext';
 import { ModelSelector } from './ModelSelector';
 import { fetchEmbeddingModels, type APIModel } from '../lib/api';
 import { ConfirmDialog } from './ConfirmDialog';
+import { MODEL_PROFILES, type ModelProfile } from '../types/settings';
 
 export interface ModelSettingsProps {
   /** Additional CSS classes */
@@ -42,6 +44,14 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
   const [embeddingError, setEmbeddingError] = useState<string | null>(null);
   const [showReindexWarning, setShowReindexWarning] = useState(false);
   const [pendingEmbeddingModel, setPendingEmbeddingModel] = useState<string | null>(null);
+
+  // Model profile state
+  const [showProfileConfirm, setShowProfileConfirm] = useState(false);
+  const [pendingProfile, setPendingProfile] = useState<ModelProfile | null>(null);
+
+  // Get current profile
+  const currentProfile = MODEL_PROFILES.find(p => p.id === settings.modelProfile) || MODEL_PROFILES.find(p => p.id === 'custom')!;
+  const isCustomProfile = settings.modelProfile === 'custom';
 
   // Load initial system prompt from settings
   useEffect(() => {
@@ -69,10 +79,65 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
   }, []);
 
   /**
+   * Handle model profile selection
+   */
+  const handleProfileSelect = (profileId: string) => {
+    const profile = MODEL_PROFILES.find(p => p.id === profileId);
+    if (!profile) return;
+
+    // Custom profile doesn't need confirmation
+    if (profile.id === 'custom') {
+      updateSetting('modelProfile', 'custom');
+      info('Benutzerdefiniertes Profil aktiviert - manuelle Modell-Auswahl möglich');
+      return;
+    }
+
+    // Show confirmation for other profiles
+    setPendingProfile(profile);
+    setShowProfileConfirm(true);
+  };
+
+  /**
+   * Confirm profile change - applies all profile settings
+   */
+  const handleConfirmProfileChange = () => {
+    if (!pendingProfile) return;
+
+    // Apply all profile settings
+    updateSetting('modelProfile', pendingProfile.id);
+    updateSetting('defaultModel', pendingProfile.llmModel);
+    if (pendingProfile.embeddingModel) {
+      updateSetting('embeddingModel', pendingProfile.embeddingModel);
+    }
+    setTemperature(pendingProfile.temperature);
+    setMaxTokens(pendingProfile.maxTokens);
+
+    info(`Profil "${pendingProfile.name}" aktiviert - alle Einstellungen wurden angepasst`, {
+      title: 'Profil gewechselt',
+      duration: 5000,
+    });
+
+    setShowProfileConfirm(false);
+    setPendingProfile(null);
+  };
+
+  /**
+   * Cancel profile change
+   */
+  const handleCancelProfileChange = () => {
+    setShowProfileConfirm(false);
+    setPendingProfile(null);
+  };
+
+  /**
    * Handle default model change
    */
   const handleDefaultModelChange = (modelId: string) => {
     updateSetting('defaultModel', modelId);
+    // When manually changing model, switch to custom profile
+    if (settings.modelProfile !== 'custom') {
+      updateSetting('modelProfile', 'custom');
+    }
     info(`Standard-Modell wurde auf "${modelId}" geändert`);
   };
 
@@ -151,11 +216,78 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
         </p>
       </div>
 
+      {/* Model Profile Selector */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium">
+          <Monitor className="w-4 h-4 inline mr-2" />
+          Model-Profil
+        </label>
+        <div className="space-y-2">
+          <select
+            value={settings.modelProfile || 'custom'}
+            onChange={(e) => handleProfileSelect(e.target.value)}
+            className={`
+              w-full px-4 py-3 rounded-lg border transition-all duration-200
+              focus:ring-2 focus:ring-blue-500 focus:border-transparent
+              cursor-pointer
+              ${isDark
+                ? 'bg-gray-700 border-gray-600 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
+              }
+            `}
+            aria-label="Model-Profil auswählen"
+          >
+            {MODEL_PROFILES.map((profile) => (
+              <option key={profile.id} value={profile.id}>
+                {profile.name} {profile.estimatedVRAM > 0 ? `(~${profile.estimatedVRAM}GB VRAM)` : ''}
+              </option>
+            ))}
+          </select>
+          <p
+            className={`
+              text-xs
+              ${isDark ? 'text-gray-400' : 'text-gray-600'}
+            `}
+          >
+            {currentProfile.description}
+          </p>
+          {!isCustomProfile && (
+            <div
+              className={`
+                flex items-start gap-2 p-3 rounded-lg text-xs
+                ${isDark ? 'bg-green-900/20 text-green-300' : 'bg-green-50 text-green-700'}
+              `}
+            >
+              <MemoryStick className="w-4 h-4 mt-0.5 shrink-0" />
+              <div>
+                <strong>Aktives Profil:</strong> {currentProfile.name}<br />
+                LLM: {currentProfile.llmModel} • Temp: {currentProfile.temperature} • Max Tokens: {currentProfile.maxTokens}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Profile Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showProfileConfirm}
+        title="Model-Profil wechseln"
+        message={pendingProfile
+          ? `Das Profil "${pendingProfile.name}" wird folgende Einstellungen setzen:\n\n• LLM: ${pendingProfile.llmModel}\n• Embedding: ${pendingProfile.embeddingModel}\n• Temperatur: ${pendingProfile.temperature}\n• Max Tokens: ${pendingProfile.maxTokens}\n• Geschätzter VRAM: ~${pendingProfile.estimatedVRAM}GB\n\nMöchten Sie fortfahren?`
+          : ''
+        }
+        confirmText="Profil aktivieren"
+        cancelText="Abbrechen"
+        confirmVariant="primary"
+        onConfirm={handleConfirmProfileChange}
+        onCancel={handleCancelProfileChange}
+      />
+
       {/* Default Model Selector */}
       <div className="space-y-3">
         <label className="block text-sm font-medium">
           <Cpu className="w-4 h-4 inline mr-2" />
-          Standard-Modell
+          Standard-Modell {!isCustomProfile && <span className="text-xs text-gray-500">(vom Profil)</span>}
         </label>
         <div className="space-y-2">
           <ModelSelector

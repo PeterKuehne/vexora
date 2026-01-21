@@ -95,6 +95,10 @@ function sanitizeSettings(data: Partial<AppSettings>): AppSettings {
       typeof data.systemPrompt === 'string'
         ? data.systemPrompt
         : (DEFAULT_SETTINGS.systemPrompt ?? ''),
+    modelProfile:
+      typeof data.modelProfile === 'string' && data.modelProfile.length > 0
+        ? data.modelProfile
+        : DEFAULT_SETTINGS.modelProfile,
   };
 }
 

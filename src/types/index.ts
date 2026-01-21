@@ -19,8 +19,8 @@ export type {
 } from './conversation';
 
 // Settings types
-export type { Theme, FontSize, AppSettings, ModelConfig, GenerationParams } from './settings';
-export { DEFAULT_SETTINGS, DEFAULT_GENERATION_PARAMS } from './settings';
+export type { Theme, FontSize, AppSettings, ModelConfig, GenerationParams, ModelProfile } from './settings';
+export { DEFAULT_SETTINGS, DEFAULT_GENERATION_PARAMS, MODEL_PROFILES } from './settings';
 
 // API types
 export type {
