@@ -767,7 +767,53 @@ Technical Implementation Details:
 
 Progress: 8/44 Features (18.2%)
 
+=== Session: Coding Agent - Features 12, 17, 37 ===
+Datum: 2026-01-21
+Agent: Coding Agent
+
+Erledigt:
+- [X] Feature 12: "User kann auf Quellenangabe klicken und Original sehen"
+- [X] Feature 17: "User kann LLM-Model aus verfügbaren Ollama-Models wählen"
+- [X] Feature 37: "Dokumente persistieren nach Browser-Refresh"
+
+Feature 12 Details (bereits implementiert, nur verifiziert):
+- SourceDetailModal.tsx: Vollständiges Modal mit @headlessui/react Dialog
+- RAGSources.tsx: Klickbare Source Items mit onClick Handler
+- Copy-to-clipboard Funktion für Quelltext
+- Dark/Light Theme Support
+- Accessibility: ESC zum Schließen, Focus Management
+
+Bug Fixes während Session:
+- ChatContext.tsx: isRAGEnabled zur useCallback dependency hinzugefügt
+- api.ts: Leere Nachrichten werden jetzt gefiltert (verhindert 400-Error)
+
+Feature 17 Details (bereits implementiert, nur verifiziert):
+- Model Selector in Header mit Dropdown
+- Verfügbare Models: qwen3:8b, llama3.2:latest
+- Model-Wechsel mit System-Nachricht im Chat
+- Toast-Notification bei Model-Änderung
+- Settings werden automatisch persistiert
+- Screenshot: .adw/screenshots/feature_17_model_selection.png
+
+Feature 37 Details (bereits implementiert, nur verifiziert):
+- Documents werden im Backend /uploads/ Verzeichnis gespeichert
+- Document Metadata wird im Server-Memory gehalten
+- GET /api/documents liefert persistierte Dokumente nach Restart
+- Browser-Refresh: Documents Tab zeigt weiterhin alle Dokumente
+- Screenshot: .adw/screenshots/feature_37_document_persistence.png
+
+Git Commits:
+- df8a42d: feat: User kann auf Quellenangabe klicken - ADW #12
+- dc918ea: docs: Update feature tracking for Features 12, 17, 37
+
+Erkenntnisse:
+- Viele Features waren bereits vollständig implementiert
+- RAG-Streaming ist sehr langsam (~30+ Sekunden) - LLM Performance Issue
+- Multiple Server-Instanzen können zu Problemen führen (wurden bereinigt)
+
+Progress: 11/44 Features (25.0%)
+
 Nächste Session:
 - Nächstes Feature aus der Queue (adw features next)
-- RAG System + Normal Chat funktionieren beide vollständig
-- Conditional Chat Logic implementiert und getestet
+- RAG Streaming Performance könnte verbessert werden
+- Alle Core-Features (Document Upload, RAG, Model Selection) funktionieren
