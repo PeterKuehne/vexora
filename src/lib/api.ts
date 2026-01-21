@@ -416,6 +416,21 @@ export async function checkHealth(): Promise<{
 // Documents API
 // ============================================
 
+/**
+ * Available document categories
+ */
+export const DOCUMENT_CATEGORIES = [
+  'Allgemein',
+  'Vertrag',
+  'Rechnung',
+  'Bericht',
+  'Handbuch',
+  'Präsentation',
+  'Sonstiges',
+] as const;
+
+export type DocumentCategory = typeof DOCUMENT_CATEGORIES[number];
+
 export interface DocumentMetadata {
   id: string;
   filename: string;
@@ -425,6 +440,8 @@ export interface DocumentMetadata {
   uploadedAt: string;
   pages: number;
   text?: string;
+  category: DocumentCategory;
+  tags: string[];
 }
 
 export interface UploadProgress {

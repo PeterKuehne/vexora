@@ -8,6 +8,21 @@ import { vectorService } from './VectorService.js';
  * DocumentService - Handles PDF processing and document management
  */
 
+/**
+ * Available document categories
+ */
+export const DOCUMENT_CATEGORIES = [
+  'Allgemein',
+  'Vertrag',
+  'Rechnung',
+  'Bericht',
+  'Handbuch',
+  'Präsentation',
+  'Sonstiges',
+] as const;
+
+export type DocumentCategory = typeof DOCUMENT_CATEGORIES[number];
+
 export interface DocumentMetadata {
   id: string;
   filename: string;
@@ -17,6 +32,8 @@ export interface DocumentMetadata {
   uploadedAt: string;
   pages: number;
   text?: string;
+  category: DocumentCategory;
+  tags: string[];
 }
 
 export interface ProcessingResult {
@@ -31,6 +48,8 @@ export const documentUploadSchema = z.object({
   originalName: z.string().min(1),
   size: z.number().positive().max(50 * 1024 * 1024), // 50MB max
   type: z.literal('pdf'),
+  category: z.enum(DOCUMENT_CATEGORIES).optional().default('Allgemein'),
+  tags: z.array(z.string().max(50)).max(10).optional().default([]),
 });
 
 export type DocumentUploadRequest = z.infer<typeof documentUploadSchema>;
@@ -80,6 +99,8 @@ class DocumentService {
         uploadedAt: new Date().toISOString(),
         pages: totalPages,
         text: text.trim(),
+        category: validatedMetadata.category ?? 'Allgemein',
+        tags: validatedMetadata.tags ?? [],
       };
 
       // Store document metadata (in production, this would go to PostgreSQL)
@@ -119,6 +140,34 @@ class DocumentService {
    */
   async getDocument(id: string): Promise<DocumentMetadata | null> {
     return this.documentsStorage.get(id) || null;
+  }
+
+  /**
+   * Update document metadata (category, tags)
+   */
+  async updateDocument(id: string, updates: { category?: DocumentCategory; tags?: string[] }): Promise<DocumentMetadata | null> {
+    const document = this.documentsStorage.get(id);
+    if (!document) return null;
+
+    const updatedDocument: DocumentMetadata = {
+      ...document,
+      ...(updates.category !== undefined && { category: updates.category }),
+      ...(updates.tags !== undefined && { tags: updates.tags }),
+    };
+
+    this.documentsStorage.set(id, updatedDocument);
+    return updatedDocument;
+  }
+
+  /**
+   * Get all unique tags across all documents
+   */
+  async getAllTags(): Promise<string[]> {
+    const tagSet = new Set<string>();
+    for (const doc of this.documentsStorage.values()) {
+      doc.tags.forEach(tag => tagSet.add(tag));
+    }
+    return Array.from(tagSet).sort();
   }
 
   /**

@@ -11,9 +11,9 @@
  */
 
 import { useState, useMemo } from 'react';
-import { File, Trash2, Calendar, Hash, HardDrive, CheckSquare, Square, X, Search } from 'lucide-react';
+import { File, Trash2, Calendar, Hash, HardDrive, CheckSquare, Square, X, Search, Filter, Tag, FolderOpen, ChevronDown } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useDocuments } from '../contexts/DocumentContext';
+import { useDocuments, DOCUMENT_CATEGORIES, type DocumentCategory } from '../contexts/DocumentContext';
 import type { DocumentMetadata } from '../contexts/DocumentContext';
 
 interface DocumentItemProps {
@@ -161,7 +161,40 @@ function DocumentItem({ document, onDelete, isSelectionMode, isSelected, onToggl
               <Calendar className="w-3 h-3" />
               {formatDate(document.uploadedAt)}
             </span>
+
+            {/* Category Badge */}
+            {document.category && document.category !== 'Allgemein' && (
+              <span
+                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                  isDark
+                    ? 'bg-blue-900/40 text-blue-300'
+                    : 'bg-blue-100 text-blue-700'
+                }`}
+              >
+                <FolderOpen className="w-2.5 h-2.5" />
+                {document.category}
+              </span>
+            )}
           </div>
+
+          {/* Tags */}
+          {document.tags && document.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {document.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] ${
+                    isDark
+                      ? 'bg-gray-700 text-gray-300'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  <Tag className="w-2 h-2" />
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Delete Button (only in non-selection mode) */}
@@ -301,19 +334,83 @@ export function DocumentList() {
 
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<DocumentCategory | 'all'>('all');
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   /**
-   * Filter documents by search query (case-insensitive)
+   * Get all unique tags from documents
+   */
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    documents.forEach(doc => {
+      doc.tags?.forEach(tag => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [documents]);
+
+  /**
+   * Toggle a tag in the filter selection
+   */
+  const toggleTagFilter = (tag: string) => {
+    setSelectedTags(prev => {
+      const next = new Set(prev);
+      if (next.has(tag)) {
+        next.delete(tag);
+      } else {
+        next.add(tag);
+      }
+      return next;
+    });
+  };
+
+  /**
+   * Clear all filters
+   */
+  const clearFilters = () => {
+    setCategoryFilter('all');
+    setSelectedTags(new Set());
+    setSearchQuery('');
+  };
+
+  /**
+   * Check if any filters are active
+   */
+  const hasActiveFilters = categoryFilter !== 'all' || selectedTags.size > 0 || searchQuery.trim() !== '';
+
+  /**
+   * Filter documents by search query, category, and tags (AND combination)
    */
   const filteredDocuments = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return documents;
-    }
-    const query = searchQuery.toLowerCase().trim();
-    return documents.filter(doc =>
-      doc.originalName.toLowerCase().includes(query)
-    );
-  }, [documents, searchQuery]);
+    return documents.filter(doc => {
+      // Search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        if (!doc.originalName.toLowerCase().includes(query)) {
+          return false;
+        }
+      }
+
+      // Category filter
+      if (categoryFilter !== 'all') {
+        if (doc.category !== categoryFilter) {
+          return false;
+        }
+      }
+
+      // Tag filter (AND - all selected tags must be present)
+      if (selectedTags.size > 0) {
+        const docTags = new Set(doc.tags || []);
+        for (const tag of selectedTags) {
+          if (!docTags.has(tag)) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  }, [documents, searchQuery, categoryFilter, selectedTags]);
 
   /**
    * Format total size
@@ -401,7 +498,8 @@ export function DocumentList() {
   }
 
   // No search results state
-  const showNoSearchResults = searchQuery.trim() && filteredDocuments.length === 0;
+  // No results when filters are active but no documents match
+  const showNoResults = hasActiveFilters && filteredDocuments.length === 0;
 
   return (
     <div>
@@ -452,6 +550,132 @@ export function DocumentList() {
             </button>
           )}
         </div>
+
+        {/* Filter Toggle Button */}
+        <div className="flex items-center gap-2 mt-2">
+          <button
+            onClick={() => setShowFilterPanel(!showFilterPanel)}
+            className={`
+              flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors
+              ${showFilterPanel || hasActiveFilters
+                ? isDark
+                  ? 'bg-blue-900/40 text-blue-300 border border-blue-700'
+                  : 'bg-blue-50 text-blue-700 border border-blue-200'
+                : isDark
+                  ? 'bg-gray-800 text-gray-400 border border-gray-700 hover:bg-gray-700'
+                  : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
+              }
+            `}
+          >
+            <Filter className="w-3.5 h-3.5" />
+            Filter
+            {hasActiveFilters && (
+              <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                isDark ? 'bg-blue-700' : 'bg-blue-200'
+              }`}>
+                {(categoryFilter !== 'all' ? 1 : 0) + selectedTags.size}
+              </span>
+            )}
+            <ChevronDown className={`w-3 h-3 transition-transform ${showFilterPanel ? 'rotate-180' : ''}`} />
+          </button>
+
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className={`
+                flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-colors
+                ${isDark
+                  ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }
+              `}
+            >
+              <X className="w-3 h-3" />
+              Filter zurücksetzen
+            </button>
+          )}
+        </div>
+
+        {/* Filter Panel */}
+        {showFilterPanel && (
+          <div
+            className={`
+              mt-3 p-3 rounded-lg border
+              ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}
+            `}
+          >
+            {/* Category Filter */}
+            <div className="mb-3">
+              <label
+                className={`flex items-center gap-1.5 text-xs font-medium mb-2 ${
+                  isDark ? 'text-gray-300' : 'text-gray-700'
+                }`}
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                Kategorie
+              </label>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value as DocumentCategory | 'all')}
+                className={`
+                  w-full px-3 py-2 rounded-lg text-sm border transition-colors
+                  ${isDark
+                    ? 'bg-gray-700 border-gray-600 text-gray-200'
+                    : 'bg-white border-gray-300 text-gray-800'
+                  }
+                `}
+                aria-label="Kategorie-Filter"
+              >
+                <option value="all">Alle Kategorien</option>
+                {DOCUMENT_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Tag Filter */}
+            {allTags.length > 0 && (
+              <div>
+                <label
+                  className={`flex items-center gap-1.5 text-xs font-medium mb-2 ${
+                    isDark ? 'text-gray-300' : 'text-gray-700'
+                  }`}
+                >
+                  <Tag className="w-3.5 h-3.5" />
+                  Tags {selectedTags.size > 0 && `(${selectedTags.size} ausgewählt)`}
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {allTags.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => toggleTagFilter(tag)}
+                      className={`
+                        flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors
+                        ${selectedTags.has(tag)
+                          ? isDark
+                            ? 'bg-blue-900/50 text-blue-300 border border-blue-700'
+                            : 'bg-blue-100 text-blue-700 border border-blue-300'
+                          : isDark
+                            ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
+                            : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
+                        }
+                      `}
+                    >
+                      <Tag className="w-2.5 h-2.5" />
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {allTags.length === 0 && (
+              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                Keine Tags vorhanden. Tags können beim Upload oder später hinzugefügt werden.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Header with stats and selection controls */}
@@ -462,7 +686,7 @@ export function DocumentList() {
               isDark ? 'text-gray-300' : 'text-gray-700'
             }`}
           >
-            {searchQuery.trim()
+            {hasActiveFilters
               ? `${filteredDocuments.length} von ${totalDocuments} Dokumente${filteredDocuments.length !== 1 ? 'n' : ''}`
               : 'Dokumente'
             }
@@ -566,9 +790,9 @@ export function DocumentList() {
       </div>
 
       {/* Document list or no results message */}
-      {showNoSearchResults ? (
+      {showNoResults ? (
         <div className="text-center py-6">
-          <Search
+          <Filter
             className={`w-12 h-12 mx-auto mb-3 ${
               isDark ? 'text-gray-600' : 'text-gray-300'
             }`}
@@ -585,10 +809,17 @@ export function DocumentList() {
               isDark ? 'text-gray-500' : 'text-gray-400'
             }`}
           >
-            Keine Dokumente für "{searchQuery}" gefunden
+            {searchQuery.trim()
+              ? `Keine Dokumente für "${searchQuery}" gefunden`
+              : categoryFilter !== 'all'
+                ? `Keine Dokumente in Kategorie "${categoryFilter}"`
+                : selectedTags.size > 0
+                  ? `Keine Dokumente mit den ausgewählten Tags`
+                  : 'Keine passenden Dokumente gefunden'
+            }
           </p>
           <button
-            onClick={() => setSearchQuery('')}
+            onClick={clearFilters}
             className={`
               mt-3 text-xs px-3 py-1.5 rounded-lg transition-colors
               ${isDark
@@ -597,7 +828,7 @@ export function DocumentList() {
               }
             `}
           >
-            Suche zurücksetzen
+            Filter zurücksetzen
           </button>
         </div>
       ) : (

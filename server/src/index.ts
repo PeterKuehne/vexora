@@ -479,6 +479,18 @@ app.get('/api/documents', asyncHandler(async (_req: Request, res: Response) => {
   })
 }))
 
+// Get all unique tags endpoint (BEFORE :id route!)
+app.get('/api/documents/tags', asyncHandler(async (_req: Request, res: Response) => {
+  const tags = await documentService.getAllTags()
+  res.json({ tags })
+}))
+
+// Get document categories endpoint (BEFORE :id route!)
+app.get('/api/documents/categories', asyncHandler(async (_req: Request, res: Response) => {
+  const { DOCUMENT_CATEGORIES } = await import('./services/DocumentService.js')
+  res.json({ categories: DOCUMENT_CATEGORIES })
+}))
+
 // Get single document endpoint
 app.get('/api/documents/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params
@@ -511,6 +523,27 @@ app.delete('/api/documents/:id', asyncHandler(async (req: Request, res: Response
   res.json({
     success: true,
     message: 'Dokument erfolgreich gelöscht',
+  })
+}))
+
+// Update document endpoint (category/tags)
+app.patch('/api/documents/:id', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params
+  const { category, tags } = req.body
+
+  const document = await documentService.updateDocument(id || '', { category, tags })
+
+  if (!document) {
+    res.status(404).json({
+      error: 'Dokument nicht gefunden',
+      id,
+    })
+    return
+  }
+
+  res.json({
+    success: true,
+    document,
   })
 }))
 

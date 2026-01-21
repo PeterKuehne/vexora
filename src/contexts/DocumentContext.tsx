@@ -20,19 +20,15 @@ import {
   uploadDocumentAsync,
   deleteDocument as apiDeleteDocument,
   bulkDeleteDocuments as apiBulkDeleteDocuments,
+  DOCUMENT_CATEGORIES,
+  type DocumentCategory,
+  type DocumentMetadata,
 } from '../lib/api';
 import { useToast } from './ToastContext';
 
-export interface DocumentMetadata {
-  id: string;
-  filename: string;
-  originalName: string;
-  size: number;
-  type: 'pdf';
-  uploadedAt: string;
-  pages: number;
-  text?: string;
-}
+// Re-export types and constants from api.ts for consumers
+export { DOCUMENT_CATEGORIES };
+export type { DocumentCategory, DocumentMetadata };
 
 export interface UploadProgress {
   progress: number; // 0-100
@@ -155,6 +151,8 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         type: 'pdf',
         uploadedAt: new Date().toISOString(),
         pages: 0, // Will be updated when processing completes
+        category: 'Allgemein',
+        tags: [],
       };
 
       return placeholder;
