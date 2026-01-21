@@ -178,6 +178,7 @@ app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
           query: ragQuery,
           searchLimit: chatRequest.rag?.searchLimit || 5,
           searchThreshold: chatRequest.rag?.searchThreshold || 0.5,
+          hybridAlpha: chatRequest.rag?.hybridAlpha ?? 0.5,
         })
 
         // Send sources first (as metadata)
@@ -310,6 +311,7 @@ app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
           query: ragQuery,
           searchLimit: chatRequest.rag?.searchLimit || 5,
           searchThreshold: chatRequest.rag?.searchThreshold || 0.5,
+          hybridAlpha: chatRequest.rag?.hybridAlpha ?? 0.5,
         })
 
         res.json({

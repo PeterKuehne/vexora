@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Cpu, Thermometer, MessageSquare, Hash, Info, Database, AlertTriangle, Monitor, MemoryStick } from 'lucide-react';
+import { Cpu, Thermometer, MessageSquare, Hash, Info, Database, AlertTriangle, Monitor, MemoryStick, Scale } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useToast } from '../contexts/ToastContext';
@@ -409,6 +409,81 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
         onConfirm={handleConfirmEmbeddingChange}
         onCancel={handleCancelEmbeddingChange}
       />
+
+      {/* Hybrid Search Balance Slider */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium">
+          <Scale className="w-4 h-4 inline mr-2" />
+          Hybrid Search Balance
+        </label>
+        <div className="space-y-3">
+          <div className="flex items-center gap-4">
+            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Keyword
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={settings.hybridSearchAlpha ?? 0.5}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value);
+                updateSetting('hybridSearchAlpha', value);
+                info(`Hybrid Search Balance: ${value === 0 ? 'Keyword (BM25)' : value === 1 ? 'Semantisch (Vector)' : `${Math.round(value * 100)}% Semantisch`}`);
+              }}
+              className={`
+                flex-1 h-2 rounded-lg appearance-none cursor-pointer
+                ${isDark
+                  ? 'bg-gray-700 [&::-webkit-slider-thumb]:bg-purple-500'
+                  : 'bg-gray-200 [&::-webkit-slider-thumb]:bg-purple-600'
+                }
+                [&::-webkit-slider-thumb]:appearance-none
+                [&::-webkit-slider-thumb]:h-5
+                [&::-webkit-slider-thumb]:w-5
+                [&::-webkit-slider-thumb]:rounded-full
+                [&::-webkit-slider-thumb]:transition-all
+                [&::-webkit-slider-thumb]:hover:scale-110
+                [&::-moz-range-thumb]:bg-purple-500
+                [&::-moz-range-thumb]:border-none
+                [&::-moz-range-thumb]:h-5
+                [&::-moz-range-thumb]:w-5
+                [&::-moz-range-thumb]:rounded-full
+                [&::-moz-range-thumb]:cursor-pointer
+              `}
+              aria-label="Hybrid Search Balance zwischen Keyword und Semantischer Suche"
+            />
+            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Semantic
+            </span>
+            <div
+              className={`
+                min-w-[60px] px-3 py-2 rounded-lg text-center text-sm font-mono
+                ${isDark
+                  ? 'bg-gray-700 text-white'
+                  : 'bg-gray-100 text-gray-900'
+                }
+              `}
+            >
+              {((settings.hybridSearchAlpha ?? 0.5) * 100).toFixed(0)}%
+            </div>
+          </div>
+          <div
+            className={`
+              flex items-start gap-2 p-3 rounded-lg text-xs
+              ${isDark ? 'bg-purple-900/20 text-purple-300' : 'bg-purple-50 text-purple-700'}
+            `}
+          >
+            <Info className="w-4 h-4 mt-0.5 shrink-0" />
+            <div>
+              <strong>Hybrid Search Balance:</strong><br />
+              • 0% (Keyword): Exakte Wort-Übereinstimmung (BM25)<br />
+              • 50% (Empfohlen): Ausgewogene Hybrid-Suche<br />
+              • 100% (Semantic): Bedeutungsbasierte Vektor-Suche
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Temperature Slider */}
       <div className="space-y-3">

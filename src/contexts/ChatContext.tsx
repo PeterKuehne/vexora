@@ -341,6 +341,7 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
                 query: content.trim(), // Use the user's message as query
                 searchLimit: 5,
                 searchThreshold: 0.5,
+                hybridAlpha: settings.hybridSearchAlpha ?? 0.5,
               }
             }),
           }
@@ -354,7 +355,7 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
         setIsStreaming(false);
       }
     },
-    [messages, isStreaming, model, settings.systemPrompt, isRAGEnabled, addMessageToActive, updateMessageInActive, showErrorToast]
+    [messages, isStreaming, model, settings.systemPrompt, settings.hybridSearchAlpha, isRAGEnabled, addMessageToActive, updateMessageInActive, showErrorToast]
   );
 
   /**

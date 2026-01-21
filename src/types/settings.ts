@@ -109,6 +109,8 @@ export interface AppSettings {
   systemPrompt?: string;
   /** Selected model profile ID */
   modelProfile: string;
+  /** Hybrid search alpha (0.0 = keyword/BM25, 1.0 = semantic/vector) */
+  hybridSearchAlpha: number;
 }
 
 /**
@@ -127,6 +129,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoSave: true,
   systemPrompt: '',
   modelProfile: 'custom',
+  hybridSearchAlpha: 0.5, // Default: balanced hybrid search
 };
 
 /**

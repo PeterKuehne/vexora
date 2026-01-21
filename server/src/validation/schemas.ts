@@ -89,6 +89,7 @@ export const chatRequestSchema = z.object({
     query: z.string().min(1, 'RAG query cannot be empty').optional(),
     searchLimit: z.number().int().min(1).max(20).optional().default(5),
     searchThreshold: z.number().min(0).max(1).optional().default(0.5),
+    hybridAlpha: z.number().min(0).max(1).optional().default(0.5), // 0 = BM25, 1 = Vector
   }).optional(),
 })
 

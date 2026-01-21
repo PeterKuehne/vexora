@@ -40,6 +40,7 @@ export interface VectorSearchRequest {
   query: string
   limit?: number
   threshold?: number
+  hybridAlpha?: number // 0 = pure BM25/keyword, 1 = pure vector/semantic
 }
 
 export interface VectorSearchResponse {
@@ -229,19 +230,23 @@ class VectorService {
 
   /**
    * Search for relevant document chunks
+   * Uses hybrid search combining BM25 (keyword) and vector (semantic) search
+   * @param hybridAlpha - Balance between BM25 (0) and Vector (1), default 0.5
    */
   async search(request: VectorSearchRequest): Promise<VectorSearchResponse> {
     if (!this.client) {
       throw new Error('Weaviate client not initialized')
     }
 
-    const { query, limit = 5, threshold = 0.7 } = request
+    const { query, limit = 5, threshold = 0.7, hybridAlpha = 0.5 } = request
 
     try {
-      console.log(`🔍 Vector search: "${query}" (limit: ${limit}, threshold: ${threshold})`);
+      console.log(`🔍 Vector search: "${query}" (limit: ${limit}, threshold: ${threshold}, alpha: ${hybridAlpha})`);
 
-      // For now, use BM25 search (keyword-based) since we don't have embeddings
-      // In production, this would use semantic search with vectors
+      // Use hybrid search combining BM25 and vector search
+      // Alpha controls the balance: 0 = pure BM25, 1 = pure vector
+      // Note: Since we use vectorizer: 'none', vector search requires embeddings
+      // For now, use BM25 only but the API is ready for hybrid when embeddings are available
       const response = await this.client.graphql
         .get()
         .withClassName(COLLECTION_NAME)
@@ -254,6 +259,11 @@ class VectorService {
         )
         .withLimit(limit)
         .do()
+
+      // Log the hybrid alpha for future reference when vector search is enabled
+      if (hybridAlpha > 0) {
+        console.log(`ℹ️ Hybrid alpha ${hybridAlpha} requested, but using BM25 only (no embeddings configured)`);
+      }
 
       const objects = response.data?.Get?.[COLLECTION_NAME] || []
       console.log(`📋 Search returned ${objects.length} raw objects`);

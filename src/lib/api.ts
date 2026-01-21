@@ -30,6 +30,7 @@ export interface RAGOptions {
   query?: string;
   searchLimit?: number;
   searchThreshold?: number;
+  hybridAlpha?: number; // 0 = pure BM25/keyword, 1 = pure vector/semantic
 }
 
 export interface ChatRequest {

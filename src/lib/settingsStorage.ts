@@ -99,6 +99,12 @@ function sanitizeSettings(data: Partial<AppSettings>): AppSettings {
       typeof data.modelProfile === 'string' && data.modelProfile.length > 0
         ? data.modelProfile
         : DEFAULT_SETTINGS.modelProfile,
+    hybridSearchAlpha:
+      typeof data.hybridSearchAlpha === 'number' &&
+      data.hybridSearchAlpha >= 0 &&
+      data.hybridSearchAlpha <= 1
+        ? data.hybridSearchAlpha
+        : DEFAULT_SETTINGS.hybridSearchAlpha,
   };
 }
 

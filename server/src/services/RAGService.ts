@@ -19,6 +19,7 @@ export interface RAGRequest {
   query: string
   searchLimit?: number
   searchThreshold?: number
+  hybridAlpha?: number // 0 = pure BM25/keyword, 1 = pure vector/semantic
 }
 
 export interface RAGSource {
@@ -48,6 +49,7 @@ class RAGService {
       query,
       searchLimit = 5,
       searchThreshold = 0.5,
+      hybridAlpha = 0.5,
     } = request
 
     try {
@@ -56,6 +58,7 @@ class RAGService {
         query,
         limit: searchLimit,
         threshold: searchThreshold,
+        hybridAlpha,
       })
 
       // Step 2: Check if we found relevant sources
@@ -129,6 +132,7 @@ class RAGService {
       query,
       searchLimit = 5,
       searchThreshold = 0.5,
+      hybridAlpha = 0.5,
     } = request
 
     try {
@@ -137,6 +141,7 @@ class RAGService {
         query,
         limit: searchLimit,
         threshold: searchThreshold,
+        hybridAlpha,
       })
 
       const hasRelevantSources = searchResults.results.length > 0
