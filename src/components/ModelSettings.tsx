@@ -12,7 +12,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Cpu, Thermometer, MessageSquare, Hash, Info, Database, AlertTriangle, Monitor, MemoryStick, Scale } from 'lucide-react';
+import { Cpu, Thermometer, MessageSquare, Hash, Info, Database, AlertTriangle, Monitor, MemoryStick, Scale, Layers } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useToast } from '../contexts/ToastContext';
@@ -480,6 +480,80 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
               • 0% (Keyword): Exakte Wort-Übereinstimmung (BM25)<br />
               • 50% (Empfohlen): Ausgewogene Hybrid-Suche<br />
               • 100% (Semantic): Bedeutungsbasierte Vektor-Suche
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Top-K Chunks Slider */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium">
+          <Layers className="w-4 h-4 inline mr-2" />
+          Top-K Chunks (RAG)
+        </label>
+        <div className="space-y-3">
+          <div className="flex items-center gap-4">
+            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              1
+            </span>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              step="1"
+              value={settings.ragTopK ?? 5}
+              onChange={(e) => {
+                const value = parseInt(e.target.value, 10);
+                updateSetting('ragTopK', value);
+                info(`Top-K Chunks: ${value} ${value === 1 ? 'Chunk' : 'Chunks'} werden für RAG abgerufen`);
+              }}
+              className={`
+                flex-1 h-2 rounded-lg appearance-none cursor-pointer
+                ${isDark
+                  ? 'bg-gray-700 [&::-webkit-slider-thumb]:bg-cyan-500'
+                  : 'bg-gray-200 [&::-webkit-slider-thumb]:bg-cyan-600'
+                }
+                [&::-webkit-slider-thumb]:appearance-none
+                [&::-webkit-slider-thumb]:h-5
+                [&::-webkit-slider-thumb]:w-5
+                [&::-webkit-slider-thumb]:rounded-full
+                [&::-webkit-slider-thumb]:transition-all
+                [&::-webkit-slider-thumb]:hover:scale-110
+                [&::-moz-range-thumb]:bg-cyan-500
+                [&::-moz-range-thumb]:border-none
+                [&::-moz-range-thumb]:h-5
+                [&::-moz-range-thumb]:w-5
+                [&::-moz-range-thumb]:rounded-full
+                [&::-moz-range-thumb]:cursor-pointer
+              `}
+              aria-label="Anzahl der Top-K Chunks für RAG-Suche"
+            />
+            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              10
+            </span>
+            <div
+              className={`
+                min-w-[60px] px-3 py-2 rounded-lg text-center text-sm font-mono
+                ${isDark
+                  ? 'bg-gray-700 text-white'
+                  : 'bg-gray-100 text-gray-900'
+                }
+              `}
+            >
+              {settings.ragTopK ?? 5}
+            </div>
+          </div>
+          <div
+            className={`
+              flex items-start gap-2 p-3 rounded-lg text-xs
+              ${isDark ? 'bg-cyan-900/20 text-cyan-300' : 'bg-cyan-50 text-cyan-700'}
+            `}
+          >
+            <Info className="w-4 h-4 mt-0.5 shrink-0" />
+            <div>
+              <strong>Top-K Chunks:</strong> Anzahl der relevantesten Dokumentabschnitte für RAG.<br />
+              • Weniger Chunks (1-3): Schnellere Antworten, fokussierter Kontext<br />
+              • Mehr Chunks (5-10): Mehr Kontext, aber längere Antwortzeit
             </div>
           </div>
         </div>

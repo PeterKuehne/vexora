@@ -105,6 +105,13 @@ function sanitizeSettings(data: Partial<AppSettings>): AppSettings {
       data.hybridSearchAlpha <= 1
         ? data.hybridSearchAlpha
         : DEFAULT_SETTINGS.hybridSearchAlpha,
+    ragTopK:
+      typeof data.ragTopK === 'number' &&
+      Number.isInteger(data.ragTopK) &&
+      data.ragTopK >= 1 &&
+      data.ragTopK <= 10
+        ? data.ragTopK
+        : DEFAULT_SETTINGS.ragTopK,
   };
 }
 

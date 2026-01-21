@@ -111,6 +111,8 @@ export interface AppSettings {
   modelProfile: string;
   /** Hybrid search alpha (0.0 = keyword/BM25, 1.0 = semantic/vector) */
   hybridSearchAlpha: number;
+  /** Number of top-K chunks to retrieve for RAG (1-10) */
+  ragTopK: number;
 }
 
 /**
@@ -130,6 +132,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   systemPrompt: '',
   modelProfile: 'custom',
   hybridSearchAlpha: 0.5, // Default: balanced hybrid search
+  ragTopK: 5, // Default: retrieve top 5 chunks for RAG
 };
 
 /**
