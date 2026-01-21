@@ -1,331 +1,382 @@
 /**
- * VectorService - Weaviate Integration for RAG Document Vector Storage
+ * VectorService - Weaviate v3 Integration for RAG Document Vector Storage
  *
  * Handles:
  * - Document chunking and embedding storage
- * - Semantic search with source citations
+ * - Hybrid search (BM25 + Vector semantic search)
  * - Document management in vector database
+ * - Connection lifecycle management
+ *
+ * Uses Weaviate Client v3 with gRPC for 60-80% faster performance
  */
 
-import weaviate from 'weaviate-ts-client'
-import type { WeaviateClient } from 'weaviate-ts-client'
-import { type DocumentMetadata } from './DocumentService.js'
-import { randomUUID } from 'crypto'
+import weaviate, { WeaviateClient, vectorizer, dataType } from 'weaviate-client';
+import { type DocumentMetadata } from './DocumentService.js';
+import { embeddingService } from './EmbeddingService.js';
+import { randomUUID } from 'crypto';
+import { env } from '../config/env.js';
 
 // ============================================
 // Types
 // ============================================
 
 export interface DocumentChunk {
-  id: string
-  documentId: string
-  content: string
-  pageNumber?: number
-  chunkIndex: number
-  totalChunks: number
+  id: string;
+  documentId: string;
+  content: string;
+  pageNumber?: number;
+  chunkIndex: number;
+  totalChunks: number;
 }
 
 export interface SearchResult {
-  chunk: DocumentChunk
-  score: number
+  chunk: DocumentChunk;
+  score: number;
   document: {
-    id: string
-    filename: string
-    originalName: string
-    pages: number
-  }
+    id: string;
+    filename: string;
+    originalName: string;
+    pages: number;
+  };
 }
 
 export interface VectorSearchRequest {
-  query: string
-  limit?: number
-  threshold?: number
-  hybridAlpha?: number // 0 = pure BM25/keyword, 1 = pure vector/semantic
+  query: string;
+  limit?: number;
+  threshold?: number;
+  hybridAlpha?: number; // 0 = pure BM25/keyword, 1 = pure vector/semantic
 }
 
 export interface VectorSearchResponse {
-  results: SearchResult[]
-  totalResults: number
-  query: string
+  results: SearchResult[];
+  totalResults: number;
+  query: string;
 }
 
-// Weaviate schema configuration
-const COLLECTION_NAME = 'DocumentChunks'
+// TypeScript Generic for Collection Schema
+interface DocumentChunkProperties {
+  documentId: string;
+  content: string;
+  pageNumber: number;
+  chunkIndex: number;
+  totalChunks: number;
+  filename: string;
+  originalName: string;
+  pages: number;
+}
+
+// Collection name constant
+const COLLECTION_NAME = 'DocumentChunks';
+const EMBEDDING_MODEL = 'nomic-embed-text';
 
 class VectorService {
-  private client: WeaviateClient | null = null
-
-  constructor() {
-    this.initializeClient()
-  }
+  private client: WeaviateClient | null = null;
+  private initialized: boolean = false;
+  private embeddingDimensions: number = 768; // Default for nomic-embed-text
 
   /**
-   * Initialize Weaviate client
+   * Initialize Weaviate client with v3 API
    */
-  private initializeClient(): void {
-    try {
-      this.client = weaviate.client({
-        scheme: 'http',
-        host: 'localhost:8080',
-      })
-    } catch (error) {
-      console.error('❌ Failed to initialize Weaviate client:', error)
-      this.client = null
-    }
-  }
-
-  /**
-   * Ensure Weaviate collection exists
-   */
-  async ensureSchema(): Promise<void> {
-    if (!this.client) {
-      throw new Error('Weaviate client not initialized')
+  async initialize(): Promise<void> {
+    if (this.initialized && this.client) {
+      return;
     }
 
     try {
-      // Check if collection already exists
-      const schema = await this.client.schema.getter().do()
-      const collectionExists = schema.classes?.some(
-        (cls: any) => cls.class === COLLECTION_NAME
-      )
+      const weaviateUrl = env.WEAVIATE_URL || 'http://localhost:8080';
+      const [host, port] = weaviateUrl.replace('http://', '').replace('https://', '').split(':');
 
-      if (collectionExists) {
-        console.log(`✅ Weaviate collection '${COLLECTION_NAME}' already exists`)
-        return
+      this.client = await weaviate.connectToCustom({
+        httpHost: host,
+        httpPort: parseInt(port) || 8080,
+        httpSecure: false,
+        grpcHost: host,
+        grpcPort: 50051,
+        grpcSecure: false,
+        headers: {},
+      }, {
+        timeout: {
+          init: 2,
+          query: 60,
+          insert: 120,
+        },
+      });
+
+      console.log('✅ Weaviate v3 client initialized with gRPC');
+
+      // Ensure collection exists
+      await this.ensureCollection();
+
+      // Get embedding dimensions
+      const isAvailable = await embeddingService.isModelAvailable(EMBEDDING_MODEL);
+      if (isAvailable) {
+        this.embeddingDimensions = await embeddingService.getModelDimensions(EMBEDDING_MODEL);
+        console.log(`✅ Embedding model: ${EMBEDDING_MODEL} (${this.embeddingDimensions} dimensions)`);
+      } else {
+        console.warn(`⚠️  Embedding model ${EMBEDDING_MODEL} not found. Vector search will be limited.`);
       }
 
-      // Create collection schema
-      const collectionSchema = {
-        class: COLLECTION_NAME,
-        description: 'Document chunks for RAG semantic search',
-        vectorizer: 'none', // We'll provide our own vectors via Ollama
+      this.initialized = true;
+    } catch (error) {
+      console.error('❌ Failed to initialize Weaviate client:', error);
+      this.client = null;
+      this.initialized = false;
+      throw error;
+    }
+  }
+
+  /**
+   * Ensure collection exists using v3 Collections API
+   */
+  private async ensureCollection(): Promise<void> {
+    if (!this.client) {
+      throw new Error('Weaviate client not initialized');
+    }
+
+    try {
+      // Check if collection exists
+      const exists = await this.client.collections.exists(COLLECTION_NAME);
+
+      if (exists) {
+        console.log(`✅ Collection '${COLLECTION_NAME}' already exists`);
+        return;
+      }
+
+      // Create collection with v3 API
+      await this.client.collections.create({
+        name: COLLECTION_NAME,
+        description: 'Document chunks for RAG hybrid search',
+        vectorizers: vectorizer.none(), // We provide our own vectors via Ollama
         properties: [
           {
             name: 'documentId',
-            dataType: ['text'],
+            dataType: dataType.TEXT,
             description: 'ID of the parent document',
-            indexInverted: true,
+            indexFilterable: true,
+            indexSearchable: true,
           },
           {
             name: 'content',
-            dataType: ['text'],
+            dataType: dataType.TEXT,
             description: 'Text content of the chunk',
-            indexInverted: true,
+            indexFilterable: false,
+            indexSearchable: true, // Enable BM25 search
           },
           {
             name: 'pageNumber',
-            dataType: ['int'],
+            dataType: dataType.INT,
             description: 'Page number in the original document',
-            indexInverted: false,
+            indexFilterable: true,
+            indexSearchable: false,
           },
           {
             name: 'chunkIndex',
-            dataType: ['int'],
+            dataType: dataType.INT,
             description: 'Index of this chunk within the document',
-            indexInverted: false,
+            indexFilterable: true,
+            indexSearchable: false,
           },
           {
             name: 'totalChunks',
-            dataType: ['int'],
+            dataType: dataType.INT,
             description: 'Total number of chunks in the document',
-            indexInverted: false,
+            indexFilterable: false,
+            indexSearchable: false,
           },
           {
             name: 'filename',
-            dataType: ['text'],
+            dataType: dataType.TEXT,
             description: 'Original filename of the document',
-            indexInverted: true,
+            indexFilterable: true,
+            indexSearchable: true,
           },
           {
             name: 'originalName',
-            dataType: ['text'],
+            dataType: dataType.TEXT,
             description: 'Original upload name',
-            indexInverted: true,
+            indexFilterable: true,
+            indexSearchable: true,
           },
           {
             name: 'pages',
-            dataType: ['int'],
+            dataType: dataType.INT,
             description: 'Total pages in the document',
-            indexInverted: false,
+            indexFilterable: false,
+            indexSearchable: false,
           },
         ],
-      }
+      });
 
-      await this.client.schema.classCreator().withClass(collectionSchema).do()
-      console.log(`✅ Created Weaviate collection: ${COLLECTION_NAME}`)
+      console.log(`✅ Created collection: ${COLLECTION_NAME}`);
     } catch (error) {
-      console.error('❌ Failed to create Weaviate schema:', error)
-      throw error
+      console.error('❌ Failed to ensure collection:', error);
+      throw error;
     }
   }
 
   /**
-   * Chunk document text into smaller pieces for embedding
+   * Chunk document text into smaller pieces
    */
   private chunkDocument(text: string, chunkSize = 500, overlap = 50): string[] {
-    const words = text.split(/\s+/)
-    const chunks: string[] = []
+    const words = text.split(/\s+/);
+    const chunks: string[] = [];
 
     for (let i = 0; i < words.length; i += chunkSize - overlap) {
-      const chunk = words.slice(i, i + chunkSize).join(' ')
+      const chunk = words.slice(i, i + chunkSize).join(' ');
       if (chunk.trim()) {
-        chunks.push(chunk.trim())
+        chunks.push(chunk.trim());
       }
     }
 
-    return chunks
+    return chunks;
   }
 
   /**
-   * Store document chunks in Weaviate
+   * Store document chunks in Weaviate using v3 insertMany API
+   * 60-80% faster than v2 batch API
    */
   async storeDocument(document: DocumentMetadata): Promise<void> {
+    await this.initialize();
+
     if (!this.client) {
-      throw new Error('Weaviate client not initialized')
+      throw new Error('Weaviate client not initialized');
     }
 
     if (!document.text) {
-      throw new Error('Document has no text content to store')
+      throw new Error('Document has no text content to store');
     }
-
-    await this.ensureSchema()
 
     try {
       // Chunk the document text
-      const chunks = this.chunkDocument(document.text)
+      const textChunks = this.chunkDocument(document.text);
 
-      // Prepare batch insertion
-      let batcher = this.client.batch.objectsBatcher()
+      // Generate embeddings for all chunks
+      const embeddings = await embeddingService.generateEmbeddings(textChunks, EMBEDDING_MODEL);
 
-      for (let i = 0; i < chunks.length; i++) {
-        const chunkId = randomUUID() // Generate UUID for Weaviate
+      // Prepare data for insertMany
+      const collection = this.client.collections.get<DocumentChunkProperties>(COLLECTION_NAME);
 
-        const chunkObject = {
-          class: COLLECTION_NAME,
-          id: chunkId,
-          properties: {
-            documentId: document.id,
-            content: chunks[i],
-            pageNumber: 1, // For now, we don't track exact page per chunk
-            chunkIndex: i,
-            totalChunks: chunks.length,
-            filename: document.filename,
-            originalName: document.originalName,
-            pages: document.pages,
-          },
-        }
+      const objects = textChunks.map((content, i) => ({
+        properties: {
+          documentId: document.id,
+          content,
+          pageNumber: 1, // For now, we don't track exact page per chunk
+          chunkIndex: i,
+          totalChunks: textChunks.length,
+          filename: document.filename,
+          originalName: document.originalName,
+          pages: document.pages,
+        },
+        vector: embeddings[i].embedding,
+      }));
 
-        batcher = batcher.withObject(chunkObject)
+      // Insert all chunks in one batch (gRPC optimization)
+      const result = await collection.data.insertMany(objects);
+
+      const successCount = result.uuids.length;
+      const failCount = result.errors ? Object.keys(result.errors).length : 0;
+
+      if (failCount > 0) {
+        console.warn(`⚠️  Stored ${successCount} chunks with ${failCount} errors for: ${document.originalName}`);
+      } else {
+        console.log(`✅ Stored ${successCount} chunks for: ${document.originalName}`);
       }
-
-      // Execute batch insert
-      await batcher.do()
-
-      console.log(`✅ Stored ${chunks.length} chunks for document: ${document.originalName}`)
     } catch (error) {
-      console.error('❌ Failed to store document in Weaviate:', error)
-      throw error
+      console.error('❌ Failed to store document in Weaviate:', error);
+      throw error;
     }
   }
 
   /**
-   * Search for relevant document chunks
-   * Uses hybrid search combining BM25 (keyword) and vector (semantic) search
-   * @param hybridAlpha - Balance between BM25 (0) and Vector (1), default 0.5
+   * Hybrid search combining BM25 (keyword) and Vector (semantic) search
+   * Uses Weaviate v3 query.hybrid API with proper alpha weighting
+   *
+   * @param request Search parameters
+   * @param request.hybridAlpha - 0 = pure BM25, 1 = pure vector, 0.5 = balanced (default)
    */
   async search(request: VectorSearchRequest): Promise<VectorSearchResponse> {
+    await this.initialize();
+
     if (!this.client) {
-      throw new Error('Weaviate client not initialized')
+      throw new Error('Weaviate client not initialized');
     }
 
-    const { query, limit = 5, threshold = 0.7, hybridAlpha = 0.5 } = request
+    const { query, limit = 5, threshold = 0.1, hybridAlpha = 0.5 } = request;
 
     try {
-      console.log(`🔍 Vector search: "${query}" (limit: ${limit}, threshold: ${threshold}, alpha: ${hybridAlpha})`);
+      const collection = this.client.collections.get<DocumentChunkProperties>(COLLECTION_NAME);
 
-      // Use hybrid search combining BM25 and vector search
-      // Alpha controls the balance: 0 = pure BM25, 1 = pure vector
-      // Note: Since we use vectorizer: 'none', vector search requires embeddings
-      // For now, use BM25 only but the API is ready for hybrid when embeddings are available
-      const response = await this.client.graphql
-        .get()
-        .withClassName(COLLECTION_NAME)
-        .withBm25({
-          query,
-          properties: ['content', 'filename', 'originalName'],
-        })
-        .withFields(
-          'documentId content pageNumber chunkIndex totalChunks filename originalName pages _additional { score }'
-        )
-        .withLimit(limit)
-        .do()
+      // Generate query embedding for vector search
+      const queryEmbedding = await embeddingService.generateEmbedding(query, EMBEDDING_MODEL);
 
-      // Log the hybrid alpha for future reference when vector search is enabled
-      if (hybridAlpha > 0) {
-        console.log(`ℹ️ Hybrid alpha ${hybridAlpha} requested, but using BM25 only (no embeddings configured)`);
-      }
+      // Use hybrid search (BM25 + Vector)
+      const result = await collection.query.hybrid(query, {
+        limit,
+        alpha: hybridAlpha, // 0 = BM25, 1 = Vector, 0.5 = balanced
+        fusionType: 'relativeScoreFusion' as any, // Default from v1.24
+        vector: queryEmbedding.embedding,
+        returnMetadata: ['score'],
+      });
 
-      const objects = response.data?.Get?.[COLLECTION_NAME] || []
-      console.log(`📋 Search returned ${objects.length} raw objects`);
+      console.log(`🔍 Hybrid search: "${query}" (alpha: ${hybridAlpha}, results: ${result.objects.length})`);
 
-      const results: SearchResult[] = objects
-        .filter((obj: any) => {
-          const score = obj._additional?.score || 0;
-          console.log(`   - Object score: ${score} (threshold: ${threshold})`);
+      // Filter by threshold and map to SearchResult format
+      const results: SearchResult[] = result.objects
+        .filter((obj) => {
+          const score = obj.metadata?.score || 0;
           return score >= threshold;
         })
-        .map((obj: any) => ({
+        .map((obj) => ({
           chunk: {
-            id: `${obj.documentId}_chunk_${obj.chunkIndex}`,
-            documentId: obj.documentId,
-            content: obj.content,
-            pageNumber: obj.pageNumber,
-            chunkIndex: obj.chunkIndex,
-            totalChunks: obj.totalChunks,
+            id: obj.uuid,
+            documentId: obj.properties.documentId,
+            content: obj.properties.content,
+            pageNumber: obj.properties.pageNumber,
+            chunkIndex: obj.properties.chunkIndex,
+            totalChunks: obj.properties.totalChunks,
           },
-          score: obj._additional?.score || 0,
+          score: obj.metadata?.score || 0,
           document: {
-            id: obj.documentId,
-            filename: obj.filename,
-            originalName: obj.originalName,
-            pages: obj.pages,
+            id: obj.properties.documentId,
+            filename: obj.properties.filename,
+            originalName: obj.properties.originalName,
+            pages: obj.properties.pages,
           },
-        }))
+        }));
 
       return {
         results,
         totalResults: results.length,
         query,
-      }
+      };
     } catch (error) {
-      console.error('❌ Vector search failed:', error)
-      throw error
+      console.error('❌ Hybrid search failed:', error);
+      throw error;
     }
   }
 
   /**
-   * Delete all chunks for a document
+   * Delete all chunks for a document using v3 API
    */
   async deleteDocument(documentId: string): Promise<void> {
+    await this.initialize();
+
     if (!this.client) {
-      throw new Error('Weaviate client not initialized')
+      throw new Error('Weaviate client not initialized');
     }
 
     try {
-      await this.client.batch
-        .objectsBatchDeleter()
-        .withClassName(COLLECTION_NAME)
-        .withWhere({
-          path: ['documentId'],
-          operator: 'Equal',
-          valueText: documentId,
-        })
-        .do()
+      const collection = this.client.collections.get<DocumentChunkProperties>(COLLECTION_NAME);
 
-      console.log(`✅ Deleted vector chunks for document: ${documentId}`)
+      // Delete by filter
+      const result = await collection.data.deleteMany(
+        collection.filter.byProperty('documentId').equal(documentId)
+      );
+
+      console.log(`✅ Deleted ${result.successful} chunks for document: ${documentId}`);
     } catch (error) {
-      console.error('❌ Failed to delete document from Weaviate:', error)
-      throw error
+      console.error('❌ Failed to delete document from Weaviate:', error);
+      throw error;
     }
   }
 
@@ -333,20 +384,42 @@ class VectorService {
    * Health check for Weaviate
    */
   async healthCheck(): Promise<{ status: 'ok' | 'error'; error?: string }> {
-    if (!this.client) {
-      return { status: 'error', error: 'Client not initialized' }
-    }
-
     try {
-      await this.client.misc.metaGetter().do()
-      return { status: 'ok' }
+      await this.initialize();
+
+      if (!this.client) {
+        return { status: 'error', error: 'Client not initialized' };
+      }
+
+      // Simple health check - check if we can get meta info
+      const isReady = await this.client.isReady();
+
+      if (!isReady) {
+        return { status: 'error', error: 'Weaviate is not ready' };
+      }
+
+      return { status: 'ok' };
     } catch (error) {
       return {
         status: 'error',
         error: error instanceof Error ? error.message : 'Unknown error',
-      }
+      };
+    }
+  }
+
+  /**
+   * Close Weaviate connection
+   * Should be called when shutting down the application
+   */
+  async close(): Promise<void> {
+    if (this.client) {
+      await this.client.close();
+      this.client = null;
+      this.initialized = false;
+      console.log('✅ Weaviate connection closed');
     }
   }
 }
 
-export const vectorService = new VectorService()
+export const vectorService = new VectorService();
+export default vectorService;

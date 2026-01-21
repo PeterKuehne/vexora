@@ -43,3 +43,8 @@ export {
 export {
   databaseService,
 } from './DatabaseService.js'
+
+export {
+  embeddingService,
+  type EmbeddingResponse,
+} from './EmbeddingService.js'

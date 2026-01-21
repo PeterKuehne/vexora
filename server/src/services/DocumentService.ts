@@ -57,21 +57,28 @@ export type DocumentUploadRequest = z.infer<typeof documentUploadSchema>;
 
 class DocumentService {
   private readonly uploadDir = './uploads';
-  private initialized = false;
+  private initPromise: Promise<void> | null = null;
 
   constructor() {
-    this.initialize();
+    // Don't call async initialize() in constructor - causes blocking issues
+    // Instead, lazy initialize on first use
   }
 
   /**
-   * Initialize service
+   * Initialize service - call this before any operation
+   * Uses promise caching to ensure initialization only happens once
    */
   private async initialize(): Promise<void> {
-    if (this.initialized) return;
+    if (this.initPromise) {
+      return this.initPromise;
+    }
 
-    await this.ensureUploadDir();
-    await databaseService.initialize();
-    this.initialized = true;
+    this.initPromise = (async () => {
+      await this.ensureUploadDir();
+      await databaseService.initialize();
+    })();
+
+    return this.initPromise;
   }
 
   /**

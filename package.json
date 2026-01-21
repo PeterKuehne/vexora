@@ -44,7 +44,7 @@
     "tailwindcss": "^4.1.18",
     "unpdf": "^1.4.0",
     "uuid": "^13.0.0",
-    "weaviate-ts-client": "^2.2.0",
+    "weaviate-client": "^3.10.0",
     "zod": "^4.3.5"
   },
   "devDependencies": {
