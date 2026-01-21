@@ -3,6 +3,7 @@
  *
  * Model settings tab component with:
  * - Default Model Selector
+ * - Embedding Model Selector (for RAG)
  * - Temperature Slider (0-2)
  * - System Prompt Textarea
  * - Max Tokens Input
@@ -10,11 +11,13 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Cpu, Thermometer, MessageSquare, Hash, Info } from 'lucide-react';
+import { Cpu, Thermometer, MessageSquare, Hash, Info, Database, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useToast } from '../contexts/ToastContext';
 import { ModelSelector } from './ModelSelector';
+import { fetchEmbeddingModels, type APIModel } from '../lib/api';
+import { ConfirmDialog } from './ConfirmDialog';
 
 export interface ModelSettingsProps {
   /** Additional CSS classes */
@@ -27,17 +30,42 @@ export interface ModelSettingsProps {
 export function ModelSettings({ className = '' }: ModelSettingsProps) {
   const { isDark } = useTheme();
   const { settings, updateSetting } = useSettings();
-  const { info } = useToast();
+  const { info, warning } = useToast();
 
   // Local state for generation parameters (not persisted yet)
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(4096);
+
+  // Embedding model state
+  const [embeddingModels, setEmbeddingModels] = useState<APIModel[]>([]);
+  const [isLoadingEmbedding, setIsLoadingEmbedding] = useState(false);
+  const [embeddingError, setEmbeddingError] = useState<string | null>(null);
+  const [showReindexWarning, setShowReindexWarning] = useState(false);
+  const [pendingEmbeddingModel, setPendingEmbeddingModel] = useState<string | null>(null);
 
   // Load initial system prompt from settings
   useEffect(() => {
     // Temperature and maxTokens will come from generation params context in the future
     setTemperature(0.7);
     setMaxTokens(4096);
+  }, []);
+
+  // Load embedding models on mount
+  useEffect(() => {
+    async function loadEmbeddingModels() {
+      setIsLoadingEmbedding(true);
+      setEmbeddingError(null);
+      try {
+        const result = await fetchEmbeddingModels();
+        setEmbeddingModels(result.models);
+      } catch (err) {
+        console.error('Failed to load embedding models:', err);
+        setEmbeddingError(err instanceof Error ? err.message : 'Fehler beim Laden der Embedding-Modelle');
+      } finally {
+        setIsLoadingEmbedding(false);
+      }
+    }
+    loadEmbeddingModels();
   }, []);
 
   /**
@@ -74,6 +102,38 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
     } else {
       info('System-Prompt wurde entfernt');
     }
+  };
+
+  /**
+   * Handle embedding model change - shows warning first
+   */
+  const handleEmbeddingModelSelect = (modelId: string) => {
+    if (modelId === settings.embeddingModel) return;
+    setPendingEmbeddingModel(modelId);
+    setShowReindexWarning(true);
+  };
+
+  /**
+   * Confirm embedding model change
+   */
+  const handleConfirmEmbeddingChange = () => {
+    if (pendingEmbeddingModel) {
+      updateSetting('embeddingModel', pendingEmbeddingModel);
+      warning(`Embedding-Modell geändert zu "${pendingEmbeddingModel}". Dokumente müssen neu indiziert werden.`, {
+        title: 'Re-Indexierung erforderlich',
+        duration: 8000,
+      });
+    }
+    setShowReindexWarning(false);
+    setPendingEmbeddingModel(null);
+  };
+
+  /**
+   * Cancel embedding model change
+   */
+  const handleCancelEmbeddingChange = () => {
+    setShowReindexWarning(false);
+    setPendingEmbeddingModel(null);
   };
 
   return (
@@ -116,6 +176,107 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
           </p>
         </div>
       </div>
+
+      {/* Embedding Model Selector */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium">
+          <Database className="w-4 h-4 inline mr-2" />
+          Embedding-Modell (RAG)
+        </label>
+        <div className="space-y-2">
+          {isLoadingEmbedding ? (
+            <div
+              className={`
+                px-4 py-3 rounded-lg border text-sm
+                ${isDark
+                  ? 'bg-gray-700 border-gray-600 text-gray-400'
+                  : 'bg-gray-100 border-gray-300 text-gray-500'
+                }
+              `}
+            >
+              Lade Embedding-Modelle...
+            </div>
+          ) : embeddingError ? (
+            <div
+              className={`
+                px-4 py-3 rounded-lg border text-sm
+                ${isDark
+                  ? 'bg-red-900/20 border-red-800 text-red-400'
+                  : 'bg-red-50 border-red-200 text-red-600'
+                }
+              `}
+            >
+              {embeddingError}
+            </div>
+          ) : embeddingModels.length === 0 ? (
+            <div
+              className={`
+                px-4 py-3 rounded-lg border text-sm
+                ${isDark
+                  ? 'bg-yellow-900/20 border-yellow-800 text-yellow-400'
+                  : 'bg-yellow-50 border-yellow-200 text-yellow-600'
+                }
+              `}
+            >
+              <AlertTriangle className="w-4 h-4 inline mr-2" />
+              Keine Embedding-Modelle gefunden. Installieren Sie z.B. <code className="font-mono">nomic-embed-text</code> mit <code className="font-mono">ollama pull nomic-embed-text</code>
+            </div>
+          ) : (
+            <select
+              value={settings.embeddingModel || ''}
+              onChange={(e) => handleEmbeddingModelSelect(e.target.value)}
+              className={`
+                w-full px-4 py-3 rounded-lg border transition-all duration-200
+                focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                cursor-pointer
+                ${isDark
+                  ? 'bg-gray-700 border-gray-600 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+                }
+              `}
+              aria-label="Embedding-Modell auswählen"
+            >
+              {embeddingModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.id} ({model.sizeGB} GB)
+                </option>
+              ))}
+            </select>
+          )}
+          <p
+            className={`
+              text-xs
+              ${isDark ? 'text-gray-400' : 'text-gray-600'}
+            `}
+          >
+            Das Embedding-Modell wird für die semantische Dokumentensuche verwendet
+          </p>
+          <div
+            className={`
+              flex items-start gap-2 p-3 rounded-lg text-xs
+              ${isDark ? 'bg-orange-900/20 text-orange-300' : 'bg-orange-50 text-orange-700'}
+            `}
+          >
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <div>
+              <strong>Hinweis:</strong> Bei Änderung des Embedding-Modells müssen alle Dokumente
+              neu indiziert werden, damit die semantische Suche korrekt funktioniert.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Re-indexing Warning Dialog */}
+      <ConfirmDialog
+        isOpen={showReindexWarning}
+        title="Embedding-Modell ändern"
+        message={`Wenn Sie das Embedding-Modell auf "${pendingEmbeddingModel}" ändern, müssen alle Dokumente neu indiziert werden. Die bestehende Dokumentensuche funktioniert möglicherweise nicht mehr korrekt bis alle Dokumente neu verarbeitet wurden.`}
+        confirmText="Modell ändern"
+        cancelText="Abbrechen"
+        confirmVariant="danger"
+        onConfirm={handleConfirmEmbeddingChange}
+        onCancel={handleCancelEmbeddingChange}
+      />
 
       {/* Temperature Slider */}
       <div className="space-y-3">

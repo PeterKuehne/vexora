@@ -368,6 +368,44 @@ app.get('/api/models', asyncHandler(async (req: Request, res: Response) => {
 }))
 
 // ============================================
+// Embedding Models Endpoint
+// ============================================
+
+app.get('/api/models/embedding', asyncHandler(async (_req: Request, res: Response) => {
+  // Get all models and filter for embedding models
+  const result = await ollamaService.getModels({})
+
+  // Filter for embedding models (models with 'embed' in name or specific families)
+  const embeddingModels = result.models.filter((model) => {
+    const nameLC = model.id.toLowerCase()
+    const familyLC = model.family.toLowerCase()
+
+    // Common embedding model patterns
+    return (
+      nameLC.includes('embed') ||
+      nameLC.includes('nomic') ||
+      nameLC.includes('mxbai') ||
+      nameLC.includes('bge') ||
+      nameLC.includes('gte') ||
+      nameLC.includes('e5') ||
+      familyLC === 'bert' ||
+      familyLC === 'nomic-bert'
+    )
+  })
+
+  // Default embedding model
+  const defaultEmbedding = embeddingModels.find(m => m.id.includes('nomic-embed'))
+    || embeddingModels[0]
+    || null
+
+  res.json({
+    models: embeddingModels,
+    defaultModel: defaultEmbedding?.id || null,
+    totalCount: embeddingModels.length,
+  })
+}))
+
+// ============================================
 // Documents Endpoints
 // ============================================
 

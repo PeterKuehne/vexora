@@ -27,6 +27,8 @@ export interface AppSettings {
   showTimestamps: boolean;
   /** Default model for new conversations */
   defaultModel: string;
+  /** Embedding model for RAG document indexing */
+  embeddingModel: string;
   /** Whether to enable streaming responses */
   enableStreaming: boolean;
   /** Whether to show markdown preview in input */
@@ -48,6 +50,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sendOnEnter: true,
   showTimestamps: true,
   defaultModel: 'qwen3:8b',
+  embeddingModel: 'nomic-embed-text:latest',
   enableStreaming: true,
   showMarkdownPreview: false,
   sidebarCollapsed: false,

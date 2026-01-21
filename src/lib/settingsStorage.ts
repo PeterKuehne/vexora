@@ -71,6 +71,10 @@ function sanitizeSettings(data: Partial<AppSettings>): AppSettings {
       typeof data.defaultModel === 'string' && data.defaultModel.length > 0
         ? data.defaultModel
         : DEFAULT_SETTINGS.defaultModel,
+    embeddingModel:
+      typeof data.embeddingModel === 'string' && data.embeddingModel.length > 0
+        ? data.embeddingModel
+        : DEFAULT_SETTINGS.embeddingModel,
     enableStreaming:
       typeof data.enableStreaming === 'boolean'
         ? data.enableStreaming

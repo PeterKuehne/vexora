@@ -346,24 +346,46 @@ export async function streamChat(
 }
 
 /**
+ * Model type returned by API
+ */
+export interface APIModel {
+  id: string;
+  name: string;
+  family: string;
+  parameterSize: string;
+  quantization: string;
+  sizeGB: number;
+  isDefault: boolean;
+}
+
+/**
  * Fetch available models from the backend
  */
 export async function fetchModels(): Promise<{
-  models: Array<{
-    id: string;
-    name: string;
-    family: string;
-    parameterSize: string;
-    quantization: string;
-    sizeGB: number;
-    isDefault: boolean;
-  }>;
+  models: APIModel[];
   defaultModel: string;
 }> {
   const response = await fetch(`${env.API_URL}/api/models`);
 
   if (!response.ok) {
     throw new Error(`Failed to fetch models: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch available embedding models from the backend
+ */
+export async function fetchEmbeddingModels(): Promise<{
+  models: APIModel[];
+  defaultModel: string | null;
+  totalCount: number;
+}> {
+  const response = await fetch(`${env.API_URL}/api/models/embedding`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch embedding models: ${response.statusText}`);
   }
 
   return response.json();
