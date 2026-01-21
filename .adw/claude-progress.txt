@@ -1149,7 +1149,63 @@ Test-Ergebnisse:
 
 Progress: 18/44 Features (40.9%)
 
+=== Session: Coding Agent - Feature 8 ===
+Datum: 2026-01-21
+Agent: Coding Agent
+
+Erledigt:
+- [X] Feature 8: "User kann Dokumente nach Kategorie/Tags filtern"
+- [X] DocumentMetadata erweitert um category (7 Kategorien) und tags (Array)
+- [X] Backend: PATCH /api/documents/:id für Category/Tags Update
+- [X] Backend: GET /api/documents/tags für alle verfügbaren Tags
+- [X] Backend: GET /api/documents/categories für Kategorie-Liste
+- [X] Frontend: Filter-Button mit Toggle-Panel
+- [X] Frontend: Kategorie-Dropdown mit allen Kategorien
+- [X] Frontend: Tag-Buttons für Multi-Select
+- [X] Frontend: AND-Kombination für Filter (Kategorie + Tags)
+- [X] Frontend: "X von Y Dokumente" Counter bei aktivem Filter
+- [X] Frontend: "Filter zurücksetzen" Button
+- [X] Frontend: Kategorie-Badge und Tag-Chips bei Dokumenten
+- [X] Build-Check erfolgreich (npm run build)
+- [X] Browser-Test: Alle Filter-Funktionen getestet und verifiziert
+- [X] Git Commit: 0cf00e2
+
+Erstellte/Erweiterte Dateien:
+- server/src/services/DocumentService.ts: DOCUMENT_CATEGORIES, category/tags Felder, updateDocument(), getAllTags()
+- server/src/index.ts: PATCH /documents/:id, GET /documents/tags, GET /documents/categories
+- src/lib/api.ts: DOCUMENT_CATEGORIES, DocumentCategory, category/tags in DocumentMetadata
+- src/contexts/DocumentContext.tsx: Re-export types, category/tags in placeholder
+- src/components/DocumentList.tsx: Filter UI mit Kategorie-Dropdown, Tag-Buttons, Filter-Logik
+
+Backend Features:
+- 7 Kategorien: Allgemein, Vertrag, Rechnung, Bericht, Handbuch, Präsentation, Sonstiges
+- Default-Kategorie: "Allgemein"
+- Tags: Array mit max 10 Tags, je max 50 Zeichen
+- Zod-Validation für category und tags
+
+Frontend Features:
+- Filter-Button mit Badge zeigt Anzahl aktiver Filter
+- Kollapsibles Filter-Panel
+- Kategorie-Dropdown mit "Alle Kategorien" Option
+- Tag-Buttons: Klick togglet Auswahl, aktive Tags hervorgehoben
+- AND-Filterung: Alle Filter müssen erfüllt sein
+- "Filter zurücksetzen" setzt alle Filter auf Default
+- Dokument-Items zeigen:
+  - Kategorie-Badge (blau, nur wenn nicht "Allgemein")
+  - Tag-Chips (grau) für alle zugewiesenen Tags
+
+Test-Ergebnisse:
+- ✅ Filter-Button öffnet/schließt Filter-Panel
+- ✅ Kategorie-Dropdown filtert nach Kategorie
+- ✅ Tag-Buttons filtern nach Tags (Multi-Select)
+- ✅ AND-Kombination: Kategorie "Vertrag" + Tag "wichtig" zeigt nur passende Dokumente
+- ✅ "1 von 2 Dokumente" Header bei aktivem Filter
+- ✅ "Filter zurücksetzen" setzt alle Filter zurück
+- ✅ Dokumente zeigen Kategorie-Badge und Tag-Chips
+- ✅ Screenshot: .adw/screenshots/feature_8_category_tag_filter.png
+
+Progress: 19/44 Features (43.2%)
+
 Nächste Session:
 - Nächstes Feature aus der Queue (adw features next)
-- RAG-Konfiguration ist jetzt vollständig (Hybrid Alpha + Top-K)
-- Quality-Features weiter abarbeiten
+- Filter-System ist vollständig implementiert

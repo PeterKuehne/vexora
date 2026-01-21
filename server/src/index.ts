@@ -161,12 +161,15 @@ app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
     let clientDisconnected = false
 
     // Handle client disconnect - cancel any active streams
-    req.on('close', () => {
-      clientDisconnected = true
-      reader?.cancel().catch(() => {
-        // Ignore cancel errors
-      })
-      console.log('🔌 Client disconnected, stream cancelled')
+    // Use 'close' event on response, not request
+    res.on('close', () => {
+      // Only mark as disconnected if response wasn't normally finished
+      if (!res.writableEnded) {
+        clientDisconnected = true
+        reader?.cancel().catch(() => {
+          // Ignore cancel errors
+        })
+      }
     })
 
     if (ragEnabled && ragQuery) {
@@ -245,12 +248,43 @@ app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
       }
     } else {
       // Standard streaming response (non-RAG)
+      let keepAliveInterval: NodeJS.Timeout | null = null;
+
       try {
+        // Send initial "stream started" event immediately to keep connection alive
+        const streamStartTime = Date.now();
+        if (!clientDisconnected) {
+          res.write(`: stream started\n\n`);
+          // Force flush by writing an empty buffer which triggers actual send
+          if (typeof (res as any).flush === 'function') {
+            (res as any).flush();
+          }
+        }
+
+        // Start a keep-alive interval to prevent client timeout
+        // while waiting for Ollama to load the model and start streaming
+        // Use 500ms interval to ensure frequent updates
+        keepAliveInterval = setInterval(() => {
+          if (!clientDisconnected) {
+            res.write(`: keep-alive\n\n`);
+            // Force flush
+            if (typeof (res as any).flush === 'function') {
+              (res as any).flush();
+            }
+          }
+        }, 500); // Send keep-alive every 500ms (more frequent)
+
         const ollamaResponse = await ollamaService.chatStream({
           messages: chatRequest.messages,
           model: chatRequest.model,
           options: chatRequest.options,
-        })
+        });
+
+        // Stop keep-alive once we have the response
+        if (keepAliveInterval) {
+          clearInterval(keepAliveInterval);
+          keepAliveInterval = null;
+        }
 
         reader = ollamaResponse.body?.getReader()
         if (!reader) {
@@ -263,9 +297,12 @@ app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
         try {
           while (!clientDisconnected) {
             const { done, value } = await reader.read()
-            if (done) break
+            if (done) {
+              break;
+            }
 
             const chunk = decoder.decode(value, { stream: true })
+
             const lines = chunk.split('\n').filter((line) => line.trim())
 
             for (const line of lines) {
@@ -294,6 +331,12 @@ app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
           }
         }
       } catch (ollamaError) {
+        // Stop keep-alive interval if still running
+        if (keepAliveInterval) {
+          clearInterval(keepAliveInterval);
+          keepAliveInterval = null;
+        }
+
         if (!clientDisconnected) {
           console.error('Ollama stream failed:', ollamaError)
           res.status(500).json({ error: 'Failed to get chat response' })
@@ -597,13 +640,10 @@ app.post('/api/documents/bulk-delete', asyncHandler(async (req: Request, res: Re
 
 // Listen for processing updates and broadcast to connected clients
 processingJobService.on('processingUpdate', (event) => {
-  console.log(`📋 Processing update: ${event.type} - Job ${event.jobId}`)
   io.emit('processing:update', event)
 })
 
 io.on('connection', (socket) => {
-  console.log(`🔌 Client connected: ${socket.id}`)
-
   // Send active jobs to newly connected client
   socket.emit('processing:active_jobs', {
     jobs: processingJobService.getActiveJobs(),
@@ -612,8 +652,6 @@ io.on('connection', (socket) => {
 
   // Handle chat message - will be used for LLM streaming
   socket.on('chat:message', (data: { conversationId: string; message: string }) => {
-    console.log(`💬 Message from ${socket.id}:`, data.message.substring(0, 50))
-
     // Acknowledge message received
     socket.emit('chat:message:ack', {
       conversationId: data.conversationId,
@@ -632,8 +670,8 @@ io.on('connection', (socket) => {
   })
 
   // Handle disconnect
-  socket.on('disconnect', (reason) => {
-    console.log(`🔌 Client disconnected: ${socket.id} (${reason})`)
+  socket.on('disconnect', () => {
+    // Client disconnected
   })
 
   // Handle errors
@@ -654,9 +692,7 @@ app.use(errorHandler)
 
 // Start server with HTTP server (for both Express and Socket.io)
 httpServer.listen(env.PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${env.PORT}`)
-  console.log(`📋 Health check: http://localhost:${env.PORT}/api/health`)
-  console.log(`🔌 WebSocket ready on ws://localhost:${env.PORT}`)
+  // Server started
 })
 
 export { io }

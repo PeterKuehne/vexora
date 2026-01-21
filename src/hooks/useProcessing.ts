@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   type ProcessingJob,
   type ProcessingEvent,
@@ -14,6 +14,7 @@ interface UseProcessingReturn {
   getJobById: (jobId: string) => ProcessingJob | undefined
   isProcessing: (documentId?: string) => boolean
   getProgress: (documentId: string) => number | undefined
+  addJob: (job: ProcessingJob) => void
 }
 
 /**
@@ -22,11 +23,27 @@ interface UseProcessingReturn {
  */
 export function useProcessing(): UseProcessingReturn {
   const [jobs, setJobs] = useState<ProcessingJob[]>([])
+  const cleanupTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map())
+
+  // Remove completed/failed jobs after delay
+  const scheduleJobCleanup = useCallback((jobId: string) => {
+    // Clear existing timeout if any
+    const existing = cleanupTimeouts.current.get(jobId)
+    if (existing) {
+      clearTimeout(existing)
+    }
+
+    // Schedule removal after 3 seconds
+    const timeout = setTimeout(() => {
+      setJobs(prev => prev.filter(job => job.id !== jobId))
+      cleanupTimeouts.current.delete(jobId)
+    }, 3000)
+
+    cleanupTimeouts.current.set(jobId, timeout)
+  }, [])
 
   // Handle processing updates from server
   const handleProcessingUpdate = useCallback((event: ProcessingEvent) => {
-    console.log(`📋 Processing update received:`, event)
-
     setJobs(prev => {
       const existing = prev.find(job => job.id === event.jobId)
 
@@ -58,6 +75,8 @@ export function useProcessing(): UseProcessingReturn {
 
             if (event.data.status === 'completed' || event.data.status === 'failed') {
               updated.completedAt = event.data.timestamp;
+              // Schedule cleanup for completed/failed jobs
+              scheduleJobCleanup(event.jobId);
             }
 
             return updated;
@@ -65,17 +84,36 @@ export function useProcessing(): UseProcessingReturn {
           return job;
         })
       } else {
-        // If job doesn't exist yet, this might be from a previous session
-        // We'll wait for the active_jobs event to get the full job data
-        console.warn(`Received update for unknown job ${event.jobId}`)
-        return prev
+        // Job doesn't exist yet - create it from event data
+        const newJob: ProcessingJob = {
+          id: event.jobId,
+          documentId: event.data.documentId || '',
+          documentName: event.data.documentName || 'Processing...',
+          status: event.data.status,
+          progress: event.data.progress,
+          createdAt: event.data.timestamp,
+          currentChunk: event.data.currentChunk,
+          totalChunks: event.data.totalChunks,
+          error: event.data.error,
+        };
+
+        if (event.data.status === 'processing') {
+          newJob.startedAt = event.data.timestamp;
+        }
+
+        if (event.data.status === 'completed' || event.data.status === 'failed') {
+          newJob.completedAt = event.data.timestamp;
+          // Schedule cleanup for completed/failed jobs
+          scheduleJobCleanup(event.jobId);
+        }
+
+        return [...prev, newJob]
       }
     })
-  }, [])
+  }, [scheduleJobCleanup])
 
   // Handle active jobs list from server
   const handleActiveJobs = useCallback((data: ActiveJobsPayload) => {
-    console.log(`📋 Active jobs received:`, data.jobs.length, 'jobs')
     setJobs(prev => {
       // Merge with existing jobs, prioritizing server data for active jobs
       const serverJobIds = new Set(data.jobs.map(job => job.id))
@@ -123,11 +161,22 @@ export function useProcessing(): UseProcessingReturn {
     return job?.progress
   }, [getJobByDocumentId])
 
+  const addJob = useCallback((job: ProcessingJob) => {
+    setJobs(prev => {
+      // Don't add if already exists
+      if (prev.find(j => j.id === job.id)) {
+        return prev
+      }
+      return [...prev, job]
+    })
+  }, [])
+
   return {
     jobs,
     getJobByDocumentId,
     getJobById,
     isProcessing,
     getProgress,
+    addJob,
   }
 }

@@ -14,6 +14,7 @@ import {
   useState,
   type ReactNode,
   useCallback,
+  useRef,
 } from 'react';
 import {
   fetchDocuments,
@@ -25,6 +26,8 @@ import {
   type DocumentMetadata,
 } from '../lib/api';
 import { useToast } from './ToastContext';
+import { useProcessing } from '../hooks/useProcessing';
+import type { ProcessingJob } from '../lib/socket';
 
 // Re-export types and constants from api.ts for consumers
 export { DOCUMENT_CATEGORIES };
@@ -86,7 +89,11 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
 
+  // Track completed jobs to avoid duplicate refreshes
+  const processedJobIds = useRef<Set<string>>(new Set());
+
   const { addToast } = useToast();
+  const { addJob, jobs } = useProcessing();
 
   /**
    * Load documents from API
@@ -137,6 +144,17 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         setUploadProgress(progress);
       });
 
+      // Add job to processing list BEFORE Socket.io events arrive
+      const initialJob: ProcessingJob = {
+        id: uploadResponse.jobId,
+        documentId: uploadResponse.documentId,
+        documentName: file.name,
+        status: 'pending',
+        progress: 0,
+        createdAt: new Date().toISOString(),
+      };
+      addJob(initialJob);
+
       addToast('success', `"${file.name}" wird verarbeitet. Sie sehen den Fortschritt in Echtzeit.`, {
         title: 'Upload gestartet',
       });
@@ -166,7 +184,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       setIsUploading(false);
       setUploadProgress(null);
     }
-  }, [addToast]);
+  }, [addToast, addJob]);
 
   /**
    * Delete a document
@@ -277,6 +295,26 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   useEffect(() => {
     refreshDocuments();
   }, [refreshDocuments]);
+
+  // Refresh documents when a processing job completes
+  useEffect(() => {
+    const completedJobs = jobs.filter(job => job.status === 'completed');
+
+    // Find newly completed jobs that we haven't processed yet
+    const newCompletedJobs = completedJobs.filter(
+      job => !processedJobIds.current.has(job.id)
+    );
+
+    if (newCompletedJobs.length > 0) {
+      // Mark these jobs as processed
+      newCompletedJobs.forEach(job => {
+        processedJobIds.current.add(job.id);
+      });
+
+      // Refresh the document list
+      refreshDocuments();
+    }
+  }, [jobs, refreshDocuments]);
 
   // Computed values
   const totalDocuments = documents.length;

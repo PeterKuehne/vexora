@@ -183,10 +183,13 @@ export async function streamChat(
           const { done, value } = await reader.read();
           lastSuccessfulRead = Date.now();
 
-          if (done) break;
+          if (done) {
+            break;
+          }
 
           // Append decoded chunk to buffer
-          buffer += decoder.decode(value, { stream: true });
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
 
           // Process complete lines from buffer
           const lines = buffer.split('\n');
@@ -196,6 +199,11 @@ export async function streamChat(
           for (const line of lines) {
             // Skip empty lines (SSE uses double newlines as separators)
             if (!line.trim()) continue;
+
+            // Skip SSE comments (lines starting with :)
+            if (line.startsWith(':')) {
+              continue;
+            }
 
             // SSE format: "data: {...}"
             if (line.startsWith('data: ')) {
