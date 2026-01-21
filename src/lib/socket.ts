@@ -33,8 +33,9 @@ export interface ChatStreamEvent {
 export interface ProcessingJob {
   id: string
   documentId: string
-  filename: string
-  originalName: string
+  documentName: string  // Display name for the document
+  filename?: string     // Internal filename (optional, for backwards compat)
+  originalName?: string // Original uploaded filename (optional)
   status: 'pending' | 'processing' | 'completed' | 'failed'
   progress: number
   currentChunk?: number
@@ -48,6 +49,7 @@ export interface ProcessingJob {
 export interface ProcessingUpdate {
   jobId: string
   documentId: string
+  documentName?: string  // Display name for the document
   status: 'pending' | 'processing' | 'completed' | 'failed'
   progress: number
   currentChunk?: number

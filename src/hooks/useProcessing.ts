@@ -23,7 +23,7 @@ interface UseProcessingReturn {
  */
 export function useProcessing(): UseProcessingReturn {
   const [jobs, setJobs] = useState<ProcessingJob[]>([])
-  const cleanupTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  const cleanupTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   // Remove completed/failed jobs after delay
   const scheduleJobCleanup = useCallback((jobId: string) => {
@@ -92,10 +92,18 @@ export function useProcessing(): UseProcessingReturn {
           status: event.data.status,
           progress: event.data.progress,
           createdAt: event.data.timestamp,
-          currentChunk: event.data.currentChunk,
-          totalChunks: event.data.totalChunks,
-          error: event.data.error,
         };
+
+        // Only add optional properties if they are defined
+        if (event.data.currentChunk !== undefined) {
+          newJob.currentChunk = event.data.currentChunk;
+        }
+        if (event.data.totalChunks !== undefined) {
+          newJob.totalChunks = event.data.totalChunks;
+        }
+        if (event.data.error !== undefined) {
+          newJob.error = event.data.error;
+        }
 
         if (event.data.status === 'processing') {
           newJob.startedAt = event.data.timestamp;

@@ -1,0 +1,653 @@
+PROJECT: Vexora Enterprise Authentication & Authorization System
+
+================================================================================
+AKTUELLER ZUSTAND
+================================================================================
+
+Single-User-Anwendung ohne Authentifizierung oder Zugriffskontrolle.
+Kritisches Sicherheitsrisiko: Information Leakage im RAG-System.
+
+Beispiel: Marketing-Mitarbeiter könnte HR-Gehaltsdaten über RAG-Anfragen
+erhalten, wenn keine Zugriffskontrollen implementiert sind.
+
+================================================================================
+HAUPTZIEL
+================================================================================
+
+Multi-tenant Enterprise-System mit granularen Berechtigungen auf Dokument-Ebene.
+RAG-System muss Zugriffsgrenzen strikt durchsetzen.
+
+LEITPRINZIPIEN:
+1. Zero-Trust Architecture
+2. Authorization as Query Logic (Filterung VOR Suche)
+3. Flexible Authentication (Microsoft, Google SSO)
+4. Granulare Berechtigungen (Dokument-Ebene)
+5. Transparenz für Benutzer
+
+================================================================================
+REQUIREMENTS
+================================================================================
+
+REQUIREMENT 1: SSO Authentication
+Priority: CRITICAL
+
+WAS:
+- Login mit Microsoft (Entra ID), Google Workspace, optional lokal
+- OAuth2 Authorization Code Flow mit PKCE
+- JWT-Tokens für Session-Management
+- Automatische Profil-Erstellung beim ersten Login
+- Email als eindeutiger Identifier
+
+CONSTRAINTS:
+- Login < 5 Sekunden
+- JWT signiert, Refresh-Tokens unterstützen
+- HTTPS für OAuth2-Callbacks (Produktion)
+
+SUCCESS CRITERIA:
+- Login mit Microsoft/Google funktioniert
+- Session 7 Tage gültig (Refresh-Token)
+- Logout invalidiert Token
+
+OUT OF SCOPE:
+- SAML, 2FA, Passwort-Reset
+
+---
+
+REQUIREMENT 2: Benutzerverwaltung
+Priority: HIGH
+
+WAS:
+Administratoren:
+- Benutzer anzeigen, Rollen zuweisen, Abteilungen zuordnen
+- Benutzer deaktivieren, Profile bearbeiten
+
+Benutzer:
+- Eigenes Profil ansehen/bearbeiten
+- Rolle und Berechtigungen einsehen
+
+System:
+- Benutzer in PostgreSQL speichern (id, email, name, role, department, provider)
+- Deaktivierte Benutzer ausschließen
+- Audit-Trail führen
+
+CONSTRAINTS:
+- Nur Admins verwalten Benutzer
+- Mindestens ein Admin muss existieren
+- Email eindeutig
+
+SUCCESS CRITERIA:
+- Admin kann Rollen/Abteilungen zuweisen
+- Deaktivierte Benutzer können sich nicht anmelden
+
+OUT OF SCOPE:
+- Gruppen/Teams, Einladungen, Self-Service-Registrierung
+
+---
+
+REQUIREMENT 3: Rollenbasierte Zugriffskontrolle (RBAC)
+Priority: HIGH
+
+WAS:
+Rollen:
+- Employee: Eigene Dokumente
+- Manager: Abteilungs-Dokumente
+- Admin: Alle Dokumente + System-Einstellungen
+
+Rollen definieren API-Zugriff, UI-Sichtbarkeit, Basis-Dokumentenrechte.
+
+CONSTRAINTS:
+- Ein Benutzer = eine Rolle
+- Rollenwechsel nur durch Admin
+
+SUCCESS CRITERIA:
+- Employee sieht nur eigene Dokumente
+- Manager sieht Abteilungs-Dokumente
+- Admin sieht alles
+
+OUT OF SCOPE:
+- Custom Roles, Rollen-Hierarchien, mehrere Rollen
+
+---
+
+REQUIREMENT 4: Dokument-Berechtigungen
+Priority: CRITICAL
+
+WAS:
+Jedes Dokument hat:
+- Owner (Uploader)
+- Department
+- Classification (public, internal, confidential, restricted)
+- Allowed Roles (Array)
+- Allowed Users (Array)
+
+Beim Upload festlegbar:
+- Klassifikationsstufe
+- Abteilungs-Sichtbarkeit
+- Spezifische Benutzer
+
+KLASSIFIKATIONSSTUFEN:
+- public: Alle authentifizierten Benutzer
+- internal: Nur eigene Abteilung
+- confidential: Nur Manager/Admin
+- restricted: Nur Owner + explizit erlaubte
+
+CONSTRAINTS:
+- Employee max "internal"
+- Manager max "confidential"
+- Berechtigungen nachträglich änderbar (Owner/Admin)
+- Änderungen sofort wirksam
+
+SUCCESS CRITERIA:
+- Classification bestimmt Sichtbarkeit
+- RAG-Suche respektiert Berechtigungen automatisch
+
+OUT OF SCOPE:
+- Zeitlich begrenzte Berechtigungen, externe Freigabe-Links
+
+---
+
+REQUIREMENT 5: PostgreSQL Row Level Security (RLS)
+Priority: CRITICAL
+
+WAS:
+- RLS auf "documents"-Tabelle aktiviert
+- Policies für jede Zugriffsstufe
+- Automatische Filterung (Anwendungscode transparent)
+
+Policies:
+1. Public: classification='public'
+2. Department: classification='internal' + eigene Abteilung
+3. Owner: owner_id = current_user
+4. Role: allowed_roles enthält Benutzer-Rolle
+5. User: allowed_users enthält Benutzer-ID
+6. Admin: Bypass (optional)
+
+Benutzerkontext via SET LOCAL (user_id, role, department).
+
+CONSTRAINTS:
+- Performance < 50ms
+- Policies vor jeder Query
+
+SUCCESS CRITERIA:
+- SELECT * FROM documents zeigt nur autorisierte Dokumente
+- Marketing sieht keine HR-Dokumente
+
+OUT OF SCOPE:
+- RLS auf anderen Tabellen, dynamische Policy-Generierung
+
+---
+
+REQUIREMENT 6: Secure RAG Service
+Priority: CRITICAL
+
+WAS:
+VOR Vektor-Suche:
+- Benutzerkontext ermitteln (JWT)
+- RLS-Kontext setzen
+- Erlaubte document_ids abrufen (PostgreSQL)
+- Filter für Weaviate erstellen
+
+Bei Vektor-Suche:
+- Nur Chunks mit erlaubten document_ids durchsuchen
+- Filter in Query (NICHT nachträglich)
+
+Nach Suche:
+- Verifizieren, dass Chunks autorisiert sind
+- Nur sichtbare Source Citations anzeigen
+- Audit-Log schreiben
+
+CONSTRAINTS:
+- Filterung VOR Suche (Anti-Pattern: Post-Processing)
+- Performance +100ms max
+- Zero Information Leakage
+
+SUCCESS CRITERIA:
+- Marketing fragt "Gehälter" → Keine HR-Daten
+- Nur autorisierte Citations anzeigen
+
+OUT OF SCOPE:
+- Query-Rewriting zur Umgehung, Partial Results
+
+---
+
+REQUIREMENT 7: API-Authentifizierung
+Priority: HIGH
+
+WAS:
+- JWT-Token in Authorization-Header erforderlich
+- Token-Validierung bei jedem Request
+- 401 Unauthorized bei fehlendem/ungültigem Token
+- 403 Forbidden bei fehlenden Berechtigungen
+
+Middleware:
+- Signature verifizieren, Expiry prüfen
+- User-ID extrahieren, Benutzer-Objekt setzen
+
+Geschützte Endpunkte: /api/rag/*, /api/chat/*, /api/ollama/*
+Öffentlich: /api/auth/* (außer /me)
+
+CONSTRAINTS:
+- Middleware < 10ms Overhead
+- Token-Refresh unterstützen
+
+SUCCESS CRITERIA:
+- Ohne Token → 401
+- Mit gültigem Token → Benutzer-Kontext verfügbar
+
+OUT OF SCOPE:
+- API-Keys, Rate Limiting, IP-Restriktion
+
+---
+
+REQUIREMENT 8: Frontend Login & Session
+Priority: HIGH
+
+WAS:
+Benutzer müssen:
+- Login-Seite sehen (unauthentifiziert)
+- Microsoft/Google Login-Buttons
+- Nach Login zu ursprünglicher Seite redirected werden
+- Benutzernamen in Navbar sehen
+- Sich ausloggen können
+
+System:
+- JWT in localStorage/httpOnly-Cookie
+- Token in Authorization-Header
+- Auto-Refresh (Refresh-Token-Flow)
+- Geschützte Routes (ProtectedRoute)
+
+UI-Komponenten:
+- Login-Seite, SSO-Buttons
+- Benutzer-Menü (Profil, Logout)
+- Session-Status-Anzeige
+
+CONSTRAINTS:
+- Responsiv (Mobile + Desktop)
+- Token nicht in URL
+
+SUCCESS CRITERIA:
+- SSO-Flow funktioniert (OAuth2 → Redirect)
+- Navbar zeigt Benutzernamen
+- Logout leitet zu Login um
+
+OUT OF SCOPE:
+- Profil-Bearbeitung, Passwort-Änderung, Session-Historie
+
+---
+
+REQUIREMENT 9: Audit Logging
+Priority: MEDIUM
+
+WAS:
+Protokollieren:
+- Logins (Erfolg/Fehler)
+- Dokument-Uploads
+- RAG-Queries (Query, abgerufene Dokumente)
+- Berechtigungsänderungen
+- Admin-Aktionen
+
+Log-Einträge enthalten:
+- Timestamp, User-ID, Email
+- Aktion, Ressource, Ergebnis
+- IP (optional), User-Agent (optional)
+
+System:
+- Logs in PostgreSQL "audit_logs"
+- 90 Tage Aufbewahrung
+- Admin-Zugriff
+- Append-only (Manipulationsschutz)
+
+CONSTRAINTS:
+- Keine Performance-Einbußen
+- Keine sensiblen Daten in Logs
+
+SUCCESS CRITERIA:
+- Admin sieht Upload/Query-Historie
+- Fehlgeschlagene Logins protokolliert
+
+OUT OF SCOPE:
+- Echtzeit-Alerting, SIEM-Integration, Log-Export
+
+---
+
+REQUIREMENT 10: Upload mit Berechtigungen
+Priority: HIGH
+
+WAS:
+Beim Upload festlegbar:
+- Classification (public, internal, confidential, restricted)
+- Sichtbarkeit (nur ich, Abteilung, alle)
+- Spezifische Benutzer
+
+System:
+- Owner automatisch setzen
+- Department automatisch setzen
+- Default-Classification basierend auf Rolle
+- Berechtigungen in PostgreSQL + Weaviate speichern
+
+UI:
+- Dropdown: Classification
+- Checkbox: Abteilungs-Sichtbarkeit
+- Multi-Select: Zusätzliche Benutzer
+- Vorschau effektiver Berechtigungen
+
+CONSTRAINTS:
+- Employee max "internal"
+- Manager max "confidential"
+- Nachträgliche Änderung möglich (Owner/Admin)
+
+SUCCESS CRITERIA:
+- Upload zeigt Berechtigungsoptionen
+- Berechtigungen korrekt gespeichert
+
+OUT OF SCOPE:
+- Bulk-Upload mit Berechtigungen, Template-Berechtigungen
+
+---
+
+REQUIREMENT 11: Intelligent RAG Activation (Smart Auto)
+Priority: HIGH
+
+WAS:
+- RAG aktiviert sich automatisch bei relevanten Queries
+- Intent Detection (keyword-basiert oder LLM-basiert)
+- User muss RAG nicht manuell aktivieren
+- Transparenz: User sieht ob/welche Quellen genutzt wurden
+
+System:
+- Query analysieren ob firmenspezifisch
+- RAG nur bei relevanten Queries ausführen
+- Source Citations anzeigen wenn RAG genutzt wurde
+- Keine Citations wenn RAG nicht lief
+
+Optional:
+- Settings: "Immer an", "Automatisch" (default), "Manueller Toggle"
+- Override-Button für explizite Dokumentensuche
+
+CONSTRAINTS:
+- Intent Detection muss schnell sein (< 50ms)
+- Performance-Optimierung: Kein RAG bei Smalltalk
+- Transparenz: User muss wissen ob RAG aktiv war
+
+SUCCESS CRITERIA:
+- "Was ist unsere Pricing-Strategie?" → RAG läuft automatisch
+- "Wie geht's?" → Kein RAG (Performance-Optimierung)
+- User sieht: "📎 3 Quellen gefunden" oder keine Anzeige
+
+OUT OF SCOPE:
+- Komplexe LLM-basierte Intent Detection (Phase 1: Keywords)
+
+---
+
+REQUIREMENT 12: Document Management Page
+Priority: HIGH
+
+WAS:
+- Dedizierte Route: /documents
+- Separate Seite (nicht Sidebar)
+- Voller Bildschirm für Dokumente
+
+Navigation:
+- Header mit Links: 💬 Chat | 📁 Dokumente
+- React Router für Page-Navigation
+
+Dokumente-Seite enthält:
+- Upload-Bereich (Drag & Drop + Permission-Panel)
+- Storage-Quota-Anzeige
+- Filter & Suche (Kategorie, Tags, Name)
+- Document-Table/Grid (sortierbar, filterbar, selectable)
+- Bulk-Actions (Multi-Select, Bulk-Delete)
+
+Table zeigt:
+- Name, Owner, Classification, Department, Größe, Datum
+- Permission-Badges (Icons)
+- Inline-Actions (Edit Permissions, Delete)
+
+CONSTRAINTS:
+- Responsiv (Mobile + Desktop)
+- Echtzeit-Updates (Socket.io)
+- 1000+ Dokumente ohne Performance-Probleme
+
+SUCCESS CRITERIA:
+- User findet Dokumente in < 3 Klicks
+- Table-Sorting/Filtering funktioniert
+- Permission-Badges zeigen Zugriff klar
+- Storage-Quota sichtbar
+
+OUT OF SCOPE:
+- Document-Preview, Annotations, Grid-View (später)
+
+================================================================================
+TECHNISCHER STACK
+================================================================================
+
+Authentication & OAuth2:
+- arctic (^3.7.0) - TypeScript OAuth2 (Google, Microsoft)
+- @azure/msal-node (^3.8.5) - Microsoft Enterprise Features (optional)
+- jsonwebtoken (^9.0.3) - JWT (min 9.0.0 wegen CVE-2022-23529)
+- bcrypt (^6.0.0) - Password-Hashing
+
+Session:
+- express-session (^1.18.2) - Express 5 kompatibel
+
+Frontend:
+- react-router-dom (^7.12.0) - React 19 kompatibel, Page-Navigation
+- axios (latest) - HTTP mit Interceptors
+
+TypeScript Definitions (dev):
+- @types/jsonwebtoken (^9.0.7)
+- @types/bcrypt (^5.0.2)
+- @types/express-session (^1.18.0)
+
+NICHT verwenden:
+- passport-azure-ad (deprecated)
+- passport-google-oauth20 (7 Jahre alt)
+- bcryptjs (langsamer)
+
+================================================================================
+DATENBANK
+================================================================================
+
+NEUE TABELLEN:
+
+users:
+- id, email (unique), name, role, department, provider, provider_id
+- is_active, created_at, last_login
+
+refresh_tokens:
+- id, user_id, token_hash, expires_at, created_at
+
+audit_logs:
+- id, user_id, user_email, action, resource_type, resource_id
+- result, ip_address, user_agent, metadata (JSONB), created_at
+
+ERWEITERTE TABELLEN:
+
+documents:
++ owner_id, department, classification, allowed_roles[], allowed_users[]
+
+INDIZES:
+- users(email), users(provider, provider_id)
+- documents(owner_id), documents(department), documents(classification)
+- audit_logs(user_id, created_at), audit_logs(action, created_at)
+
+ROW LEVEL SECURITY:
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+Policies: public, department, owner, role, user, admin
+
+================================================================================
+API
+================================================================================
+
+NEUE ENDPUNKTE:
+
+Auth:
+- GET /api/auth/microsoft, /api/auth/microsoft/callback
+- GET /api/auth/google, /api/auth/google/callback
+- POST /api/auth/logout
+- GET /api/auth/me
+- POST /api/auth/refresh
+
+Users:
+- GET /api/users (Admin)
+- GET /api/users/:id
+- PUT /api/users/:id (Admin)
+- PUT /api/users/:id/role (Admin)
+- PUT /api/users/:id/deactivate (Admin)
+
+Audit:
+- GET /api/audit/logs (Admin)
+- GET /api/audit/logs/user/:id
+
+GEÄNDERTE ENDPUNKTE:
+
+Alle /api/rag/*, /api/chat/*, /api/ollama/* erfordern jetzt:
+- Authorization: Bearer <JWT_TOKEN>
+- Berechtigungsfilterung
+
+/api/rag/documents:
++ owner_id, department, classification, allowed_roles, allowed_users
+
+================================================================================
+SICHERHEIT
+================================================================================
+
+- OAuth2 state-Parameter (CSRF-Schutz)
+- JWT min 256 Bit Secret, signiert
+- Refresh-Tokens gehashed
+- Access-Token 15min, Refresh-Token 30 Tage
+- Zero-Trust: Jede Query autorisiert
+- Authorization VOR Retrieval
+- PostgreSQL RLS als 2. Schicht
+- Keine sensiblen Daten in JWT/Logs
+- DSGVO: IP-Anonymisierung nach 90 Tagen
+
+================================================================================
+PERFORMANCE
+================================================================================
+
+- Login < 3 Sekunden
+- Token-Validierung < 5ms
+- RLS-Policy < 50ms
+- RAG-Authorization < 150ms
+- System: 100+ gleichzeitige Benutzer
+- Audit-Logs: 1 Million Einträge ohne Verlust
+
+================================================================================
+SUCCESS METRICS
+================================================================================
+
+SICHERHEIT:
+- Zero Information Leakage
+- 100% RAG-Queries autorisiert
+- Alle Security-Events geloggt
+
+USABILITY:
+- Login < 5 Sekunden
+- Benutzer verstehen Berechtigungen
+- Änderungen sofort wirksam
+
+COMPLIANCE:
+- DSGVO-konform (Art. 15, 17)
+- Audit-Trail vollständig
+
+PERFORMANCE:
+- Auth < 10ms, Authorization < 150ms
+- Responsiv bei 100+ Benutzern
+
+================================================================================
+OUT OF SCOPE
+================================================================================
+
+v1 (NICHT implementieren):
+- SAML SSO (Okta, Auth0)
+- 2FA/MFA
+- Benutzer-Gruppen/Teams
+- ReBAC (SpiceDB/OpenFGA)
+- Dynamische Berechtigungen (Zeit, Standort)
+- Zeitlich begrenzte Berechtigungen
+- API-Keys, Rate Limiting
+- SIEM-Integration, Alerting
+- Department Admins
+
+================================================================================
+DESIGN-PRINZIPIEN
+================================================================================
+
+1. Zero-Trust: Authentifizierung + Autorisierung bei jedem Request
+2. Defense in Depth: Frontend Guards + API Middleware + Service Layer + RLS
+3. Authorization as Query Logic: Filterung VOR Suche
+4. Flexible Auth: Multi-Provider (Microsoft, Google)
+5. Granular Permissions: Dokument-Level (RBAC + ABAC)
+6. Audit & Compliance: Vollständige Nachvollziehbarkeit
+7. Benutzerfreundlichkeit: SSO, transparente Berechtigungen
+
+TECHNOLOGIE-ENTSCHEIDUNGEN:
+- Arctic (TypeScript-first, modern, Express 5 kompatibel)
+- @azure/msal-node (offiziell, ersetzt passport-azure-ad)
+- bcrypt (20% schneller als bcryptjs)
+- React Router v7 (React 19 kompatibel)
+
+================================================================================
+MIGRATIONS-PHASEN
+================================================================================
+
+PHASE 1: Authentication (Woche 1)
+- PostgreSQL: users, refresh_tokens
+- JWT-Service, Middleware
+- OAuth2 mit Arctic (Google, Microsoft)
+- Frontend: Login-Seite, Protected Routes
+
+PHASE 2: Authorization (Woche 2)
+- PostgreSQL: documents erweitern
+- RLS Policies
+- Authorization-Service
+
+PHASE 3: Secure RAG (Woche 3)
+- Secure RAG Service (Filterung VOR Suche)
+- Upload mit Berechtigungen
+- Berechtigungs-UI
+
+PHASE 4: User Management (Woche 4)
+- Admin-UI
+- Rollen/Abteilungen zuweisen
+
+PHASE 5: Audit & Compliance (Woche 5)
+- Audit-Logging
+- Audit-Log-UI
+
+PHASE 6: Document Page & Smart RAG (Woche 6)
+- /documents Route
+- Document Table/Grid
+- Intelligent RAG Activation
+
+PHASE 7: Testing & Hardening (Woche 7)
+- Security Testing
+- Performance Testing
+- Penetration Testing
+
+DATEN-MIGRATION:
+- Bestehende Dokumente: owner_id=NULL, classification='public'
+- Erster Benutzer: Admin
+
+================================================================================
+REFERENZEN
+================================================================================
+
+Enterprise RAG Security:
+- https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/secure-multitenant-rag
+- https://www.pinecone.io/learn/rag-access-control/
+
+PostgreSQL RLS:
+- https://aws.amazon.com/blogs/database/multi-tenant-data-isolation-with-postgresql-row-level-security/
+
+Libraries:
+- Arctic: https://arcticjs.dev/
+- @azure/msal-node: https://www.npmjs.com/package/@azure/msal-node
+- jsonwebtoken Security: https://security.snyk.io/package/npm/jsonwebtoken
+
+Commercial Examples:
+- ChatGPT Enterprise: https://help.openai.com/en/articles/10128477
+- Microsoft Copilot: https://learn.microsoft.com/en-us/copilot/microsoft-365/microsoft-365-copilot-search
+
+Version Research: 21. Januar 2026

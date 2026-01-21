@@ -337,7 +337,7 @@ apps:
   type: frontend
   default_port: 5173
 conventions:
-  version: 7
+  version: 8
   created_at: '2026-01-20T11:37:51.936316Z'
   source: agent-discovered
   styling:
@@ -355,8 +355,8 @@ conventions:
     - Use semantic color names (bg-surface, text-primary)
     - Apply hover states consistently
     - Use transition-all for smooth animations
-  last_updated: '2026-01-20T22:46:09.325622Z'
-  updated_by_feature: 11
+  last_updated: '2026-01-21T23:57:52.726231Z'
+  updated_by_feature: 45
   api:
     system: express_rest
     discovered_in_feature: 2
@@ -439,3 +439,19 @@ conventions:
     - Always provide source citations in responses
     - Handle no-sources-found gracefully
     - Use streaming responses for real-time UX
+  database_migrations:
+    system: postgresql_migrations
+    discovered_in_feature: 45
+    discovered_at: '2026-01-21T23:57:52.725986Z'
+    import_path: docker/migrations/
+    reference_files:
+    - docker/migrations/001_auth_tables.sql:1
+    - docker/init-db.sql:1
+    usage_pattern: Numbered SQL migration files (001_, 002_, etc.) in docker/migrations/. Use CREATE IF NOT EXISTS and DO
+      $$ blocks for idempotent migrations.
+    guidelines:
+    - Use numbered prefix (001_, 002_) for ordering
+    - Use IF NOT EXISTS for all CREATE statements
+    - Use DO $$ blocks for conditional ALTER statements
+    - Add verification queries at end of migration
+    - Document purpose with comments
