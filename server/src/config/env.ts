@@ -24,6 +24,16 @@ export const env = {
     ','
   ),
 
+  // PostgreSQL
+  POSTGRES_HOST: process.env.POSTGRES_HOST ?? 'localhost',
+  POSTGRES_PORT: parseInt(process.env.POSTGRES_PORT ?? '5432', 10),
+  POSTGRES_DB: process.env.POSTGRES_DB ?? 'vexora',
+  POSTGRES_USER: process.env.POSTGRES_USER ?? 'vexora',
+  POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD ?? 'vexora_dev_password',
+
+  // Weaviate
+  WEAVIATE_URL: process.env.WEAVIATE_URL ?? 'http://localhost:8080',
+
   // Helpers
   isDevelopment: process.env.NODE_ENV !== 'production',
   isProduction: process.env.NODE_ENV === 'production',

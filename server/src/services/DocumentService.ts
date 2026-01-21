@@ -3,9 +3,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import { z } from 'zod';
 import { vectorService } from './VectorService.js';
+import { databaseService } from './DatabaseService.js';
 
 /**
- * DocumentService - Handles PDF processing and document management
+ * DocumentService - Handles PDF processing and document management with PostgreSQL persistence
  */
 
 /**
@@ -56,10 +57,21 @@ export type DocumentUploadRequest = z.infer<typeof documentUploadSchema>;
 
 class DocumentService {
   private readonly uploadDir = './uploads';
-  private readonly documentsStorage = new Map<string, DocumentMetadata>();
+  private initialized = false;
 
   constructor() {
-    this.ensureUploadDir();
+    this.initialize();
+  }
+
+  /**
+   * Initialize service
+   */
+  private async initialize(): Promise<void> {
+    if (this.initialized) return;
+
+    await this.ensureUploadDir();
+    await databaseService.initialize();
+    this.initialized = true;
   }
 
   /**
@@ -77,6 +89,8 @@ class DocumentService {
    * Process uploaded PDF file
    */
   async processPDF(filePath: string, metadata: DocumentUploadRequest): Promise<ProcessingResult> {
+    await this.initialize();
+
     try {
       // Validate metadata
       const validatedMetadata = documentUploadSchema.parse(metadata);
@@ -103,17 +117,39 @@ class DocumentService {
         tags: validatedMetadata.tags ?? [],
       };
 
-      // Store document metadata (in production, this would go to PostgreSQL)
-      this.documentsStorage.set(documentId, document);
-
-      // Store document chunks in vector database for RAG
+      // Store in PostgreSQL with chunk count tracking
+      let chunkCount = 0;
       try {
+        // Store document chunks in vector database for RAG
         await vectorService.storeDocument(document);
-        console.log(`✅ Document stored in vector database: ${document.originalName}`);
+
+        // Get chunk count from vector service
+        const chunks = Math.ceil(text.length / 512); // Approximate chunk count
+        chunkCount = chunks;
       } catch (vectorError) {
         console.warn(`⚠️  Failed to store in vector database: ${vectorError}`);
-        // Continue without vector storage - document is still usable
+        // Continue with PostgreSQL storage even if vector storage fails
       }
+
+      // Insert into PostgreSQL
+      await databaseService.query(
+        `INSERT INTO documents (
+          id, filename, file_type, file_size, upload_date,
+          processed_date, status, chunk_count, category, tags
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          documentId,
+          validatedMetadata.originalName, // Store originalName in filename column
+          'pdf',
+          validatedMetadata.size,
+          new Date(),
+          new Date(), // processed_date
+          'completed',
+          chunkCount,
+          validatedMetadata.category ?? 'Allgemein',
+          validatedMetadata.tags ?? [],
+        ]
+      );
 
       return {
         success: true,
@@ -131,59 +167,141 @@ class DocumentService {
    * Get all documents
    */
   async getDocuments(): Promise<DocumentMetadata[]> {
-    return Array.from(this.documentsStorage.values())
-      .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+    await this.initialize();
+
+    const result = await databaseService.query(
+      `SELECT
+        id, filename, file_type, file_size,
+        upload_date, chunk_count, category, tags
+       FROM documents
+       WHERE status = 'completed'
+       ORDER BY upload_date DESC`
+    );
+
+    return result.rows.map(row => ({
+      id: row.id,
+      filename: row.id, // For compatibility with file storage
+      originalName: row.filename,
+      size: parseInt(row.file_size),
+      type: 'pdf' as const,
+      uploadedAt: row.upload_date,
+      pages: Math.ceil(row.chunk_count / 2), // Approximate pages from chunks
+      category: (row.category || 'Allgemein') as DocumentCategory,
+      tags: row.tags || [],
+    }));
   }
 
   /**
    * Get document by ID
    */
   async getDocument(id: string): Promise<DocumentMetadata | null> {
-    return this.documentsStorage.get(id) || null;
+    await this.initialize();
+
+    const result = await databaseService.query(
+      `SELECT
+        id, filename, file_type, file_size,
+        upload_date, chunk_count, category, tags
+       FROM documents
+       WHERE id = $1 AND status = 'completed'`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      filename: row.id,
+      originalName: row.filename,
+      size: parseInt(row.file_size),
+      type: 'pdf',
+      uploadedAt: row.upload_date,
+      pages: Math.ceil(row.chunk_count / 2),
+      category: (row.category || 'Allgemein') as DocumentCategory,
+      tags: row.tags || [],
+    };
   }
 
   /**
    * Update document metadata (category, tags)
    */
   async updateDocument(id: string, updates: { category?: DocumentCategory; tags?: string[] }): Promise<DocumentMetadata | null> {
-    const document = this.documentsStorage.get(id);
-    if (!document) return null;
+    await this.initialize();
 
-    const updatedDocument: DocumentMetadata = {
-      ...document,
-      ...(updates.category !== undefined && { category: updates.category }),
-      ...(updates.tags !== undefined && { tags: updates.tags }),
-    };
+    // Build dynamic UPDATE query
+    const updateFields: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
 
-    this.documentsStorage.set(id, updatedDocument);
-    return updatedDocument;
+    if (updates.category !== undefined) {
+      updateFields.push(`category = $${paramIndex}`);
+      values.push(updates.category);
+      paramIndex++;
+    }
+
+    if (updates.tags !== undefined) {
+      updateFields.push(`tags = $${paramIndex}`);
+      values.push(updates.tags);
+      paramIndex++;
+    }
+
+    if (updateFields.length === 0) {
+      return this.getDocument(id);
+    }
+
+    values.push(id); // For WHERE clause
+
+    await databaseService.query(
+      `UPDATE documents
+       SET ${updateFields.join(', ')}
+       WHERE id = $${paramIndex}`,
+      values
+    );
+
+    return this.getDocument(id);
   }
 
   /**
    * Get all unique tags across all documents
    */
   async getAllTags(): Promise<string[]> {
-    const tagSet = new Set<string>();
-    for (const doc of this.documentsStorage.values()) {
-      doc.tags.forEach(tag => tagSet.add(tag));
-    }
-    return Array.from(tagSet).sort();
+    await this.initialize();
+
+    const result = await databaseService.query(
+      `SELECT DISTINCT unnest(tags) as tag
+       FROM documents
+       WHERE status = 'completed'
+       ORDER BY tag`
+    );
+
+    return result.rows.map(row => row.tag);
   }
 
   /**
    * Delete document
    */
   async deleteDocument(id: string): Promise<boolean> {
-    const document = this.documentsStorage.get(id);
-    if (!document) return false;
+    await this.initialize();
 
-    // Remove from storage
-    this.documentsStorage.delete(id);
+    // Get document info before deletion
+    const doc = await this.getDocument(id);
+    if (!doc) return false;
+
+    // Delete from PostgreSQL (cascades to related tables)
+    const result = await databaseService.query(
+      `DELETE FROM documents WHERE id = $1`,
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      return false;
+    }
 
     // Remove from vector database
     try {
       await vectorService.deleteDocument(id);
-      console.log(`✅ Document removed from vector database: ${id}`);
     } catch (vectorError) {
       console.warn(`⚠️  Failed to remove from vector database: ${vectorError}`);
       // Continue with deletion
@@ -191,7 +309,17 @@ class DocumentService {
 
     // Clean up file (attempt, but don't fail if it doesn't exist)
     try {
-      await fs.unlink(path.join(this.uploadDir, document.filename));
+      // Find file by ID pattern in uploads directory
+      const files = await fs.readdir(this.uploadDir);
+      const filePattern = new RegExp(`^${id.replace('doc_', '')}.*\\.pdf$`);
+      const matchingFile = files.find(f => {
+        const timestamp = id.split('_')[1];
+        return f.startsWith(timestamp);
+      });
+
+      if (matchingFile) {
+        await fs.unlink(path.join(this.uploadDir, matchingFile));
+      }
     } catch {
       // File might already be deleted or moved
     }

@@ -39,3 +39,7 @@ export {
   type RAGSource,
   type RAGResponse,
 } from './RAGService.js'
+
+export {
+  databaseService,
+} from './DatabaseService.js'
