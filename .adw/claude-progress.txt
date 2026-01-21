@@ -862,6 +862,57 @@ Test-Ergebnisse:
 
 Progress: 12/44 Features (27.3%)
 
+=== Session: Coding Agent - Feature 6 ===
+Datum: 2026-01-21
+Agent: Coding Agent
+
+Erledigt:
+- [X] Feature 6: "User kann mehrere Dokumente gleichzeitig löschen" (Bulk Delete)
+- [X] Multi-Select Modus mit Checkboxen implementiert
+- [X] Selection State Management in DocumentContext
+- [X] Bulk Delete API Endpoint (POST /api/documents/bulk-delete)
+- [X] Bulk Delete Bestätigungs-Dialog
+- [X] "Auswählen" Button zum Aktivieren des Selection-Modus
+- [X] "Alle"/"Keine" Buttons für schnelle Auswahl
+- [X] Auto-Exit aus Selection-Modus nach Bulk Delete
+- [X] Toast-Notifications für Erfolg/Teilweisen Erfolg
+- [X] Browser-Test erfolgreich: 3 Dokumente gleichzeitig gelöscht
+- [X] Git Commit: 1dc92d5
+
+Erstellte/Erweiterte Dateien:
+- server/src/index.ts: POST /api/documents/bulk-delete Endpoint
+- src/lib/api.ts: bulkDeleteDocuments() Funktion + Types
+- src/contexts/DocumentContext.tsx: Selection State + Bulk Delete Actions
+- src/components/DocumentList.tsx: Multi-Select UI + BulkDeleteDialog
+
+Backend Features:
+- POST /api/documents/bulk-delete mit IDs Array
+- Parallele Löschung mit Ergebnis-Tracking pro Dokument
+- Teilweise Löschung möglich (returns success + failed counts)
+
+Frontend Features:
+- "Auswählen" Button erscheint bei mehr als 1 Dokument
+- Checkboxen ersetzen File-Icons im Selection-Modus
+- "X ausgewählt" Counter mit Live-Update
+- "Alle" und "Keine" Buttons für schnelle Auswahl
+- Roter "X Dokument(e) löschen" Button
+- Confirmation Dialog mit Warnung
+- Auto-Clear Selection nach erfolgreichem Delete
+
+Test-Ergebnisse:
+- ✅ Multi-Select Modus via "Auswählen" aktiviert
+- ✅ "Alle" Button wählt alle 3 Dokumente
+- ✅ "3 ausgewählt" Counter korrekt
+- ✅ "3 Dokumente löschen" Button erscheint
+- ✅ Bestätigungs-Dialog zeigt "3 Dokumente löschen?"
+- ✅ Nach Bestätigung: Alle 3 Dokumente gelöscht
+- ✅ Toast: "3 Dokument(e) erfolgreich gelöscht"
+- ✅ Empty State "Keine Dokumente vorhanden"
+- ✅ RAG Toggle automatisch disabled
+- ✅ API bestätigt: 0 Dokumente
+
+Progress: 13/44 Features (29.5%)
+
 Nächste Session:
 - Nächstes Feature aus der Queue (adw features next)
 - RAG Streaming Performance könnte verbessert werden
