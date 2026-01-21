@@ -512,6 +512,46 @@ app.delete('/api/documents/:id', asyncHandler(async (req: Request, res: Response
   })
 }))
 
+// Bulk delete documents endpoint
+app.post('/api/documents/bulk-delete', asyncHandler(async (req: Request, res: Response) => {
+  const { ids } = req.body
+
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    res.status(400).json({
+      error: 'IDs-Array ist erforderlich',
+    })
+    return
+  }
+
+  const results: { id: string; success: boolean; error?: string }[] = []
+  let successCount = 0
+  let failCount = 0
+
+  for (const id of ids) {
+    try {
+      const success = await documentService.deleteDocument(id)
+      if (success) {
+        results.push({ id, success: true })
+        successCount++
+      } else {
+        results.push({ id, success: false, error: 'Dokument nicht gefunden' })
+        failCount++
+      }
+    } catch (error) {
+      results.push({ id, success: false, error: error instanceof Error ? error.message : 'Unbekannter Fehler' })
+      failCount++
+    }
+  }
+
+  res.json({
+    success: failCount === 0,
+    message: `${successCount} Dokument(e) gelöscht${failCount > 0 ? `, ${failCount} fehlgeschlagen` : ''}`,
+    results,
+    deletedCount: successCount,
+    failedCount: failCount,
+  })
+}))
+
 // ============================================
 // Socket.io Connection Handling
 // ============================================

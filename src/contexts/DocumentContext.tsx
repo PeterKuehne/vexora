@@ -19,6 +19,7 @@ import {
   fetchDocuments,
   uploadDocumentAsync,
   deleteDocument as apiDeleteDocument,
+  bulkDeleteDocuments as apiBulkDeleteDocuments,
 } from '../lib/api';
 import { useToast } from './ToastContext';
 
@@ -50,14 +51,26 @@ export interface DocumentContextValue {
   isUploading: boolean;
   uploadProgress: UploadProgress | null;
 
+  // Selection state (for bulk operations)
+  selectedIds: Set<string>;
+  isSelectionMode: boolean;
+
   // Actions
   refreshDocuments: () => Promise<void>;
   uploadPDF: (file: File) => Promise<DocumentMetadata | null>;
   deleteDocument: (id: string) => Promise<void>;
+  bulkDeleteDocuments: (ids: string[]) => Promise<void>;
+
+  // Selection actions
+  toggleSelectionMode: () => void;
+  toggleSelectDocument: (id: string) => void;
+  selectAllDocuments: () => void;
+  clearSelection: () => void;
 
   // Computed values
   totalDocuments: number;
   totalSize: number; // in bytes
+  selectedCount: number;
 }
 
 const DocumentContext = createContext<DocumentContextValue | null>(null);
@@ -72,6 +85,10 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   const { addToast } = useToast();
 
@@ -164,6 +181,12 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
 
       // Remove from state
       setDocuments(prev => prev.filter(d => d.id !== id));
+      // Also remove from selection if selected
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
 
       addToast('success', document ? `"${document.originalName}" wurde gelöscht` : 'Dokument wurde gelöscht', {
         title: 'Dokument gelöscht',
@@ -176,6 +199,82 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     }
   }, [documents, addToast]);
 
+  /**
+   * Bulk delete multiple documents
+   */
+  const bulkDeleteDocuments = useCallback(async (ids: string[]) => {
+    if (ids.length === 0) return;
+
+    try {
+      const result = await apiBulkDeleteDocuments(ids);
+
+      // Remove successfully deleted documents from state
+      const deletedIds = new Set(result.results.filter(r => r.success).map(r => r.id));
+      setDocuments(prev => prev.filter(d => !deletedIds.has(d.id)));
+
+      // Clear selection
+      setSelectedIds(new Set());
+      setIsSelectionMode(false);
+
+      if (result.success) {
+        addToast('success', `${result.deletedCount} Dokument(e) erfolgreich gelöscht`, {
+          title: 'Dokumente gelöscht',
+        });
+      } else {
+        addToast('warning', result.message, {
+          title: 'Teilweise gelöscht',
+        });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Bulk delete failed';
+      addToast('error', errorMessage, {
+        title: 'Löschen fehlgeschlagen',
+      });
+    }
+  }, [addToast]);
+
+  /**
+   * Toggle selection mode
+   */
+  const toggleSelectionMode = useCallback(() => {
+    setIsSelectionMode(prev => {
+      if (prev) {
+        // Exiting selection mode - clear selection
+        setSelectedIds(new Set());
+      }
+      return !prev;
+    });
+  }, []);
+
+  /**
+   * Toggle document selection
+   */
+  const toggleSelectDocument = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  /**
+   * Select all documents
+   */
+  const selectAllDocuments = useCallback(() => {
+    setSelectedIds(new Set(documents.map(d => d.id)));
+  }, [documents]);
+
+  /**
+   * Clear selection
+   */
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
   // Load documents on mount
   useEffect(() => {
     refreshDocuments();
@@ -184,6 +283,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   // Computed values
   const totalDocuments = documents.length;
   const totalSize = documents.reduce((sum, doc) => sum + doc.size, 0);
+  const selectedCount = selectedIds.size;
 
   const contextValue: DocumentContextValue = {
     documents,
@@ -191,11 +291,19 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     error,
     isUploading,
     uploadProgress,
+    selectedIds,
+    isSelectionMode,
     refreshDocuments,
     uploadPDF,
     deleteDocument,
+    bulkDeleteDocuments,
+    toggleSelectionMode,
+    toggleSelectDocument,
+    selectAllDocuments,
+    clearSelection,
     totalDocuments,
     totalSize,
+    selectedCount,
   };
 
   return (

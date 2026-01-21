@@ -813,6 +813,55 @@ Erkenntnisse:
 
 Progress: 11/44 Features (25.0%)
 
+=== Session: Coding Agent - Feature 18 ===
+Datum: 2026-01-21
+Agent: Coding Agent
+
+Erledigt:
+- [X] Feature 18: "User kann Embedding-Model auswählen"
+- [X] Backend: Neuer Endpoint /api/models/embedding für Ollama Embedding Models
+- [X] Types: embeddingModel zu AppSettings hinzugefügt (types/settings.ts)
+- [X] settingsStorage: embeddingModel in sanitizeSettings() hinzugefügt
+- [X] API: fetchEmbeddingModels() in lib/api.ts hinzugefügt
+- [X] UI: Embedding Model Dropdown in ModelSettings.tsx
+- [X] Re-Indexing Warnung: ConfirmDialog bei Model-Änderung
+- [X] Hinweis-Box: Orange Info über Re-Indexierung
+- [X] Warnung wenn keine Embedding-Modelle installiert (mit ollama pull Anleitung)
+- [X] Build-Check erfolgreich (npm run build)
+- [X] Browser-Test: Settings > Erweitert zeigt Embedding-Modell (RAG) Sektion
+- [X] Git Commit: 29cf0b6
+
+Erstellte/Erweiterte Dateien:
+- server/src/index.ts: /api/models/embedding Endpoint hinzugefügt
+- src/types/settings.ts: embeddingModel Feld in AppSettings
+- src/lib/settingsStorage.ts: embeddingModel in sanitizeSettings()
+- src/lib/api.ts: fetchEmbeddingModels(), APIModel Interface
+- src/components/ModelSettings.tsx: Embedding Model Dropdown mit States und Handlers
+
+Backend Features implementiert:
+- GET /api/models/embedding filtert Ollama Models für Embedding (nomic, mxbai, bge, gte, e5, bert)
+- Automatische Default-Model Auswahl (nomic-embed wenn vorhanden)
+- totalCount für Frontend-Feedback
+
+Frontend Features implementiert:
+- Embedding Model Dropdown mit Loading/Error/Empty States
+- Warnung "Keine Embedding-Modelle gefunden" mit Installationsanleitung
+- ConfirmDialog für Re-Indexing Warnung bei Model-Änderung
+- Orange Hinweis-Box über Re-Indexierung
+- Theme-aware Styling (Dark/Light Mode)
+- Toast-Notification bei Model-Änderung
+
+Test-Ergebnisse:
+- ✅ Settings > Erweitert zeigt "Embedding-Modell (RAG)" Sektion
+- ✅ Database Icon neben dem Label
+- ✅ Gelbe Warnung wenn keine Embedding-Modelle installiert
+- ✅ Anleitung: `ollama pull nomic-embed-text`
+- ✅ Orange Hinweis-Box über Re-Indexierung
+- ✅ Build-Check erfolgreich
+- ✅ Screenshot: .adw/screenshots/feature_18_embedding_model_selection.png
+
+Progress: 12/44 Features (27.3%)
+
 Nächste Session:
 - Nächstes Feature aus der Queue (adw features next)
 - RAG Streaming Performance könnte verbessert werden

@@ -606,3 +606,39 @@ export async function deleteDocument(id: string): Promise<void> {
     throw new Error(`Failed to delete document: ${response.statusText}`);
   }
 }
+
+/**
+ * Bulk delete response type
+ */
+export interface BulkDeleteResult {
+  id: string;
+  success: boolean;
+  error?: string;
+}
+
+export interface BulkDeleteResponse {
+  success: boolean;
+  message: string;
+  results: BulkDeleteResult[];
+  deletedCount: number;
+  failedCount: number;
+}
+
+/**
+ * Bulk delete multiple documents by IDs
+ */
+export async function bulkDeleteDocuments(ids: string[]): Promise<BulkDeleteResponse> {
+  const response = await fetch(`${env.API_URL}/api/documents/bulk-delete`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ ids }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete documents: ${response.statusText}`);
+  }
+
+  return response.json();
+}
