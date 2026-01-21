@@ -1,0 +1,3 @@
+Test Document: Vertrag-Mietvertrag.pdf
+This is a test PDF document for document search functionality testing.
+Content specific to: Vertrag-Mietvertrag

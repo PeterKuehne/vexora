@@ -913,7 +913,58 @@ Test-Ergebnisse:
 
 Progress: 13/44 Features (29.5%)
 
+=== Session: Coding Agent - Feature 20 ===
+Datum: 2026-01-21
+Agent: Coding Agent
+
+Erledigt:
+- [X] Feature 20: "User kann Model-Profil wechseln"
+- [X] ModelProfile Type + MODEL_PROFILES Array in settings.ts
+- [X] Vordefinierte Profile: MacBook 8GB, MacBook 16GB, Workstation 32GB, Benutzerdefiniert
+- [X] Profile-Dropdown in ModelSettings.tsx mit Monitor + MemoryStick Icons
+- [X] Bestätigungs-Dialog bei Profil-Wechsel (zeigt alle Einstellungen)
+- [X] Automatische Einstellung von LLM, Embedding, Temperatur, Max Tokens
+- [X] Grüne Info-Box zeigt aktives Profil mit allen Parametern
+- [X] "Standard-Modell (vom Profil)" Label bei aktivem Profil
+- [X] Automatischer Wechsel zu "Custom" bei manueller Model-Änderung
+- [X] settingsStorage.ts erweitert um modelProfile Feld
+- [X] Build-Check erfolgreich (npm run build)
+- [X] Browser-Test: Alle Test-Steps erfolgreich
+- [X] Git Commit: b816c62
+
+Erstellte/Erweiterte Dateien:
+- src/types/settings.ts: ModelProfile Interface + MODEL_PROFILES Array
+- src/types/index.ts: Export für ModelProfile + MODEL_PROFILES
+- src/lib/settingsStorage.ts: modelProfile in sanitizeSettings()
+- src/components/ModelSettings.tsx: Profile Dropdown + Confirmation Dialog
+
+Profile-Konfiguration:
+- MacBook 8GB: llama3.2:latest, 2048 tokens, ~4GB VRAM
+- MacBook 16GB: qwen3:8b, 4096 tokens, ~8GB VRAM
+- Workstation 32GB: qwen3:8b, 8192 tokens, ~12GB VRAM
+- Benutzerdefiniert: Manuelle Auswahl
+
+Frontend Features:
+- Model-Profil Dropdown mit VRAM-Anzeige
+- Bestätigungs-Dialog mit vollständiger Parameter-Übersicht
+- Grüne Info-Box für aktives Profil
+- Toast-Notifications bei Profil-Wechsel
+- Automatischer Wechsel zu Custom bei manueller Änderung
+
+Test-Ergebnisse:
+- ✅ Model-Profil Dropdown zeigt alle Profile
+- ✅ Profil-Wechsel zeigt Bestätigungs-Dialog
+- ✅ Dialog zeigt LLM, Embedding, Temp, Max Tokens, VRAM
+- ✅ "Profil aktivieren" setzt alle Einstellungen
+- ✅ Toast: "Profil gewechselt" mit Profil-Name
+- ✅ Grüne Info-Box zeigt aktives Profil
+- ✅ "(vom Profil)" Label bei Standard-Modell
+- ✅ "Benutzerdefiniert" ermöglicht manuelle Auswahl
+- ✅ Screenshot: .adw/screenshots/feature_20_model_profile.png
+
+Progress: 14/44 Features (31.8%)
+
 Nächste Session:
 - Nächstes Feature aus der Queue (adw features next)
 - RAG Streaming Performance könnte verbessert werden
-- Alle Core-Features (Document Upload, RAG, Model Selection) funktionieren
+- Alle Core-Features funktionieren stabil

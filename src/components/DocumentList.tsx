@@ -10,8 +10,8 @@
  * - Responsive design
  */
 
-import { useState } from 'react';
-import { File, Trash2, Calendar, Hash, HardDrive, CheckSquare, Square, X } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { File, Trash2, Calendar, Hash, HardDrive, CheckSquare, Square, X, Search } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useDocuments } from '../contexts/DocumentContext';
 import type { DocumentMetadata } from '../contexts/DocumentContext';
@@ -300,6 +300,20 @@ export function DocumentList() {
   } = useDocuments();
 
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  /**
+   * Filter documents by search query (case-insensitive)
+   */
+  const filteredDocuments = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return documents;
+    }
+    const query = searchQuery.toLowerCase().trim();
+    return documents.filter(doc =>
+      doc.originalName.toLowerCase().includes(query)
+    );
+  }, [documents, searchQuery]);
 
   /**
    * Format total size
@@ -359,7 +373,7 @@ export function DocumentList() {
     );
   }
 
-  // Empty state
+  // Empty state (no documents at all)
   if (documents.length === 0) {
     return (
       <div className="text-center py-8">
@@ -386,8 +400,60 @@ export function DocumentList() {
     );
   }
 
+  // No search results state
+  const showNoSearchResults = searchQuery.trim() && filteredDocuments.length === 0;
+
   return (
     <div>
+      {/* Search field */}
+      <div className="mb-3">
+        <div
+          className={`
+            flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors
+            ${isDark
+              ? 'bg-gray-800/50 border-gray-700 focus-within:border-blue-500'
+              : 'bg-white border-gray-200 focus-within:border-blue-400'
+            }
+          `}
+        >
+          <Search
+            className={`w-4 h-4 flex-shrink-0 ${
+              isDark ? 'text-gray-500' : 'text-gray-400'
+            }`}
+          />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Dokumente durchsuchen..."
+            className={`
+              flex-1 bg-transparent text-sm outline-none
+              ${isDark
+                ? 'text-gray-200 placeholder-gray-500'
+                : 'text-gray-800 placeholder-gray-400'
+              }
+            `}
+            aria-label="Dokumente nach Namen durchsuchen"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className={`
+                p-0.5 rounded transition-colors
+                ${isDark
+                  ? 'text-gray-500 hover:text-gray-300 hover:bg-gray-700'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                }
+              `}
+              title="Suche zurücksetzen"
+              aria-label="Suchfeld leeren"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Header with stats and selection controls */}
       <div className="mb-4">
         <div className="flex justify-between items-center">
@@ -396,7 +462,10 @@ export function DocumentList() {
               isDark ? 'text-gray-300' : 'text-gray-700'
             }`}
           >
-            Dokumente
+            {searchQuery.trim()
+              ? `${filteredDocuments.length} von ${totalDocuments} Dokumente${filteredDocuments.length !== 1 ? 'n' : ''}`
+              : 'Dokumente'
+            }
           </h3>
 
           {/* Selection mode controls */}
@@ -496,19 +565,55 @@ export function DocumentList() {
         )}
       </div>
 
-      {/* Document list */}
-      <div className="space-y-2">
-        {documents.map((document) => (
-          <DocumentItem
-            key={document.id}
-            document={document}
-            onDelete={deleteDocument}
-            isSelectionMode={isSelectionMode}
-            isSelected={selectedIds.has(document.id)}
-            onToggleSelect={toggleSelectDocument}
+      {/* Document list or no results message */}
+      {showNoSearchResults ? (
+        <div className="text-center py-6">
+          <Search
+            className={`w-12 h-12 mx-auto mb-3 ${
+              isDark ? 'text-gray-600' : 'text-gray-300'
+            }`}
           />
-        ))}
-      </div>
+          <h3
+            className={`text-sm font-medium mb-1 ${
+              isDark ? 'text-gray-400' : 'text-gray-500'
+            }`}
+          >
+            Keine Ergebnisse
+          </h3>
+          <p
+            className={`text-xs ${
+              isDark ? 'text-gray-500' : 'text-gray-400'
+            }`}
+          >
+            Keine Dokumente für "{searchQuery}" gefunden
+          </p>
+          <button
+            onClick={() => setSearchQuery('')}
+            className={`
+              mt-3 text-xs px-3 py-1.5 rounded-lg transition-colors
+              ${isDark
+                ? 'text-blue-400 hover:bg-blue-900/30'
+                : 'text-blue-600 hover:bg-blue-50'
+              }
+            `}
+          >
+            Suche zurücksetzen
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filteredDocuments.map((document) => (
+            <DocumentItem
+              key={document.id}
+              document={document}
+              onDelete={deleteDocument}
+              isSelectionMode={isSelectionMode}
+              isSelected={selectedIds.has(document.id)}
+              onToggleSelect={toggleSelectDocument}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Bulk delete confirmation dialog */}
       {showBulkDeleteDialog && (

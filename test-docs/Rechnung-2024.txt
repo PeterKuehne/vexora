@@ -1,0 +1,3 @@
+Test Document: Rechnung-2024.pdf
+This is a test PDF document for document search functionality testing.
+Content specific to: Rechnung-2024
