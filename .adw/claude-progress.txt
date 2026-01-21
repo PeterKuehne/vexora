@@ -1005,7 +1005,67 @@ Test-Ergebnisse:
 
 Progress: 15/44 Features (34.1%)
 
+=== Session: Coding Agent - Feature 14 ===
+Datum: 2026-01-21
+Agent: Coding Agent
+
+Erledigt:
+- [X] Feature 14: "User kann Hybrid Search Balance konfigurieren"
+- [X] hybridSearchAlpha Feld zu AppSettings hinzugefügt (0.0-1.0, Default 0.5)
+- [X] Hybrid Search Balance Slider in Settings > Erweitert (ModelSettings.tsx)
+- [X] Scale Icon + "Keyword" / "Semantic" Labels
+- [X] Wert-Anzeige (0-100%) rechts vom Slider
+- [X] Lila Info-Box mit Erklärung der drei Modi
+- [X] settingsStorage.ts Validation für hybridSearchAlpha
+- [X] RAGOptions und RAGRequest Types erweitert mit hybridAlpha
+- [X] VectorService.search() akzeptiert hybridAlpha Parameter
+- [X] ChatContext nutzt settings.hybridSearchAlpha für RAG-Requests
+- [X] Backend Validation Schema erweitert
+- [X] Build-Check erfolgreich (npm run build)
+- [X] Browser-Test erfolgreich
+- [X] Git Commit: 3ae1100
+
+Erstellte/Erweiterte Dateien:
+- src/types/settings.ts: hybridSearchAlpha Feld + Default 0.5
+- src/lib/settingsStorage.ts: Validation für hybridSearchAlpha (0-1 range)
+- src/components/ModelSettings.tsx: Hybrid Search Balance Slider UI
+- src/lib/api.ts: RAGOptions Interface erweitert
+- src/contexts/ChatContext.tsx: hybridSearchAlpha an RAG-Requests übergeben
+- server/src/validation/schemas.ts: hybridAlpha Validation
+- server/src/services/VectorService.ts: search() akzeptiert hybridAlpha
+- server/src/services/RAGService.ts: hybridAlpha durchschleifen
+- server/src/index.ts: hybridAlpha an RAGService übergeben
+- .adw/screenshots/feature_14_hybrid_search_balance.png
+
+UI Features implementiert:
+- Scale Icon für visuelles Feedback
+- "Keyword" Label links, "Semantic" Label rechts
+- Range Slider 0-100% mit lila Thumb
+- Wert-Anzeige (z.B. "50%") rechts vom Slider
+- Lila Info-Box mit Erklärung:
+  * 0% (Keyword): Exakte Wort-Übereinstimmung (BM25)
+  * 50% (Empfohlen): Ausgewogene Hybrid-Suche
+  * 100% (Semantic): Bedeutungsbasierte Vektor-Suche
+
+Backend Features:
+- hybridAlpha Parameter durch gesamten RAG-Stack:
+  * Chat API → RAGService → VectorService → Weaviate
+- Logging zeigt aktuellen Alpha-Wert bei Suche
+- Ready für echte Hybrid-Search wenn Embeddings verfügbar
+
+Test-Ergebnisse:
+- ✅ Settings > Erweitert zeigt Hybrid Search Balance Sektion
+- ✅ Scale Icon neben Label
+- ✅ Slider zwischen "Keyword" und "Semantic"
+- ✅ Wert-Anzeige zeigt "50%" (Default)
+- ✅ Info-Box erklärt alle drei Modi
+- ✅ Slider reagiert auf Input Events
+- ✅ Build-Check erfolgreich
+- ✅ Screenshot: .adw/screenshots/feature_14_hybrid_search_balance.png
+
+Progress: 16/44 Features (36.4%)
+
 Nächste Session:
 - Nächstes Feature aus der Queue (adw features next)
-- RAG Streaming Performance könnte verbessert werden
-- Alle Core-Features funktionieren stabil
+- Hybrid Search Balance ist konfigurierbar
+- RAG System verwendet den Alpha-Wert für Suche
