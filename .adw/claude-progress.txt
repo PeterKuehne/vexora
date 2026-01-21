@@ -1107,7 +1107,49 @@ Test-Ergebnisse:
 
 Progress: 17/44 Features (38.6%)
 
+=== Session: Coding Agent - Feature 15 ===
+Datum: 2026-01-21
+Agent: Coding Agent
+
+Erledigt:
+- [X] Feature 15: "User kann Top-K Chunks konfigurieren"
+- [X] ragTopK Feld zu AppSettings hinzugefügt (1-10, Default 5)
+- [X] Validation in settingsStorage.ts (Integer, Range 1-10)
+- [X] Top-K Chunks Slider UI in ModelSettings.tsx
+- [X] Layers Icon neben dem Label
+- [X] Slider-Range 1-10 mit Wert-Anzeige rechts
+- [X] Cyan Info-Box mit Erklärung der Trade-offs
+- [X] Toast-Notification bei Wert-Änderung
+- [X] ChatContext nutzt settings.ragTopK für RAG searchLimit
+- [X] Build-Check erfolgreich (npm run build)
+- [X] Browser-Test erfolgreich
+- [X] Git Commit: c5813b0
+
+Erstellte/Erweiterte Dateien:
+- src/types/settings.ts: ragTopK Feld + Default 5
+- src/lib/settingsStorage.ts: ragTopK Validation (1-10)
+- src/components/ModelSettings.tsx: Top-K Slider UI
+- src/contexts/ChatContext.tsx: settings.ragTopK an RAGOptions.searchLimit
+
+UI Features implementiert:
+- Layers Icon für visuelles Feedback
+- Slider mit "1" links und "10" rechts
+- Wert-Anzeige (z.B. "4") rechts vom Slider
+- Cyan Info-Box mit Erklärung:
+  * Weniger Chunks (1-3): Schnellere Antworten, fokussierter Kontext
+  * Mehr Chunks (5-10): Mehr Kontext, aber längere Antwortzeit
+
+Test-Ergebnisse:
+- ✅ Settings > Erweitert zeigt "Top-K Chunks (RAG)" Sektion
+- ✅ Slider reagiert auf Input (Pfeiltasten funktionieren)
+- ✅ Wert-Anzeige aktualisiert live
+- ✅ Toast: "Top-K Chunks: X Chunks werden für RAG abgerufen"
+- ✅ Build-Check erfolgreich
+- ✅ Screenshot: .adw/screenshots/feature_15_topk_chunks.png
+
+Progress: 18/44 Features (40.9%)
+
 Nächste Session:
 - Nächstes Feature aus der Queue (adw features next)
-- Async Processing System ist vollständig funktional
+- RAG-Konfiguration ist jetzt vollständig (Hybrid Alpha + Top-K)
 - Quality-Features weiter abarbeiten
