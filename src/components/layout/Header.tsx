@@ -8,11 +8,13 @@ import { type ReactNode } from 'react';
 import { Menu } from 'lucide-react';
 import { useTheme } from '../../contexts';
 import type { Theme } from '../../types/settings';
+import type { User } from '../../../server/src/types/auth';
 import { Logo } from '../Logo';
 import { ModelSelector } from '../ModelSelector';
 import { NewChatButton } from '../NewChatButton';
 import { SettingsButton } from '../SettingsButton';
 import { ThemeToggle } from '../ThemeToggle';
+import { UserMenu, UserMenuSkeleton } from '../UserMenu';
 
 export interface HeaderProps {
   /** Callback to create a new conversation */
@@ -45,6 +47,14 @@ export interface HeaderProps {
   onSettingsClick?: () => void;
   /** Whether to show settings button */
   showSettingsButton?: boolean;
+  /** Current authenticated user (null if not authenticated) */
+  user?: User | null;
+  /** Whether auth is loading */
+  isAuthLoading?: boolean;
+  /** Callback when user clicks logout */
+  onLogout?: () => void;
+  /** Whether to show user menu */
+  showUserMenu?: boolean;
 }
 
 // Theme toggle logic is now in ThemeToggle component
@@ -65,6 +75,10 @@ export function Header({
   showModelSelector = true,
   onSettingsClick,
   showSettingsButton = true,
+  user,
+  isAuthLoading = false,
+  onLogout,
+  showUserMenu = true,
 }: HeaderProps) {
   const { isDark } = useTheme();
 
@@ -154,6 +168,22 @@ export function Header({
             size="md"
             showLabel={true}
           />
+        )}
+
+        {/* User Menu - Show when authenticated */}
+        {showUserMenu && (
+          <div className="flex items-center">
+            {isAuthLoading ? (
+              <UserMenuSkeleton size="md" />
+            ) : user && onLogout ? (
+              <UserMenu
+                user={user}
+                onLogout={onLogout}
+                showRole={true}
+                size="md"
+              />
+            ) : null}
+          </div>
         )}
 
         {/* Theme Toggle */}

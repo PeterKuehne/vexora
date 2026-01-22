@@ -353,7 +353,7 @@ apps:
   type: frontend
   default_port: 5173
 conventions:
-  version: 4
+  version: 5
   created_at: '2026-01-22T00:11:01.287858Z'
   source: anthropic-discovery
   state_management:
@@ -595,8 +595,8 @@ conventions:
     - Always use AuthProvider at app root level
     - Handle 401 responses with automatic logout
     - Verify tokens server-side before database queries
-  last_updated: '2026-01-22T01:19:05.936138Z'
-  updated_by_feature: 58
+  last_updated: '2026-01-22T01:29:00.083623Z'
+  updated_by_feature: 59
   permission_filtering:
     system: PostgreSQL RLS + Weaviate Vector Filter
     discovered_in_feature: 67
@@ -637,3 +637,21 @@ conventions:
     - AuthContext listens for auth:token-refreshed and auth:logout events
     - Automatic logout occurs when refresh token is invalid
     - 'All API endpoints receive cookies automatically via credentials: ''include'''
+  ui_components:
+    system: UserMenu Component
+    discovered_in_feature: 59
+    discovered_at: '2026-01-22T01:29:00.082991Z'
+    import_path: '@/components/UserMenu'
+    reference_files:
+    - src/components/UserMenu.tsx:1
+    - src/components/layout/Header.tsx:160
+    - src/App.tsx:124
+    usage_pattern: // UserMenu mit Auth Integration\nimport { UserMenu } from '@/components/UserMenu';\nimport { useAuth }
+      from '@/contexts/AuthContext';\n\nconst { user, logout } = useAuth();\n\n<UserMenu\n  user={user}\n  onLogout={logout}\n  showRole={true}\n  size=\"md\"\n/>"
+    guidelines:
+    - Always use UserMenu for authenticated user display
+    - Include role badge for enterprise access control
+    - Implement dropdown menu with user info and logout
+    - Use TailwindCSS with theme support (MANDATORY)
+    - Handle loading states with UserMenuSkeleton
+    - Integrate with AuthContext for logout functionality

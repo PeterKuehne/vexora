@@ -35,18 +35,19 @@ router.get('/microsoft/login', asyncHandler(async (_req: Request, res: Response)
  */
 router.get('/microsoft/callback', asyncHandler(async (req: Request, res: Response) => {
   const { code, state, error } = req.query;
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
   // Check for OAuth error
   if (error) {
     console.error('Microsoft OAuth error:', error);
     const errorDescription = req.query.error_description || 'OAuth authentication failed';
-    return res.redirect(`/login?error=${encodeURIComponent(errorDescription as string)}`);
+    return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorDescription as string)}`);
   }
 
   // Validate required parameters
   if (!code || typeof code !== 'string') {
     console.error('Missing authorization code');
-    return res.redirect('/login?error=missing_code');
+    return res.redirect(`${frontendUrl}/login?error=missing_code`);
   }
 
   try {
@@ -82,11 +83,11 @@ router.get('/microsoft/callback', asyncHandler(async (req: Request, res: Respons
     console.log(`✅ User logged in: ${user.email} (${user.role})`);
 
     // Redirect to app
-    res.redirect('/chat');
+    res.redirect(`${frontendUrl}/chat`);
   } catch (error) {
     console.error('Microsoft callback error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-    res.redirect(`/login?error=${encodeURIComponent(errorMessage)}`);
+    res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`);
   }
 }));
 
@@ -115,18 +116,19 @@ router.get('/google/login', asyncHandler(async (_req: Request, res: Response) =>
  */
 router.get('/google/callback', asyncHandler(async (req: Request, res: Response) => {
   const { code, state, error } = req.query;
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
   // Check for OAuth error
   if (error) {
     console.error('Google OAuth error:', error);
     const errorDescription = req.query.error_description || 'OAuth authentication failed';
-    return res.redirect(`/login?error=${encodeURIComponent(errorDescription as string)}`);
+    return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorDescription as string)}`);
   }
 
   // Validate required parameters
   if (!code || typeof code !== 'string') {
     console.error('Missing authorization code');
-    return res.redirect('/login?error=missing_code');
+    return res.redirect(`${frontendUrl}/login?error=missing_code`);
   }
 
   try {
@@ -162,11 +164,11 @@ router.get('/google/callback', asyncHandler(async (req: Request, res: Response) 
     console.log(`✅ User logged in via Google: ${user.email} (${user.role})`);
 
     // Redirect to app
-    res.redirect('/chat');
+    res.redirect(`${frontendUrl}/chat`);
   } catch (error) {
     console.error('Google callback error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-    res.redirect(`/login?error=${encodeURIComponent(errorMessage)}`);
+    res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`);
   }
 }));
 

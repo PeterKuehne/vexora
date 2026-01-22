@@ -296,6 +296,7 @@ export { SourceDetailModal } from './SourceDetailModal';
 
 // Authentication components
 export { ProtectedRoute } from './ProtectedRoute';
+export { UserMenu, UserMenuSkeleton, type UserMenuProps } from './UserMenu';
 
 // UI components will be exported here
 // export { Button } from './ui/Button';

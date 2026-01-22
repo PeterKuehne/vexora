@@ -26,6 +26,7 @@ import {
   DocumentProvider,
   RAGProvider,
   AuthProvider,
+  useAuth,
   useToast,
   useToasts,
 } from './contexts';
@@ -36,6 +37,9 @@ function ChatApp() {
   const [isRetrying, setIsRetrying] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string>('qwen3:8b');
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
+  // Auth Context
+  const { user, isLoading: isAuthLoading, logout } = useAuth();
 
   // Ref to store the checkConnectivity function for use in handleRetry
   const checkConnectivityRef = useRef<(() => Promise<boolean>) | null>(null);
@@ -122,6 +126,10 @@ function ChatApp() {
       showModelSelector={true}
       onSettingsClick={handleSettingsClick}
       showSettingsButton={true}
+      user={user}
+      isAuthLoading={isAuthLoading}
+      onLogout={logout}
+      showUserMenu={true}
     />
   );
 
