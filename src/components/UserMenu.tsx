@@ -5,7 +5,8 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { User, LogOut, ChevronDown } from 'lucide-react';
+import { User, LogOut, ChevronDown, UserCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts';
 import type { User as UserType } from '../../server/src/types/auth';
 
@@ -28,6 +29,7 @@ export function UserMenu({
 }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   const { isDark } = useTheme();
 
   // Close menu when clicking outside
@@ -50,6 +52,12 @@ export function UserMenu({
   const handleLogout = () => {
     setIsOpen(false);
     onLogout();
+  };
+
+  // Handle profile click
+  const handleProfileClick = () => {
+    setIsOpen(false);
+    navigate('/profile');
   };
 
   // Size variants following TailwindCSS conventions
@@ -162,6 +170,28 @@ export function UserMenu({
 
           {/* Menu Items */}
           <div className="py-2">
+            {/* Profile Menu Item */}
+            <button
+              onClick={handleProfileClick}
+              className={`
+                w-full flex items-center gap-3 px-4 py-2
+                text-left transition-colors duration-150
+                ${isDark
+                  ? 'text-gray-300 hover:text-white hover:bg-white/10'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-black/5'
+                }
+                focus:outline-none focus:ring-2 focus:ring-inset
+                ${isDark ? 'focus:ring-white/20' : 'focus:ring-black/20'}
+              `.trim()}
+            >
+              <UserCircle
+                size={16}
+                className={isDark ? 'text-gray-400' : 'text-gray-500'}
+              />
+              <span>Mein Profil</span>
+            </button>
+
+            {/* Logout Menu Item */}
             <button
               onClick={handleLogout}
               className={`

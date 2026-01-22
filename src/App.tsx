@@ -13,7 +13,7 @@ import {
   ProtectedRoute,
   type SidebarControls,
 } from './components';
-import { LoginPage, AdminUsersPage, DocumentsPage } from './pages';
+import { LoginPage, AdminUsersPage, DocumentsPage, ProfilePage } from './pages';
 import { checkHealth } from './lib/api';
 import {
   ConversationProvider,
@@ -228,6 +228,16 @@ function AppRoutes() {
         element={
           <ProtectedRoute requiredRole="Admin">
             <AdminUsersPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Protected Profile Route */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
           </ProtectedRoute>
         }
       />
