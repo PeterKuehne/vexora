@@ -1,5 +1,5 @@
 #!/bin/bash
-# ADW Init Script for Vexora
+# ADW Init Script for Vexora Enterprise Authentication & Authorization System
 # Auto-generated from adw_config.yaml
 #
 # This script sets up the development environment in a worktree.
@@ -24,20 +24,3 @@ if [ -f ".ports.env" ]; then
 else
     log_warn "No port configuration found, using defaults"
 fi
-
-# Install dependencies
-log_info "Installing dependencies..."
-npm install
-
-# Start backend server in background
-log_info "Starting backend server..."
-cd server && npm install && npm run dev &
-BACKEND_PID=$!
-cd ..
-
-# Wait for backend to be ready
-sleep 2
-
-# Start frontend dev server
-log_info "Starting frontend dev server..."
-npm run dev

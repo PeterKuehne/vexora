@@ -1,376 +1,532 @@
 project_context:
-  name: "Vexora"
+  name: "Vexora Enterprise Authentication & Authorization System"
   type: "enhancement"
   current_stack:
     frontend: "React 19 + TypeScript + Vite"
     backend: "Express.js + TypeScript"
     llm: "Ollama (local)"
-    storage: "Browser localStorage"
+    vector_db: "Weaviate"
+    database: "PostgreSQL"
     styling: "Tailwind CSS"
-  scale: "Single-user, local deployment, MacBook M2 16GB primary target, scalable to 64GB+ workstations"
-  deployment: "Local only, no cloud services"
+  scale: "100+ gleichzeitige Benutzer, 1000+ Dokumente"
+  deployment: "Self-hosted Enterprise"
 
 existing_functionality:
-  - "Conversations with Ollama-powered LLMs (Qwen and other models)"
-  - "Real-time streaming responses from LLM"
-  - "Multiple conversation management (create, switch, delete)"
-  - "Persistent conversation history in browser localStorage"
-  - "Ollama model selection and management"
-  - "Advanced LLM settings (temperature, top_p, top_k, tokens)"
-  - "Persistent system prompt configuration"
-  - "Light/Dark theme support"
-  - "Markdown rendering with code syntax highlighting"
-  - "Message editing and regeneration"
-  - "Auto-save functionality"
-  - "Settings import/export"
+  - "Single-User RAG-System ohne Authentifizierung"
+  - "Dokument-Upload und -Verarbeitung"
+  - "RAG-basierte Chat-Funktion mit Ollama"
+  - "Weaviate Vektor-Suche"
+  - "PostgreSQL Dokumenten-Speicherung"
+  - "Real-time Streaming Responses"
+  - "Multiple Conversation Management"
+  - "Markdown Rendering mit Code Syntax Highlighting"
 
 requirements:
-  - name: "Document Upload and Indexing"
+  - name: "SSO Authentication"
     priority: high
+
     libraries:
-      - "unpdf"
-    implementation_scope:
-      - "PDF document upload through UI"
-      - "Document list view with processing status (pending, processing, completed, failed)"
-      - "Document deletion functionality"
-      - "Document filtering by category or tags"
-      - "Metadata management (category, tags, custom fields)"
-      - "Document chunking for searchable segments"
-      - "Vector embedding conversion"
-      - "Fast retrieval indexing"
-      - "Metadata storage (filename, upload date, page numbers)"
-    constraints:
-      - "Maximum file size: 50MB per PDF"
-      - "Must handle multi-page PDFs"
-      - "Processing must not block the UI"
-      - "Users must see upload progress"
-      - "Failed uploads must show clear error messages"
-    success_criteria:
-      - "User can upload a 20-page PDF and see it indexed within 30 seconds"
-      - "User can see processing progress in real-time"
-      - "User receives notification when processing completes or fails"
-      - "Uploaded documents persist across browser sessions"
-    out_of_scope:
-      - "Word documents, Excel files (only PDF for MVP)"
-      - "Batch upload of multiple files simultaneously"
-      - "OCR for scanned PDFs"
-      - "Document versioning"
+      - "arctic"
+      - "@azure/msal-node"
+      - "jsonwebtoken"
+      - "bcrypt"
+      - "express-session"
 
-  - name: "Hybrid Search (Vector + Keyword)"
+    implementation_scope:
+      - "OAuth2 Authorization Code Flow mit PKCE"
+      - "Microsoft Entra ID Integration"
+      - "Google Workspace Integration"
+      - "JWT-Token Generation und Validierung"
+      - "Refresh-Token Flow"
+      - "Automatische Profil-Erstellung beim ersten Login"
+
+    constraints:
+      - "Login < 5 Sekunden"
+      - "JWT signiert mit min 256 Bit Secret"
+      - "HTTPS fuer OAuth2-Callbacks in Produktion"
+      - "Access-Token 15min, Refresh-Token 30 Tage"
+
+    success_criteria:
+      - "Login mit Microsoft/Google funktioniert"
+      - "Session 7 Tage gueltig mit Refresh-Token"
+      - "Logout invalidiert Token"
+
+    out_of_scope:
+      - "SAML SSO"
+      - "2FA/MFA"
+      - "Passwort-Reset"
+
+  - name: "Benutzerverwaltung"
     priority: high
+
+    libraries: []
+
+    implementation_scope:
+      - "Admin-UI fuer Benutzer anzeigen, Rollen zuweisen, Abteilungen zuordnen"
+      - "Benutzer deaktivieren und Profile bearbeiten"
+      - "Benutzer-Profil ansehen/bearbeiten (Self-Service)"
+      - "PostgreSQL users-Tabelle (id, email, name, role, department, provider)"
+      - "Audit-Trail fuer Benutzeraenderungen"
+
+    constraints:
+      - "Nur Admins verwalten Benutzer"
+      - "Mindestens ein Admin muss existieren"
+      - "Email eindeutig"
+
+    success_criteria:
+      - "Admin kann Rollen/Abteilungen zuweisen"
+      - "Deaktivierte Benutzer koennen sich nicht anmelden"
+
+    out_of_scope:
+      - "Gruppen/Teams"
+      - "Einladungen"
+      - "Self-Service-Registrierung"
+
+  - name: "Rollenbasierte Zugriffskontrolle (RBAC)"
+    priority: high
+
+    libraries: []
+
+    implementation_scope:
+      - "Drei Rollen: Employee, Manager, Admin"
+      - "Employee: Eigene Dokumente"
+      - "Manager: Abteilungs-Dokumente"
+      - "Admin: Alle Dokumente + System-Einstellungen"
+      - "Rollen definieren API-Zugriff und UI-Sichtbarkeit"
+
+    constraints:
+      - "Ein Benutzer = eine Rolle"
+      - "Rollenwechsel nur durch Admin"
+
+    success_criteria:
+      - "Employee sieht nur eigene Dokumente"
+      - "Manager sieht Abteilungs-Dokumente"
+      - "Admin sieht alles"
+
+    out_of_scope:
+      - "Custom Roles"
+      - "Rollen-Hierarchien"
+      - "Mehrere Rollen pro Benutzer"
+
+  - name: "Dokument-Berechtigungen"
+    priority: high
+
+    libraries: []
+
+    implementation_scope:
+      - "Dokument-Attribute: Owner, Department, Classification, Allowed Roles, Allowed Users"
+      - "Klassifikationsstufen: public, internal, confidential, restricted"
+      - "Berechtigungen beim Upload festlegbar"
+      - "Nachtraegliche Aenderung durch Owner/Admin"
+
+    constraints:
+      - "Employee max 'internal'"
+      - "Manager max 'confidential'"
+      - "Aenderungen sofort wirksam"
+
+    success_criteria:
+      - "Classification bestimmt Sichtbarkeit"
+      - "RAG-Suche respektiert Berechtigungen automatisch"
+
+    out_of_scope:
+      - "Zeitlich begrenzte Berechtigungen"
+      - "Externe Freigabe-Links"
+
+  - name: "PostgreSQL Row Level Security (RLS)"
+    priority: high
+
+    libraries: []
+
+    implementation_scope:
+      - "RLS auf documents-Tabelle aktivieren"
+      - "Policies: public, department, owner, role, user, admin"
+      - "Automatische Filterung transparent fuer Anwendungscode"
+      - "Benutzerkontext via SET LOCAL (user_id, role, department)"
+
+    constraints:
+      - "Performance < 50ms"
+      - "Policies vor jeder Query setzen"
+
+    success_criteria:
+      - "SELECT * FROM documents zeigt nur autorisierte Dokumente"
+      - "Marketing sieht keine HR-Dokumente"
+
+    out_of_scope:
+      - "RLS auf anderen Tabellen"
+      - "Dynamische Policy-Generierung"
+
+  - name: "Secure RAG Service"
+    priority: high
+
+    libraries: []
+
+    implementation_scope:
+      - "VOR Vektor-Suche: Benutzerkontext ermitteln, RLS setzen, erlaubte document_ids abrufen"
+      - "Weaviate Filter mit erlaubten document_ids erstellen"
+      - "Filterung VOR Suche (nicht Post-Processing)"
+      - "Verifizieren dass Chunks autorisiert sind"
+      - "Nur sichtbare Source Citations anzeigen"
+      - "Audit-Log fuer RAG-Queries"
+
+    constraints:
+      - "Performance +100ms max gegenueber ungefiltert"
+      - "Zero Information Leakage"
+      - "Anti-Pattern vermeiden: Post-Processing Filterung"
+
+    success_criteria:
+      - "Marketing fragt 'Gehaelter' -> Keine HR-Daten"
+      - "Nur autorisierte Citations anzeigen"
+
+    out_of_scope:
+      - "Query-Rewriting zur Umgehung"
+      - "Partial Results"
+
+  - name: "API-Authentifizierung"
+    priority: high
+
+    libraries: []
+
+    implementation_scope:
+      - "JWT-Token in Authorization-Header erforderlich"
+      - "Token-Validierung Middleware"
+      - "401 Unauthorized bei fehlendem/ungueltigem Token"
+      - "403 Forbidden bei fehlenden Berechtigungen"
+      - "Geschuetzte Endpunkte: /api/rag/*, /api/chat/*, /api/ollama/*"
+
+    constraints:
+      - "Middleware < 10ms Overhead"
+      - "Token-Refresh unterstuetzen"
+
+    success_criteria:
+      - "Ohne Token -> 401"
+      - "Mit gueltigem Token -> Benutzer-Kontext verfuegbar"
+
+    out_of_scope:
+      - "API-Keys"
+      - "Rate Limiting"
+      - "IP-Restriktion"
+
+  - name: "Frontend Login & Session"
+    priority: high
+
     libraries:
-      - "weaviate-client"
-    implementation_scope:
-      - "Semantic search via vector similarity"
-      - "Keyword search with exact/fuzzy matching"
-      - "Combined scoring (hybrid approach)"
-      - "User-configurable search behavior (semantic vs keyword balance)"
-      - "Search filtering by document metadata"
-      - "Display of documents used in response"
-    constraints:
-      - "Search latency must be under 300ms"
-      - "Must support German and English documents"
-      - "Must handle documents up to 1000 pages"
-      - "Minimum 1000 documents supported"
-    success_criteria:
-      - "Finding 'Datenschutz DSGVO Artikel 6' returns relevant chunks from privacy policy"
-      - "Searching for exact product codes works reliably"
-      - "Users can understand why certain documents were retrieved"
-    out_of_scope:
-      - "Multi-language search across more than 2 languages"
-      - "Image/diagram search within PDFs"
-      - "Real-time document updates"
+      - "react-router-dom"
+      - "axios"
 
-  - name: "Reranking for Better Accuracy"
+    implementation_scope:
+      - "Login-Seite mit Microsoft/Google SSO-Buttons (separate Route /login)"
+      - "OAuth2 Redirect-Flow"
+      - "JWT in localStorage oder httpOnly-Cookie"
+      - "Auto-Refresh mit Refresh-Token"
+      - "ProtectedRoute Komponente (schuetzt /chat und /documents Routen)"
+      - "React Router Setup mit Routes: /login, /chat, /documents"
+      - "Benutzer-Menu in Navbar (Profil, Logout)"
+
+    constraints:
+      - "Responsiv (Mobile + Desktop)"
+      - "Token nicht in URL"
+
+    success_criteria:
+      - "SSO-Flow funktioniert (OAuth2 -> Redirect zu /chat)"
+      - "Nicht-authentifizierte Benutzer werden zu /login redirected"
+      - "ProtectedRoute schuetzt /chat und /documents Routen"
+      - "Navbar zeigt Benutzernamen"
+      - "Logout leitet zu /login um"
+
+    out_of_scope:
+      - "Profil-Bearbeitung"
+      - "Passwort-Aenderung"
+      - "Session-Historie"
+
+  - name: "Audit Logging"
     priority: medium
-    libraries: []
-    implementation_scope:
-      - "Re-scoring of candidate chunks for relevance"
-      - "Cross-encoder model for accurate ranking via Ollama"
-      - "Return only top 3-5 most relevant chunks"
-      - "Toggle reranking on/off in settings"
-    constraints:
-      - "Reranking must complete within 100ms"
-      - "Must work offline (local model)"
-      - "Must support German and English"
-    success_criteria:
-      - "Retrieval precision improves by at least 15% with reranking enabled"
-      - "Users can toggle reranking on/off in settings"
-      - "Response quality is noticeably better with reranking"
-    out_of_scope:
-      - "Custom reranking model training"
-      - "A/B testing framework"
 
-  - name: "RAG-Enhanced Chat"
+    libraries: []
+
+    implementation_scope:
+      - "Protokollieren: Logins, Dokument-Uploads, RAG-Queries, Berechtigungsaenderungen, Admin-Aktionen"
+      - "Log-Eintraege: Timestamp, User-ID, Email, Aktion, Ressource, Ergebnis"
+      - "PostgreSQL audit_logs Tabelle"
+      - "90 Tage Aufbewahrung"
+      - "Admin-Zugriff auf Logs"
+      - "Append-only (Manipulationsschutz)"
+
+    constraints:
+      - "Keine Performance-Einbussen"
+      - "Keine sensiblen Daten in Logs"
+
+    success_criteria:
+      - "Admin sieht Upload/Query-Historie"
+      - "Fehlgeschlagene Logins protokolliert"
+
+    out_of_scope:
+      - "Echtzeit-Alerting"
+      - "SIEM-Integration"
+      - "Log-Export"
+
+  - name: "Upload mit Berechtigungen"
     priority: high
+
+    libraries: []
+
+    implementation_scope:
+      - "Upload-UI mit Classification Dropdown"
+      - "Sichtbarkeit: nur ich, Abteilung, alle"
+      - "Multi-Select fuer spezifische Benutzer"
+      - "Owner und Department automatisch setzen"
+      - "Default-Classification basierend auf Rolle"
+      - "Berechtigungen in PostgreSQL + Weaviate speichern"
+      - "Vorschau effektiver Berechtigungen"
+
+    constraints:
+      - "Employee max 'internal'"
+      - "Manager max 'confidential'"
+      - "Nachtraegliche Aenderung moeglich (Owner/Admin)"
+
+    success_criteria:
+      - "Upload zeigt Berechtigungsoptionen"
+      - "Berechtigungen korrekt gespeichert"
+
+    out_of_scope:
+      - "Bulk-Upload mit Berechtigungen"
+      - "Template-Berechtigungen"
+
+  - name: "Intelligent RAG Activation (Smart Auto)"
+    priority: high
+
+    libraries: []
+
+    implementation_scope:
+      - "RAG aktiviert sich automatisch bei relevanten Queries"
+      - "Intent Detection (keyword-basiert)"
+      - "Query analysieren ob firmenspezifisch"
+      - "Source Citations anzeigen wenn RAG genutzt wurde"
+      - "Settings: Immer an, Automatisch (default), Manueller Toggle"
+
+    constraints:
+      - "Intent Detection < 50ms"
+      - "Kein RAG bei Smalltalk (Performance)"
+      - "Transparenz: User muss wissen ob RAG aktiv war"
+
+    success_criteria:
+      - "'Was ist unsere Pricing-Strategie?' -> RAG laeuft automatisch"
+      - "'Wie gehts?' -> Kein RAG"
+      - "User sieht '3 Quellen gefunden' oder keine Anzeige"
+
+    out_of_scope:
+      - "Komplexe LLM-basierte Intent Detection"
+
+  - name: "Document Management Page"
+    priority: high
+
     libraries:
-      - "llamaindex"
-    implementation_scope:
-      - "Enable/disable RAG per conversation"
-      - "Source citations in LLM responses"
-      - "Clickable citations to view original document/page"
-      - "Configurable chunk retrieval count (top-K)"
-      - "Document filtering by category/tags for search"
-      - "Retrieve relevant chunks before generating response"
-      - "Include chunk context in LLM prompt"
-      - "Stream responses with citations"
-      - "Display contributing documents"
-    constraints:
-      - "RAG must not significantly slow down response time (max +500ms)"
-      - "Citations must be accurate (correct document and page number)"
-      - "RAG must work with existing streaming architecture"
-      - "Must gracefully handle no relevant documents found"
-    success_criteria:
-      - "User asks 'What does our privacy policy say about GDPR Article 6?' and gets accurate answer with source citation"
-      - "Citations link directly to the source document/page"
-      - "Response indicates 'Based on 3 documents: privacy_policy.pdf (page 12), gdpr_guide.pdf (page 5)...'"
-      - "User can disable RAG and get normal chat behavior"
-    out_of_scope:
-      - "Multi-hop reasoning across documents"
-      - "Automatic follow-up questions"
-      - "Citation confidence scores"
+      - "socket.io-client"
+      - "react-router-dom"
 
-  - name: "Structured Data Queries"
-    priority: medium
-    libraries: []
     implementation_scope:
-      - "Query structured data from PostgreSQL database"
-      - "Combine document search with database queries"
-      - "Merge answers from both sources"
-      - "Store structured business data in PostgreSQL"
-      - "Natural language to SQL conversion"
-      - "Clear indication when database was queried"
-    constraints:
-      - "Read-only database access (no writes/updates)"
-      - "Must work with existing PostgreSQL schemas"
-      - "Queries must complete within 2 seconds"
-      - "Must prevent SQL injection"
-    success_criteria:
-      - "User asks 'How many customers do we have in Berlin?' and gets answer from database"
-      - "User asks 'What does the manual say about customer onboarding?' and gets answer from documents"
-      - "System can handle questions requiring both sources"
-    out_of_scope:
-      - "Database schema modifications"
-      - "Complex multi-table joins"
-      - "Real-time database syncing"
-      - "Write operations to database"
+      - "Dedizierte Route /documents mit React Router (separate Seite, NICHT Sidebar)"
+      - "Vollbild-Seite fuer Dokumente (gesamter Viewport, kein Sidebar-Panel)"
+      - "Header Navigation mit Links: Chat | Dokumente (Page-Wechsel via React Router)"
+      - "Upload-Bereich mit Drag & Drop + Permission-Panel"
+      - "Storage-Quota-Anzeige"
+      - "Filter & Suche (Kategorie, Tags, Name)"
+      - "Document-Table (sortierbar, filterbar, selectable)"
+      - "Bulk-Actions (Multi-Select, Bulk-Delete)"
+      - "Permission-Badges und Inline-Actions"
+      - "Echtzeit-Updates via Socket.io"
 
-  - name: "Document Management UI"
-    priority: high
-    libraries: []
-    implementation_scope:
-      - "Dashboard to view all uploaded documents"
-      - "Processing status and error display"
-      - "Document search and filtering"
-      - "Document deletion"
-      - "Document metadata preview"
-      - "Bulk delete multiple documents"
     constraints:
-      - "Must be responsive (mobile-friendly)"
-      - "Must show real-time processing updates"
-      - "Must handle 1000+ documents without performance issues"
-      - "Must integrate seamlessly with existing UI theme"
-    success_criteria:
-      - "User can find any document within 3 clicks"
-      - "User can see why a document failed to process"
-      - "User can delete multiple documents at once"
-      - "Dashboard loads in under 1 second even with 1000 documents"
-    out_of_scope:
-      - "Document preview/reader"
-      - "Collaborative document sharing"
-      - "Document annotations"
+      - "Responsiv (Mobile + Desktop)"
+      - "1000+ Dokumente ohne Performance-Probleme"
 
-  - name: "Model Configuration & Flexibility"
-    priority: high
-    libraries: []
-    implementation_scope:
-      - "Select LLM model from available Ollama models"
-      - "Select embedding model from available Ollama models"
-      - "Select reranker model from available Ollama models"
-      - "Switch between model profiles (e.g., 'MacBook 16GB', 'Workstation 64GB')"
-      - "Create custom model configurations"
-      - "View current model memory usage"
-      - "Test model configuration before applying"
-      - "Auto-discover available Ollama models"
-      - "Detect embedding dimension changes"
-      - "Offer to re-index documents when embedding model changes"
-      - "Show model compatibility warnings"
-      - "Support profile presets for different hardware configurations"
-    constraints:
-      - "Must not hardcode model names in application code"
-      - "Must handle different embedding dimensions (768, 1024, 8192, etc.)"
-      - "Must work on MacBook M2 16GB unified memory"
-      - "Must support future hardware upgrades without code changes"
-      - "Settings must persist across sessions"
     success_criteria:
-      - "User can switch from 8B to 32B LLM model without code changes"
-      - "User can upgrade embedding model and system handles re-indexing"
-      - "System shows 'Model incompatible with 16GB memory' warning appropriately"
-      - "Profile switching works seamlessly (select preset -> apply -> done)"
-      - "New models pulled via Ollama automatically appear in UI"
-    out_of_scope:
-      - "Cloud API providers (OpenAI, Anthropic) in MVP"
-      - "Custom model training"
-      - "Automatic model selection based on query complexity"
+      - "User kann zur separaten /documents Seite navigieren (nicht Sidebar)"
+      - "Dokumente-Seite nutzt vollen Bildschirm"
+      - "Navigation zwischen Chat und Documents funktioniert (React Router)"
+      - "User findet Dokumente in < 3 Klicks"
+      - "Table-Sorting/Filtering funktioniert"
+      - "Permission-Badges zeigen Zugriff klar"
+      - "Storage-Quota sichtbar"
 
-  - name: "RAG Configuration & Settings"
-    priority: medium
-    libraries: []
-    implementation_scope:
-      - "Hybrid search balance configuration (semantic vs keyword weight: alpha parameter)"
-      - "Number of chunks to retrieve (top-K: 1-10)"
-      - "Enable/disable reranking toggle"
-      - "Default categories/tags configuration"
-      - "Chunk size and overlap settings (advanced)"
-    constraints:
-      - "Settings must persist across sessions"
-      - "Changes must apply immediately"
-      - "Must provide sensible defaults"
-      - "Must include helpful tooltips"
-    success_criteria:
-      - "User can adjust alpha from 0.0 (pure keyword) to 1.0 (pure semantic)"
-      - "User can increase top-K to 10 for more context"
-      - "Settings UI is intuitive for non-technical users"
     out_of_scope:
-      - "A/B testing of different configurations"
-      - "Automatic parameter tuning"
-
-  - name: "Analytics & Monitoring"
-    priority: low
-    libraries: []
-    implementation_scope:
-      - "Display total number of documents indexed"
-      - "Storage usage display"
-      - "Most frequently queried documents"
-      - "Average retrieval time"
-      - "Query success rate"
-    constraints:
-      - "Analytics must not impact performance"
-      - "Data stored locally (no external analytics)"
-      - "Basic visualizations only"
-    success_criteria:
-      - "User can see total documents and storage used"
-      - "User can identify which documents are never used"
-      - "System logs errors for debugging"
-    out_of_scope:
-      - "Advanced analytics dashboard"
-      - "Query optimization recommendations"
-      - "Cost tracking"
+      - "Sidebar-basiertes Document Management (muss separate Seite sein)"
+      - "Document-Preview"
+      - "Annotations"
+      - "Grid-View"
 
 tech_stack:
   new_dependencies:
     npm:
-      - "unpdf"
-      - "llamaindex"
-      - "weaviate-client"
+      - "arctic@^3.7.0"
+      - "@azure/msal-node@^3.8.5"
+      - "jsonwebtoken@^9.0.3"
+      - "bcrypt@^6.0.0"
+      - "express-session@^1.18.2"
+      - "react-router-dom@^7.12.0"
+      - "axios"
+      - "@types/jsonwebtoken@^9.0.7"
+      - "@types/bcrypt@^5.0.2"
+      - "@types/express-session@^1.18.0"
     pip: []
-    docker:
-      - "weaviate/weaviate:1.34.8"
-      - "postgres:16"
-      - "redis:7"
 
   apis_to_create:
-    - endpoint: "POST /api/rag/documents"
-      description: "Upload document"
-      authentication: "None (single-user local)"
+    - endpoint: "GET /api/auth/microsoft"
+      description: "Initiiere Microsoft OAuth2 Login"
+      authentication: "none"
 
-    - endpoint: "GET /api/rag/documents"
-      description: "List documents with filters"
-      authentication: "None (single-user local)"
+    - endpoint: "GET /api/auth/microsoft/callback"
+      description: "Microsoft OAuth2 Callback Handler"
+      authentication: "none"
 
-    - endpoint: "GET /api/rag/documents/:id"
-      description: "Get document details"
-      authentication: "None (single-user local)"
+    - endpoint: "GET /api/auth/google"
+      description: "Initiiere Google OAuth2 Login"
+      authentication: "none"
 
-    - endpoint: "DELETE /api/rag/documents/:id"
-      description: "Delete document"
-      authentication: "None (single-user local)"
+    - endpoint: "GET /api/auth/google/callback"
+      description: "Google OAuth2 Callback Handler"
+      authentication: "none"
 
-    - endpoint: "GET /api/rag/documents/:id/status"
-      description: "Check processing status"
-      authentication: "None (single-user local)"
+    - endpoint: "POST /api/auth/logout"
+      description: "Logout und Token invalidieren"
+      authentication: "JWT required"
 
-    - endpoint: "POST /api/rag/search"
-      description: "Search in documents (hybrid search)"
-      authentication: "None (single-user local)"
+    - endpoint: "GET /api/auth/me"
+      description: "Aktuellen Benutzer abrufen"
+      authentication: "JWT required"
 
-    - endpoint: "POST /api/rag/chat"
-      description: "Chat with RAG context, streaming"
-      authentication: "None (single-user local)"
+    - endpoint: "POST /api/auth/refresh"
+      description: "Access-Token mit Refresh-Token erneuern"
+      authentication: "Refresh-Token required"
 
-    - endpoint: "GET /api/rag/config"
-      description: "Get RAG settings"
-      authentication: "None (single-user local)"
+    - endpoint: "GET /api/users"
+      description: "Alle Benutzer auflisten"
+      authentication: "JWT required, Admin only"
 
-    - endpoint: "PUT /api/rag/config"
-      description: "Update RAG settings"
-      authentication: "None (single-user local)"
+    - endpoint: "GET /api/users/:id"
+      description: "Einzelnen Benutzer abrufen"
+      authentication: "JWT required"
 
-    - endpoint: "GET /api/rag/models"
-      description: "List available Ollama models"
-      authentication: "None (single-user local)"
+    - endpoint: "PUT /api/users/:id"
+      description: "Benutzer aktualisieren"
+      authentication: "JWT required, Admin only"
 
-    - endpoint: "GET /api/rag/models/profiles"
-      description: "Get model profile presets"
-      authentication: "None (single-user local)"
+    - endpoint: "PUT /api/users/:id/role"
+      description: "Benutzer-Rolle aendern"
+      authentication: "JWT required, Admin only"
 
-    - endpoint: "POST /api/rag/models/test"
-      description: "Test model configuration"
-      authentication: "None (single-user local)"
+    - endpoint: "PUT /api/users/:id/deactivate"
+      description: "Benutzer deaktivieren"
+      authentication: "JWT required, Admin only"
 
-    - endpoint: "PUT /api/rag/models/active"
-      description: "Set active model profile"
-      authentication: "None (single-user local)"
+    - endpoint: "GET /api/audit/logs"
+      description: "Audit-Logs abrufen"
+      authentication: "JWT required, Admin only"
 
-    - endpoint: "GET /api/rag/analytics/queries"
-      description: "Query statistics"
-      authentication: "None (single-user local)"
-
-    - endpoint: "GET /api/rag/analytics/documents"
-      description: "Document statistics"
-      authentication: "None (single-user local)"
+    - endpoint: "GET /api/audit/logs/user/:id"
+      description: "Audit-Logs fuer Benutzer"
+      authentication: "JWT required, Admin only"
 
   database_changes:
-    - "Add documents table (id, filename, file_type, file_size, upload_date, processed_date, status, metadata, chunk_count, error_message)"
-    - "Add document_embeddings table (document_id, embedding_model, embedding_dimensions, indexed_at)"
-    - "Add processing_jobs table (id, document_id, status, priority, created_at, started_at, completed_at, progress, retry_count, error_message)"
-    - "Add query_logs table (id, query_text, conversation_id, timestamp, retrieval_time, chunks_retrieved, response_time, user_rating)"
-    - "Add model_configurations table (id, profile_id, profile_name, is_active, llm_model, llm_provider, embedding_model, embedding_dimensions, reranker_model, chunk_size, chunk_overlap, retrieval_top_k, created_at, updated_at)"
-    - "Weaviate: Document chunks collection with flexible dimension embeddings"
-    - "Weaviate: Metadata (document_id, page_number, chunk_index, embedding_model)"
-    - "Weaviate: Multiple collections for different embedding dimensions if needed"
-    - "Install pgvector 0.8.1 extension for PostgreSQL"
+    - "CREATE TABLE users (id, email UNIQUE, name, role, department, provider, provider_id, is_active, created_at, last_login)"
+    - "CREATE TABLE refresh_tokens (id, user_id, token_hash, expires_at, created_at)"
+    - "CREATE TABLE audit_logs (id, user_id, user_email, action, resource_type, resource_id, result, ip_address, user_agent, metadata JSONB, created_at)"
+    - "ALTER TABLE documents ADD COLUMN owner_id, department, classification, allowed_roles[], allowed_users[]"
+    - "CREATE INDEX users_email_idx ON users(email)"
+    - "CREATE INDEX users_provider_idx ON users(provider, provider_id)"
+    - "CREATE INDEX documents_owner_idx ON documents(owner_id)"
+    - "CREATE INDEX documents_department_idx ON documents(department)"
+    - "CREATE INDEX documents_classification_idx ON documents(classification)"
+    - "CREATE INDEX audit_logs_user_created_idx ON audit_logs(user_id, created_at)"
+    - "CREATE INDEX audit_logs_action_created_idx ON audit_logs(action, created_at)"
+    - "ALTER TABLE documents ENABLE ROW LEVEL SECURITY"
+    - "CREATE POLICY documents_public_policy ON documents"
+    - "CREATE POLICY documents_department_policy ON documents"
+    - "CREATE POLICY documents_owner_policy ON documents"
+    - "CREATE POLICY documents_role_policy ON documents"
+    - "CREATE POLICY documents_user_policy ON documents"
+    - "CREATE POLICY documents_admin_policy ON documents"
 
-  infrastructure:
-    docker_services:
-      - name: "weaviate"
-        image: "weaviate/weaviate:1.34.8+"
-        port: 8080
-        memory_limit: "2GB"
-        description: "Vector database with native hybrid search"
+security:
+  principles:
+    - "Zero-Trust Architecture: Authentifizierung + Autorisierung bei jedem Request"
+    - "Defense in Depth: Frontend Guards + API Middleware + Service Layer + RLS"
+    - "Authorization as Query Logic: Filterung VOR Suche"
+  token_config:
+    access_token_ttl: "15 minutes"
+    refresh_token_ttl: "30 days"
+    jwt_secret_min_bits: 256
+  compliance:
+    - "DSGVO-konform (Art. 15, 17)"
+    - "IP-Anonymisierung nach 90 Tagen"
+    - "Audit-Trail vollstaendig"
 
-      - name: "postgresql"
-        image: "postgres:16+"
-        port: 5432
-        memory_limit: "1GB"
-        description: "Structured data storage with pgvector extension"
+performance:
+  targets:
+    - "Login < 3 Sekunden"
+    - "Token-Validierung < 5ms"
+    - "RLS-Policy < 50ms"
+    - "RAG-Authorization < 150ms"
+    - "100+ gleichzeitige Benutzer"
+    - "1 Million Audit-Log Eintraege"
 
-      - name: "redis"
-        image: "redis:7.x"
-        port: 6379
-        memory_limit: "512MB"
-        description: "Caching and background job processing"
+migration_phases:
+  - phase: 1
+    name: "Authentication"
+    duration: "Woche 1"
+    scope:
+      - "PostgreSQL: users, refresh_tokens"
+      - "JWT-Service, Middleware"
+      - "OAuth2 mit Arctic (Google, Microsoft)"
+      - "Frontend: Login-Seite, Protected Routes"
 
-    ollama_models:
-      recommended_starter:
-        llm: "qwen3:8b-q4_K_M (~5GB)"
-        embedding: "nomic-embed-text (~0.5GB, 768-dim)"
-        reranker: "qwen3-reranker-0.6B (~0.5GB)"
-        total_memory: "~6GB"
-      note: "Models are user-configurable via settings, not hardcoded"
+  - phase: 2
+    name: "Authorization"
+    duration: "Woche 2"
+    scope:
+      - "PostgreSQL: documents erweitern"
+      - "RLS Policies"
+      - "Authorization-Service"
+
+  - phase: 3
+    name: "Secure RAG"
+    duration: "Woche 3"
+    scope:
+      - "Secure RAG Service (Filterung VOR Suche)"
+      - "Upload mit Berechtigungen"
+      - "Berechtigungs-UI"
+
+  - phase: 4
+    name: "User Management"
+    duration: "Woche 4"
+    scope:
+      - "Admin-UI"
+      - "Rollen/Abteilungen zuweisen"
+
+  - phase: 5
+    name: "Audit & Compliance"
+    duration: "Woche 5"
+    scope:
+      - "Audit-Logging"
+      - "Audit-Log-UI"
+
+  - phase: 6
+    name: "Document Page & Smart RAG"
+    duration: "Woche 6"
+    scope:
+      - "/documents Route"
+      - "Document Table/Grid"
+      - "Intelligent RAG Activation"
+
+  - phase: 7
+    name: "Testing & Hardening"
+    duration: "Woche 7"
+    scope:
+      - "Security Testing"
+      - "Performance Testing"
+      - "Penetration Testing"
 
 metadata:
-  generated_at: "2026-01-20T12:00:00Z"
+  generated_at: "2026-01-22T10:30:00Z"
   generated_by: "adw-spec-analyze-agent"
-  source_file: "hybrid-rag-system.txt"
+  source_file: "specs/enterprise-auth-system.txt"
   template_version: "1.0.0"
