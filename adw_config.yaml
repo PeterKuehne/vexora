@@ -353,7 +353,7 @@ apps:
   type: frontend
   default_port: 5173
 conventions:
-  version: 7
+  version: 8
   created_at: '2026-01-22T00:11:01.287858Z'
   source: anthropic-discovery
   state_management:
@@ -595,8 +595,8 @@ conventions:
     - Always use AuthProvider at app root level
     - Handle 401 responses with automatic logout
     - Verify tokens server-side before database queries
-  last_updated: '2026-01-22T07:58:44.507815Z'
-  updated_by_feature: 70
+  last_updated: '2026-01-22T08:08:48.236585Z'
+  updated_by_feature: 78
   permission_filtering:
     system: PostgreSQL RLS + Weaviate Vector Filter
     discovered_in_feature: 67
@@ -692,3 +692,22 @@ conventions:
     - Verwende Lucide Icons für konsistente Ikonografie
     - Integriere mit ProtectedRoute für Sicherheit
     - Erstelle vollständige separate Pages, nicht nur Sidebar-Panels
+  admin_validation:
+    system: PostgreSQL + API Validation
+    discovered_in_feature: 78
+    discovered_at: '2026-01-22T08:08:48.236343Z'
+    import_path: '@/services/AuthService'
+    reference_files:
+    - server/src/services/AuthService.ts:530
+    - src/pages/AdminUsersPage.tsx:77
+    - server/src/routes/admin.ts:109
+    usage_pattern: '// Backend: Admin minimum validation\nconst currentAdminCount = await this.countActiveAdmins();\nif (wouldRemoveAdmin
+      && currentAdminCount <= 1) {\n  throw new Error(''Cannot modify the last active admin'');\n}\n\n// Frontend: Visual
+      warnings\nconst adminCount = statistics.usersByRole.Admin || 0;\nif (isLastAdmin && wouldChange) {\n  showWarning(''Mindestens
+      ein Admin muss existieren'');\n}'
+    guidelines:
+    - Always validate admin minimum before role changes
+    - Show clear warnings in UI for last admin
+    - Use countActiveAdmins() for reliable admin count
+    - Block both role changes and deactivation
+    - Provide clear error messages to users

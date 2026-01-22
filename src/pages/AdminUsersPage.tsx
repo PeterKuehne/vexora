@@ -75,6 +75,25 @@ export function AdminUsersPage() {
 
   const handleSaveEdit = async (userId: string) => {
     try {
+      // Find the user being edited
+      const userBeingEdited = users.find(u => u.id === userId);
+      if (!userBeingEdited) {
+        addToast('error', 'User not found');
+        return;
+      }
+
+      // Check if this would violate admin minimum requirement
+      const currentAdminCount = statistics.usersByRole.Admin || 0;
+      const isCurrentlyAdmin = userBeingEdited.role === 'Admin' && userBeingEdited.is_active;
+      const wouldRemoveAdmin =
+        (editForm.role !== 'Admin' && userBeingEdited.role === 'Admin') ||
+        (!editForm.is_active && userBeingEdited.is_active && userBeingEdited.role === 'Admin');
+
+      if (isCurrentlyAdmin && wouldRemoveAdmin && currentAdminCount <= 1) {
+        addToast('error', 'Mindestens ein Admin muss immer im System existieren. Diese Änderung würde den letzten Admin entfernen.');
+        return;
+      }
+
       const updates: {
         name: string;
         role: UserRole;
@@ -403,23 +422,41 @@ export function AdminUsersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {editingUserId === user.id ? (
-                        <select
-                          value={editForm.role}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, role: e.target.value as UserRole }))}
-                          className={`
-                            px-3 py-1 text-sm rounded border
-                            transition-colors duration-150
-                            focus:outline-none focus:ring-2 focus:ring-blue-500
-                            ${isDark
-                              ? 'bg-gray-600 border-gray-500 text-white'
-                              : 'bg-white border-gray-300 text-gray-900'
-                            }
-                          `}
-                        >
-                          <option value="Employee">Employee</option>
-                          <option value="Manager">Manager</option>
-                          <option value="Admin">Admin</option>
-                        </select>
+                        <div className="space-y-1">
+                          <select
+                            value={editForm.role}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, role: e.target.value as UserRole }))}
+                            className={`
+                              px-3 py-1 text-sm rounded border
+                              transition-colors duration-150
+                              focus:outline-none focus:ring-2 focus:ring-blue-500
+                              ${isDark
+                                ? 'bg-gray-600 border-gray-500 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
+                              }
+                            `}
+                          >
+                            <option value="Employee">Employee</option>
+                            <option value="Manager">Manager</option>
+                            <option value="Admin">Admin</option>
+                          </select>
+                          {/* Warning for last admin */}
+                          {user.role === 'Admin' &&
+                           user.is_active &&
+                           (statistics.usersByRole.Admin || 0) <= 1 &&
+                           (editForm.role !== 'Admin' || !editForm.is_active) && (
+                            <div className={`
+                              text-xs p-2 rounded border-l-4
+                              transition-colors duration-150
+                              ${isDark
+                                ? 'bg-red-900/30 border-red-500 text-red-400'
+                                : 'bg-red-50 border-red-400 text-red-700'
+                              }
+                            `}>
+                              ⚠️ Letzter Admin! Diese Änderung wird blockiert.
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <span className={`
                           inline-flex px-2 py-1 text-xs font-semibold rounded-full
@@ -467,21 +504,39 @@ export function AdminUsersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {editingUserId === user.id ? (
-                        <label className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            checked={editForm.is_active}
-                            onChange={(e) => setEditForm(prev => ({ ...prev, is_active: e.target.checked }))}
-                            className="rounded focus:ring-blue-500"
-                          />
-                          <span className={`
-                            text-sm
-                            transition-colors duration-150
-                            ${isDark ? 'text-gray-300' : 'text-gray-600'}
-                          `}>
-                            Aktiv
-                          </span>
-                        </label>
+                        <div className="space-y-1">
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={editForm.is_active}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, is_active: e.target.checked }))}
+                              className="rounded focus:ring-blue-500"
+                            />
+                            <span className={`
+                              text-sm
+                              transition-colors duration-150
+                              ${isDark ? 'text-gray-300' : 'text-gray-600'}
+                            `}>
+                              Aktiv
+                            </span>
+                          </label>
+                          {/* Warning for last admin deactivation */}
+                          {user.role === 'Admin' &&
+                           user.is_active &&
+                           (statistics.usersByRole.Admin || 0) <= 1 &&
+                           !editForm.is_active && (
+                            <div className={`
+                              text-xs p-2 rounded border-l-4
+                              transition-colors duration-150
+                              ${isDark
+                                ? 'bg-red-900/30 border-red-500 text-red-400'
+                                : 'bg-red-50 border-red-400 text-red-700'
+                              }
+                            `}>
+                              ⚠️ Deaktivierung des letzten Admins blockiert!
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <span className={`
                           inline-flex px-2 py-1 text-xs font-semibold rounded-full

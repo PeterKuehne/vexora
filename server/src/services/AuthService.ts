@@ -527,6 +527,27 @@ export class AuthService {
   }
 
   /**
+   * Count active admin users
+   */
+  async countActiveAdmins(): Promise<number> {
+    try {
+      const result = await databaseService.query(`
+        SELECT COUNT(*) as admin_count
+        FROM users
+        WHERE role = 'Admin' AND is_active = true
+      `);
+
+      const rows = Array.isArray(result) ? result : result.rows || [];
+      const adminCount = rows[0]?.admin_count || 0;
+
+      return parseInt(adminCount);
+    } catch (error) {
+      console.error('Error counting active admins:', error);
+      throw new Error('Failed to count active admins');
+    }
+  }
+
+  /**
    * Update user (Admin only)
    */
   async updateUser(userId: string, payload: UpdateUserPayload, adminUserId: string): Promise<User> {
@@ -535,6 +556,19 @@ export class AuthService {
       const existingUser = await this.getUserById(userId, true);
       if (!existingUser) {
         throw new Error('User not found');
+      }
+
+      // Check if this would violate admin minimum requirement
+      if (existingUser.role === 'Admin' && existingUser.is_active) {
+        const currentAdminCount = await this.countActiveAdmins();
+
+        // Check if changing role away from Admin or deactivating
+        const wouldRemoveAdmin = (payload.role !== undefined && payload.role !== 'Admin') ||
+                                (payload.is_active !== undefined && !payload.is_active);
+
+        if (wouldRemoveAdmin && currentAdminCount <= 1) {
+          throw new Error('Cannot modify the last active admin. At least one admin must remain in the system.');
+        }
       }
 
       // Build dynamic update query
