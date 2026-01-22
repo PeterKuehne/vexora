@@ -140,7 +140,11 @@ export async function streamChat(
   let metadata: StreamMetadata = {};
 
   try {
-    const response = await fetch(`${env.API_URL}/api/chat`, {
+    // Import httpClient dynamically to avoid circular dependencies
+    const { httpClient } = await import('./httpClient');
+
+    // Use httpClient for automatic token management
+    const response = await httpClient.request(`${env.API_URL}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -374,13 +378,16 @@ export async function fetchModels(): Promise<{
   models: APIModel[];
   defaultModel: string;
 }> {
-  const response = await fetch(`${env.API_URL}/api/models`);
+  // Import httpClient dynamically to avoid circular dependencies
+  const { api } = await import('./httpClient');
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch models: ${response.statusText}`);
-  }
-
-  return response.json();
+  // Use httpClient for automatic token management
+  return api.get<{
+    models: APIModel[];
+    defaultModel: string;
+  }>(`${env.API_URL}/api/models`, {
+    skipAuth: true // Models endpoint doesn't require auth
+  });
 }
 
 /**
@@ -585,19 +592,20 @@ export async function uploadDocument(
 }
 
 /**
- * Fetch all documents
+ * Fetch all documents (requires authentication)
  */
 export async function fetchDocuments(): Promise<{
   documents: DocumentMetadata[];
   totalCount: number;
 }> {
-  const response = await fetch(`${env.API_URL}/api/documents`);
+  // Import httpClient dynamically to avoid circular dependencies
+  const { api } = await import('./httpClient');
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch documents: ${response.statusText}`);
-  }
-
-  return response.json();
+  // Use httpClient for automatic token management
+  return api.get<{
+    documents: DocumentMetadata[];
+    totalCount: number;
+  }>(`${env.API_URL}/api/documents`);
 }
 
 /**

@@ -2,7 +2,7 @@
  * TypeScript types for Enterprise Authentication System
  */
 
-import { Request } from 'express';
+import type { Request } from 'express';
 
 // User role enumeration
 export type UserRole = 'Employee' | 'Manager' | 'Admin';

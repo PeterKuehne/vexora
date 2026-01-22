@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { httpClient } from '../lib/httpClient';
+import { env } from '../lib/env';
 import type {
   User
 } from '../../server/src/types/auth';
@@ -48,15 +50,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
     checkAuth();
   }, []);
 
+  // Listen for automatic token refresh events from httpClient
+  useEffect(() => {
+    const handleTokenRefreshed = (event: CustomEvent) => {
+      const { user } = event.detail;
+      setState(prev => ({
+        ...prev,
+        user,
+        isAuthenticated: true,
+        error: null
+      }));
+    };
+
+    const handleAutoLogout = () => {
+      setState({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: 'Session expired. Please log in again.'
+      });
+    };
+
+    // Add event listeners
+    window.addEventListener('auth:token-refreshed', handleTokenRefreshed as EventListener);
+    window.addEventListener('auth:logout', handleAutoLogout);
+
+    // Cleanup on unmount
+    return () => {
+      window.removeEventListener('auth:token-refreshed', handleTokenRefreshed as EventListener);
+      window.removeEventListener('auth:logout', handleAutoLogout);
+    };
+  }, []);
+
   // Check authentication status
   const checkAuth = async () => {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
 
-      // Use cookies instead of localStorage for httpOnly tokens
-      // The /api/auth/me endpoint will read from cookies automatically
-      const response = await fetch('http://localhost:3001/api/auth/me', {
-        credentials: 'include' // This sends cookies
+      // Use httpClient with skipAuth to avoid infinite loop on 401
+      const response = await httpClient.get(`${env.API_URL}/api/auth/me`, {
+        skipAuth: true // Skip automatic token refresh for auth check
       });
 
       if (response.ok) {
@@ -96,7 +129,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setState(prev => ({ ...prev, error: null }));
 
       // Redirect to Microsoft OAuth endpoint
-      window.location.href = 'http://localhost:3001/api/auth/microsoft/login';
+      window.location.href = `${env.API_URL}/api/auth/microsoft/login`;
     } catch (error) {
       console.error('Microsoft login failed:', error);
       setState(prev => ({
@@ -112,7 +145,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setState(prev => ({ ...prev, error: null }));
 
       // Redirect to Google OAuth endpoint
-      window.location.href = 'http://localhost:3001/api/auth/google/login';
+      window.location.href = `${env.API_URL}/api/auth/google/login`;
     } catch (error) {
       console.error('Google login failed:', error);
       setState(prev => ({
@@ -128,9 +161,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
 
       // Call logout endpoint to invalidate tokens (cookies will be cleared server-side)
-      await fetch('http://localhost:3001/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
+      await httpClient.post(`${env.API_URL}/api/auth/logout`, {}, {
+        skipAuth: true // Skip auth handling during logout
       });
 
       setState({
