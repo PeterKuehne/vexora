@@ -569,7 +569,8 @@ export async function uploadDocumentWithPermissions(
     // Set timeout to 5 minutes
     xhr.timeout = 5 * 60 * 1000;
 
-    xhr.open('POST', '/api/documents/upload');
+    xhr.open('POST', `${env.API_URL}/api/documents/upload`);
+    xhr.withCredentials = true; // Include cookies for authentication
     xhr.send(formData);
   });
 }

@@ -95,7 +95,13 @@ class DocumentService {
   /**
    * Process uploaded PDF file
    */
-  async processPDF(filePath: string, metadata: DocumentUploadRequest): Promise<ProcessingResult> {
+  async processPDF(filePath: string, metadata: DocumentUploadRequest, permissionMetadata?: {
+    ownerId?: string;
+    department?: string;
+    classification?: string;
+    allowedRoles?: string[];
+    allowedUsers?: string[];
+  }): Promise<ProcessingResult> {
     await this.initialize();
 
     try {
@@ -138,12 +144,13 @@ class DocumentService {
         // Continue with PostgreSQL storage even if vector storage fails
       }
 
-      // Insert into PostgreSQL
+      // Insert into PostgreSQL with permission metadata
       await databaseService.query(
         `INSERT INTO documents (
           id, filename, file_type, file_size, upload_date,
-          processed_date, status, chunk_count, category, tags
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          processed_date, status, chunk_count, category, tags,
+          owner_id, department, classification, allowed_roles, allowed_users
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
         [
           documentId,
           validatedMetadata.originalName, // Store originalName in filename column
@@ -155,6 +162,12 @@ class DocumentService {
           chunkCount,
           validatedMetadata.category ?? 'Allgemein',
           validatedMetadata.tags ?? [],
+          // Permission fields (NEW for Feature #63)
+          permissionMetadata?.ownerId || null,
+          permissionMetadata?.department || null,
+          permissionMetadata?.classification || 'internal',
+          permissionMetadata?.allowedRoles || null,
+          permissionMetadata?.allowedUsers || null,
         ]
       );
 

@@ -177,7 +177,7 @@ class ProcessingJobService extends EventEmitter {
         originalName: job.originalName,
         size: stats.size,
         type: "pdf"
-      });
+      }, job.metadata); // Pass permission metadata from upload
 
       if (result.success) {
         console.log(`✅ PDF processed successfully: ${result.document?.id}`);
