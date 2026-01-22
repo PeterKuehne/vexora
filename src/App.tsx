@@ -13,7 +13,7 @@ import {
   ProtectedRoute,
   type SidebarControls,
 } from './components';
-import { LoginPage } from './pages';
+import { LoginPage, AdminUsersPage } from './pages';
 import { checkHealth } from './lib/api';
 import {
   ConversationProvider,
@@ -223,15 +223,12 @@ function AppRoutes() {
         }
       />
 
-      {/* Protected Admin Route (Future Feature) */}
+      {/* Protected Admin Route */}
       <Route
         path="/admin"
         element={
           <ProtectedRoute requiredRole="Admin">
-            <div className="p-8 text-center">
-              <h1 className="text-2xl font-bold mb-4">Administration</h1>
-              <p className="text-gray-600">Admin-Panel wird in einem zukünftigen Feature verfügbar sein.</p>
-            </div>
+            <AdminUsersPage />
           </ProtectedRoute>
         }
       />

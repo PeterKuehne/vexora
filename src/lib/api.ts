@@ -722,3 +722,138 @@ export async function bulkDeleteDocuments(ids: string[]): Promise<BulkDeleteResp
 
   return response.json();
 }
+
+// ============================================
+// Admin User Management
+// ============================================
+
+/**
+ * Admin user management types
+ */
+export interface UserManagementResponse {
+  success: boolean;
+  data: {
+    users: User[];
+    statistics: {
+      totalUsers: number;
+      activeUsers: number;
+      usersByRole: Record<string, number>;
+      usersByDepartment: Record<string, number>;
+    };
+    userContext: {
+      userId: string;
+      userRole: string;
+      userDepartment?: string;
+    };
+  };
+  timestamp: string;
+}
+
+export interface UserUpdateResponse {
+  success: boolean;
+  data: {
+    user: User;
+    userContext: {
+      userId: string;
+      userRole: string;
+      userDepartment?: string;
+    };
+  };
+  message: string;
+  timestamp: string;
+}
+
+/**
+ * Import and re-export User type from auth types
+ */
+import type { User, UserRole, AdminUpdateUserPayload } from '../types/auth';
+export type { User, UserRole, AdminUpdateUserPayload };
+
+/**
+ * Fetch all users (Admin only)
+ */
+export async function fetchAllUsers(): Promise<UserManagementResponse> {
+  // Import httpClient dynamically to avoid circular dependencies
+  const { api } = await import('./httpClient');
+
+  // Use httpClient for automatic token management and Admin auth
+  return api.get<UserManagementResponse>(`${env.API_URL}/api/admin/users`);
+}
+
+/**
+ * Fetch specific user by ID (Admin only)
+ */
+export async function fetchUserById(userId: string): Promise<{
+  success: boolean;
+  data: User;
+  timestamp: string;
+}> {
+  // Import httpClient dynamically to avoid circular dependencies
+  const { api } = await import('./httpClient');
+
+  return api.get<{
+    success: boolean;
+    data: User;
+    timestamp: string;
+  }>(`${env.API_URL}/api/admin/users/${userId}`);
+}
+
+/**
+ * Update user (Admin only)
+ */
+export async function updateUser(
+  userId: string,
+  updates: {
+    name?: string;
+    role?: 'Employee' | 'Manager' | 'Admin';
+    department?: string;
+    is_active?: boolean;
+  }
+): Promise<UserUpdateResponse> {
+  // Import httpClient dynamically to avoid circular dependencies
+  const { api } = await import('./httpClient');
+
+  return api.put<UserUpdateResponse>(`${env.API_URL}/api/admin/users/${userId}`, updates);
+}
+
+/**
+ * Fetch user statistics (Admin only)
+ */
+export async function fetchUserStatistics(): Promise<{
+  success: boolean;
+  data: {
+    statistics: {
+      totalUsers: number;
+      activeUsers: number;
+      usersByRole: Record<string, number>;
+      usersByDepartment: Record<string, number>;
+    };
+    userContext: {
+      userId: string;
+      userRole: string;
+      userDepartment?: string;
+    };
+  };
+  timestamp: string;
+}> {
+  // Import httpClient dynamically to avoid circular dependencies
+  const { api } = await import('./httpClient');
+
+  return api.get<{
+    success: boolean;
+    data: {
+      statistics: {
+        totalUsers: number;
+        activeUsers: number;
+        usersByRole: Record<string, number>;
+        usersByDepartment: Record<string, number>;
+      };
+      userContext: {
+        userId: string;
+        userRole: string;
+        userDepartment?: string;
+      };
+    };
+    timestamp: string;
+  }>(`${env.API_URL}/api/admin/stats`);
+}

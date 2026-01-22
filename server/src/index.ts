@@ -1,5 +1,6 @@
 import express, { type Request, type Response } from 'express'
 import cors from 'cors'
+import cookieParser from 'cookie-parser'
 import multer from 'multer'
 import path from 'path'
 import { createServer } from 'http'
@@ -19,6 +20,7 @@ import { type AuthenticatedRequest } from './types/auth.js'
 import { ollamaService, documentService, ragService } from './services/index.js'
 import { processingJobService } from './services/ProcessingJobService.js'
 import authRoutes from './routes/auth.js'
+import adminRoutes from './routes/admin.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -42,6 +44,9 @@ app.use(
   })
 )
 
+// Cookie parser middleware (must be before routes that use cookies)
+app.use(cookieParser())
+
 // JSON body parser
 app.use(express.json())
 
@@ -50,6 +55,7 @@ app.use(express.json())
 // ============================================
 
 app.use('/api/auth', authRoutes)
+app.use('/api/admin', adminRoutes)
 
 // ============================================
 // File Upload Configuration

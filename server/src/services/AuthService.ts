@@ -407,10 +407,14 @@ export class AuthService {
     }
   }
 
-  private async getUserById(id: string): Promise<User | null> {
+  /**
+   * Get user by ID (includes inactive users for admin)
+   */
+  async getUserById(id: string, includeInactive: boolean = false): Promise<User | null> {
     try {
+      const whereClause = includeInactive ? 'id = $1' : 'id = $1 AND is_active = true';
       const result = await databaseService.query(
-        'SELECT * FROM users WHERE id = $1 AND is_active = true',
+        `SELECT * FROM users WHERE ${whereClause}`,
         [id]
       );
       const rows = Array.isArray(result) ? result : result.rows || [];
@@ -419,6 +423,10 @@ export class AuthService {
       console.error('Error getting user by ID:', error);
       return null;
     }
+  }
+
+  private async getUserByIdInternal(id: string): Promise<User | null> {
+    return this.getUserById(id, false);
   }
 
   private async createUser(id: string, payload: CreateUserPayload): Promise<User> {
@@ -483,7 +491,7 @@ export class AuthService {
    * Get user context for middleware
    */
   async getUserContext(userId: string): Promise<UserContext | null> {
-    const user = await this.getUserById(userId);
+    const user = await this.getUserByIdInternal(userId);
     if (!user) return null;
 
     return {
@@ -494,6 +502,210 @@ export class AuthService {
       department: user.department,
       is_active: user.is_active,
     };
+  }
+
+  /**
+   * Admin User Management Methods
+   */
+
+  /**
+   * Get all users (Admin only)
+   */
+  async getAllUsers(): Promise<User[]> {
+    try {
+      const result = await databaseService.query(`
+        SELECT id, email, name, role, department, provider, is_active, created_at, last_login
+        FROM users
+        ORDER BY created_at DESC
+      `);
+      const rows = Array.isArray(result) ? result : result.rows || [];
+      return rows;
+    } catch (error) {
+      console.error('Error getting all users:', error);
+      throw new Error('Failed to fetch users');
+    }
+  }
+
+  /**
+   * Update user (Admin only)
+   */
+  async updateUser(userId: string, payload: UpdateUserPayload, adminUserId: string): Promise<User> {
+    try {
+      // First check if user exists (include inactive users for admin)
+      const existingUser = await this.getUserById(userId, true);
+      if (!existingUser) {
+        throw new Error('User not found');
+      }
+
+      // Build dynamic update query
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      if (payload.name !== undefined) {
+        updates.push(`name = $${paramIndex++}`);
+        values.push(payload.name);
+      }
+
+      if (payload.role !== undefined) {
+        updates.push(`role = $${paramIndex++}`);
+        values.push(payload.role);
+      }
+
+      if (payload.department !== undefined) {
+        updates.push(`department = $${paramIndex++}`);
+        values.push(payload.department);
+      }
+
+      if (payload.is_active !== undefined) {
+        updates.push(`is_active = $${paramIndex++}`);
+        values.push(payload.is_active);
+      }
+
+      if (updates.length === 0) {
+        // No updates provided, return existing user
+        return existingUser;
+      }
+
+      // Add userId to params
+      values.push(userId);
+
+      const result = await databaseService.query(`
+        UPDATE users
+        SET ${updates.join(', ')}
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `, values);
+
+      const rows = Array.isArray(result) ? result : result.rows || [];
+      const updatedUser = rows[0];
+
+      if (!updatedUser) {
+        throw new Error('Failed to update user');
+      }
+
+      // Log audit trail
+      await this.logAuditEntry(
+        adminUserId,
+        'user_update',
+        'user',
+        userId,
+        'success',
+        {
+          updates: payload,
+          target_user: existingUser.email
+        }
+      );
+
+      console.log(`✅ User updated by admin: ${updatedUser.email} (${updatedUser.role})`);
+      return updatedUser;
+
+    } catch (error) {
+      // Log failed audit trail
+      await this.logAuditEntry(
+        adminUserId,
+        'user_update',
+        'user',
+        userId,
+        'failure',
+        {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          attempted_updates: payload
+        }
+      ).catch(console.error);
+
+      console.error('Error updating user:', error);
+      throw error instanceof Error ? error : new Error('Failed to update user');
+    }
+  }
+
+  /**
+   * Get user statistics (Admin only)
+   */
+  async getUserStatistics(): Promise<{
+    totalUsers: number;
+    activeUsers: number;
+    usersByRole: Record<string, number>;
+    usersByDepartment: Record<string, number>;
+  }> {
+    try {
+      // Total and active users
+      const countResult = await databaseService.query(`
+        SELECT
+          COUNT(*) as total_users,
+          COUNT(*) FILTER (WHERE is_active = true) as active_users
+        FROM users
+      `);
+      const countRows = Array.isArray(countResult) ? countResult : countResult.rows || [];
+      const { total_users, active_users } = countRows[0] || { total_users: 0, active_users: 0 };
+
+      // Users by role
+      const roleResult = await databaseService.query(`
+        SELECT role, COUNT(*) as count
+        FROM users
+        WHERE is_active = true
+        GROUP BY role
+      `);
+      const roleRows = Array.isArray(roleResult) ? roleResult : roleResult.rows || [];
+      const usersByRole = roleRows.reduce((acc: Record<string, number>, row) => {
+        acc[row.role] = parseInt(row.count);
+        return acc;
+      }, {});
+
+      // Users by department
+      const deptResult = await databaseService.query(`
+        SELECT department, COUNT(*) as count
+        FROM users
+        WHERE is_active = true AND department IS NOT NULL
+        GROUP BY department
+      `);
+      const deptRows = Array.isArray(deptResult) ? deptResult : deptResult.rows || [];
+      const usersByDepartment = deptRows.reduce((acc: Record<string, number>, row) => {
+        acc[row.department] = parseInt(row.count);
+        return acc;
+      }, {});
+
+      return {
+        totalUsers: parseInt(total_users),
+        activeUsers: parseInt(active_users),
+        usersByRole,
+        usersByDepartment,
+      };
+
+    } catch (error) {
+      console.error('Error getting user statistics:', error);
+      throw new Error('Failed to fetch user statistics');
+    }
+  }
+
+  /**
+   * Log audit entry for admin actions
+   */
+  private async logAuditEntry(
+    userId: string,
+    action: string,
+    resourceType: string,
+    resourceId: string,
+    result: 'success' | 'failure' | 'denied',
+    metadata?: Record<string, any>
+  ): Promise<void> {
+    try {
+      await databaseService.query(`
+        INSERT INTO audit_logs (id, user_id, action, resource_type, resource_id, result, metadata, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      `, [
+        randomUUID(),
+        userId,
+        action,
+        resourceType,
+        resourceId,
+        result,
+        JSON.stringify(metadata || {})
+      ]);
+    } catch (error) {
+      console.error('Failed to log audit entry:', error);
+      // Don't throw here to avoid breaking the main operation
+    }
   }
 }
 
