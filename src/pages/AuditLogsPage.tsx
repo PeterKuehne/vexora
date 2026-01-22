@@ -256,14 +256,14 @@ export function AuditLogsPage() {
       <div className={`
         min-h-screen flex items-center justify-center
         transition-colors duration-150
-        ${isDark ? 'bg-gray-900' : 'bg-gray-50'}
+        ${isDark ? 'bg-background' : 'bg-white'}
       `}>
         <div className={`
           flex items-center space-x-3
           px-6 py-4 rounded-lg
           transition-colors duration-150
           ${isDark
-            ? 'text-gray-300 bg-gray-800/50'
+            ? 'text-gray-300 bg-surface/50'
             : 'text-gray-600 bg-white/50'
           }
         `}>
@@ -282,7 +282,7 @@ export function AuditLogsPage() {
     <div className={`
       min-h-screen
       transition-colors duration-150
-      ${isDark ? 'bg-gray-900' : 'bg-gray-50'}
+      ${isDark ? 'bg-background' : 'bg-white'}
     `}>
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
 
@@ -310,7 +310,7 @@ export function AuditLogsPage() {
             p-6 rounded-lg border
             transition-colors duration-150
             ${isDark
-              ? 'bg-gray-800 border-gray-700'
+              ? 'bg-surface border-white/10'
               : 'bg-white border-gray-200'
             }
           `}>
@@ -334,7 +334,7 @@ export function AuditLogsPage() {
             p-6 rounded-lg border
             transition-colors duration-150
             ${isDark
-              ? 'bg-gray-800 border-gray-700'
+              ? 'bg-surface border-white/10'
               : 'bg-white border-gray-200'
             }
           `}>
@@ -358,7 +358,7 @@ export function AuditLogsPage() {
             p-6 rounded-lg border
             transition-colors duration-150
             ${isDark
-              ? 'bg-gray-800 border-gray-700'
+              ? 'bg-surface border-white/10'
               : 'bg-white border-gray-200'
             }
           `}>
@@ -382,7 +382,7 @@ export function AuditLogsPage() {
             p-6 rounded-lg border
             transition-colors duration-150
             ${isDark
-              ? 'bg-gray-800 border-gray-700'
+              ? 'bg-surface border-white/10'
               : 'bg-white border-gray-200'
             }
           `}>
@@ -408,7 +408,7 @@ export function AuditLogsPage() {
           mb-6 p-6 rounded-lg border
           transition-colors duration-150
           ${isDark
-            ? 'bg-gray-800 border-gray-700'
+            ? 'bg-surface border-white/10'
             : 'bg-white border-gray-200'
           }
         `}>
@@ -430,7 +430,7 @@ export function AuditLogsPage() {
                   transition-colors duration-150
                   focus:outline-none focus:ring-2 focus:ring-blue-500
                   ${isDark
-                    ? 'bg-gray-700 border-gray-600 text-white'
+                    ? 'bg-surface-secondary border-white/20 text-white'
                     : 'bg-white border-gray-300 text-gray-900'
                   }
                 `}
@@ -459,7 +459,7 @@ export function AuditLogsPage() {
                   transition-colors duration-150
                   focus:outline-none focus:ring-2 focus:ring-blue-500
                   ${isDark
-                    ? 'bg-gray-700 border-gray-600 text-white'
+                    ? 'bg-surface-secondary border-white/20 text-white'
                     : 'bg-white border-gray-300 text-gray-900'
                   }
                 `}
@@ -488,7 +488,7 @@ export function AuditLogsPage() {
                   transition-colors duration-150
                   focus:outline-none focus:ring-2 focus:ring-blue-500
                   ${isDark
-                    ? 'bg-gray-700 border-gray-600 text-white'
+                    ? 'bg-surface-secondary border-white/20 text-white'
                     : 'bg-white border-gray-300 text-gray-900'
                   }
                 `}
@@ -517,7 +517,7 @@ export function AuditLogsPage() {
                   transition-colors duration-150
                   focus:outline-none focus:ring-2 focus:ring-blue-500
                   ${isDark
-                    ? 'bg-gray-700 border-gray-600 text-white disabled:bg-gray-800'
+                    ? 'bg-surface-secondary border-white/20 text-white disabled:bg-surface'
                     : 'bg-white border-gray-300 text-gray-900 disabled:bg-gray-100'
                   }
                   ${isLoadingUsers ? 'cursor-wait' : ''}
@@ -611,14 +611,14 @@ export function AuditLogsPage() {
           rounded-lg border overflow-hidden
           transition-colors duration-150
           ${isDark
-            ? 'bg-gray-800 border-gray-700'
+            ? 'bg-surface border-white/10'
             : 'bg-white border-gray-200'
           }
         `}>
           <div className={`
             px-6 py-4 border-b
             transition-colors duration-150
-            ${isDark ? 'border-gray-700' : 'border-gray-200'}
+            ${isDark ? 'border-white/10' : 'border-gray-200'}
           `}>
             <h2 className={`
               text-lg font-semibold
@@ -633,7 +633,7 @@ export function AuditLogsPage() {
             <table className="min-w-full">
               <thead className={`
                 transition-colors duration-150
-                ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}
+                ${isDark ? 'bg-surface-secondary' : 'bg-gray-50'}
               `}>
                 <tr>
                   <th className={`
@@ -689,7 +689,7 @@ export function AuditLogsPage() {
                   <tr key={log.id} className={`
                     transition-colors duration-150
                     ${isDark
-                      ? 'hover:bg-gray-700/50'
+                      ? 'hover:bg-white/5'
                       : 'hover:bg-gray-50'
                     }
                   `}>
@@ -742,7 +742,7 @@ export function AuditLogsPage() {
             <div className={`
               px-6 py-4 border-t
               transition-colors duration-150
-              ${isDark ? 'border-gray-700' : 'border-gray-200'}
+              ${isDark ? 'border-white/10' : 'border-gray-200'}
             `}>
               <button
                 onClick={loadMore}
@@ -768,7 +768,7 @@ export function AuditLogsPage() {
             mt-8 p-6 rounded-lg border
             transition-colors duration-150
             ${isDark
-              ? 'bg-gray-800 border-gray-700'
+              ? 'bg-surface border-white/10'
               : 'bg-white border-gray-200'
             }
           `}>
@@ -785,7 +785,7 @@ export function AuditLogsPage() {
                   p-4 rounded border
                   transition-colors duration-150
                   ${isDark
-                    ? 'bg-gray-700/50 border-gray-600'
+                    ? 'bg-surface-secondary border-white/20'
                     : 'bg-gray-50 border-gray-200'
                   }
                 `}>

@@ -35,6 +35,7 @@ import { documentEventService } from './services/DocumentEventService.js'
 import authRoutes from './routes/auth.js'
 import adminRoutes from './routes/admin.js'
 import quotaRoutes from './routes/quota.js'
+import settingsRoutes from './routes/settings.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -91,6 +92,7 @@ app.use(express.json())
 app.use('/api/auth', rateLimiter, authRoutes)
 app.use('/api/admin', rateLimiter, adminRoutes)
 app.use('/api/quota', rateLimiter, quotaRoutes)
+app.use('/api/admin/settings', rateLimiter, settingsRoutes)
 
 // ============================================
 // File Upload Configuration

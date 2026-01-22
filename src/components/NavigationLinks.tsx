@@ -5,7 +5,7 @@
  */
 
 import { NavLink, useLocation } from 'react-router-dom';
-import { MessageSquare, FileText, Users, Shield } from 'lucide-react';
+import { MessageSquare, FileText, Users, Shield, Settings } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -104,6 +104,12 @@ export function NavigationLinks({
       label: 'Audit-Logs',
       icon: Shield,
       description: 'Systemaktivitäten',
+    },
+    {
+      to: '/admin/settings',
+      label: 'Einstellungen',
+      icon: Settings,
+      description: 'System-Konfiguration',
     },
   ] : [];
 

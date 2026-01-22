@@ -14,7 +14,7 @@ import {
   ErrorBoundary,
   type SidebarControls,
 } from './components';
-import { LoginPage, AdminUsersPage, AuditLogsPage, DocumentsPage, ProfilePage } from './pages';
+import { LoginPage, AdminUsersPage, AdminSystemSettingsPage, AuditLogsPage, DocumentsPage, ProfilePage } from './pages';
 import { checkHealth } from './lib/api';
 import {
   ConversationProvider,
@@ -241,6 +241,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute requiredRole="Admin">
             <AuditLogsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/settings"
+        element={
+          <ProtectedRoute requiredRole="Admin">
+            <AdminSystemSettingsPage />
           </ProtectedRoute>
         }
       />

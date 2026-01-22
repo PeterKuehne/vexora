@@ -1150,3 +1150,102 @@ export async function updateDocumentPermissions(
     permissions
   );
 }
+
+// ============================================
+// System Settings Management (Admin Only)
+// ============================================
+
+/**
+ * System Settings Types - matching backend interface
+ */
+export interface SystemSettings {
+  tokenSettings: {
+    accessTokenLifetime: number;
+    refreshTokenLifetime: number;
+    enableTokenRotation: boolean;
+  };
+  ragSettings: {
+    defaultSearchLimit: number;
+    maxSearchLimit: number;
+    defaultSimilarityThreshold: number;
+    defaultHybridAlpha: number;
+  };
+  storageSettings: {
+    defaultUserQuotaMB: number;
+    maxUserQuotaMB: number;
+    enableQuotaEnforcement: boolean;
+  };
+  oauthSettings: {
+    enableMicrosoftOAuth: boolean;
+    enableGoogleOAuth: boolean;
+    sessionTimeoutHours: number;
+  };
+  performanceSettings: {
+    maxConcurrentJobs: number;
+    requestTimeoutSeconds: number;
+    enableRequestLogging: boolean;
+  };
+}
+
+export interface SystemSettingsResponse {
+  success: boolean;
+  data: {
+    settings: SystemSettings;
+    userContext: {
+      userId: string;
+      userRole: string;
+      userDepartment?: string;
+    };
+  };
+  timestamp: string;
+}
+
+export interface UpdateSettingsResponse {
+  success: boolean;
+  data: {
+    settings: SystemSettings;
+    userContext: {
+      userId: string;
+      userRole: string;
+      userDepartment?: string;
+    };
+    applied: string[];
+  };
+  message: string;
+  timestamp: string;
+}
+
+/**
+ * Get current system settings (Admin only)
+ */
+export async function fetchSystemSettings(): Promise<SystemSettingsResponse> {
+  // Import httpClient dynamically to avoid circular dependencies
+  const { api } = await import('./httpClient');
+
+  return api.get<SystemSettingsResponse>(`${env.API_URL}/api/admin/settings`);
+}
+
+/**
+ * Update system settings (Admin only)
+ */
+export async function updateSystemSettings(
+  settings: Partial<SystemSettings>
+): Promise<UpdateSettingsResponse> {
+  // Import httpClient dynamically to avoid circular dependencies
+  const { api } = await import('./httpClient');
+
+  return api.put<UpdateSettingsResponse>(
+    `${env.API_URL}/api/admin/settings`,
+    settings
+  );
+}
+
+/**
+ * Reset system settings to defaults (Admin only)
+ */
+export async function resetSystemSettings(): Promise<SystemSettingsResponse> {
+  // Import httpClient dynamically to avoid circular dependencies
+  const { api } = await import('./httpClient');
+
+  return api.post<SystemSettingsResponse>(`${env.API_URL}/api/admin/settings/reset`);
+}

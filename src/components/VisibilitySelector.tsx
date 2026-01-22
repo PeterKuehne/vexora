@@ -115,7 +115,7 @@ export function VisibilitySelector({
                       ? 'border-blue-400 bg-blue-900/20'
                       : 'border-blue-500 bg-blue-50'
                     : isDark
-                      ? 'border-gray-600 hover:border-gray-500 hover:bg-gray-800/30'
+                      ? 'border-white/20 hover:border-white/30 hover:bg-white/5'
                       : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
                 }
               `}
@@ -236,7 +236,7 @@ export function VisibilitySelector({
                 flex-1 px-3 py-2 text-sm border rounded
                 transition-colors duration-150
                 ${isDark
-                  ? 'bg-gray-800 border-gray-600 text-gray-200 placeholder-gray-500'
+                  ? 'bg-surface-secondary border-white/20 text-gray-200 placeholder-gray-500'
                   : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
                 }
                 ${!disabled && isDark
@@ -286,7 +286,7 @@ export function VisibilitySelector({
                     className={`
                       flex items-center gap-1 px-2 py-1 text-xs rounded
                       ${isDark
-                        ? 'bg-gray-700 text-gray-200'
+                        ? 'bg-surface-secondary text-gray-200'
                         : 'bg-gray-200 text-gray-800'
                       }
                     `}

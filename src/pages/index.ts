@@ -5,6 +5,7 @@
 
 export { LoginPage } from './LoginPage';
 export { AdminUsersPage } from './AdminUsersPage';
+export { AdminSystemSettingsPage } from './AdminSystemSettingsPage';
 export { AuditLogsPage } from './AuditLogsPage';
 export { DocumentsPage } from './DocumentsPage';
 export { ProfilePage } from './ProfilePage';

@@ -173,7 +173,7 @@ export function PermissionPreview({
         className={`
           border rounded-lg p-4
           ${isDark
-            ? 'border-gray-600 bg-gray-800/30'
+            ? 'border-white/20 bg-surface-secondary/30'
             : 'border-gray-300 bg-gray-50/50'
           }
         `}
@@ -181,7 +181,7 @@ export function PermissionPreview({
         <div
           className={`
             flex items-center mb-3 pb-3 border-b
-            ${isDark ? 'border-gray-600' : 'border-gray-300'}
+            ${isDark ? 'border-white/20' : 'border-gray-300'}
           `}
         >
           <Shield

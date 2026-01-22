@@ -141,10 +141,10 @@ export function ClassificationDropdown({ value, onChange, disabled = false }: Cl
           transition-colors duration-150
           ${disabled
             ? isDark
-              ? 'bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed'
+              ? 'bg-surface border-white/10 text-gray-500 cursor-not-allowed'
               : 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
             : isDark
-              ? 'bg-gray-800 border-gray-600 text-gray-200 hover:border-gray-500'
+              ? 'bg-surface border-white/20 text-gray-200 hover:border-white/30'
               : 'bg-white border-gray-300 text-gray-900 hover:border-gray-400'
           }
           ${isOpen && !disabled
@@ -181,7 +181,7 @@ export function ClassificationDropdown({ value, onChange, disabled = false }: Cl
             absolute z-10 w-full mt-1
             border rounded-lg shadow-lg
             ${isDark
-              ? 'bg-gray-800 border-gray-600'
+              ? 'bg-surface border-white/20'
               : 'bg-white border-gray-300'
             }
           `}
@@ -203,7 +203,7 @@ export function ClassificationDropdown({ value, onChange, disabled = false }: Cl
                       ? 'bg-blue-900/50 text-blue-300'
                       : 'bg-blue-50 text-blue-700'
                     : isDark
-                      ? 'text-gray-200 hover:bg-gray-700'
+                      ? 'text-gray-200 hover:bg-white/10'
                       : 'text-gray-900 hover:bg-gray-50'
                   }
                   ${option === availableOptions[0] ? 'rounded-t-lg' : ''}
