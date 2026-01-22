@@ -1,5 +1,5 @@
 /**
- * Auth Routes - Microsoft OAuth2, JWT Authentication, Token Management
+ * Auth Routes - Microsoft & Google OAuth2, JWT Authentication, Token Management
  */
 
 import express, { type Request, type Response } from 'express';
@@ -85,6 +85,86 @@ router.get('/microsoft/callback', asyncHandler(async (req: Request, res: Respons
     res.redirect('/chat');
   } catch (error) {
     console.error('Microsoft callback error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+    res.redirect(`/login?error=${encodeURIComponent(errorMessage)}`);
+  }
+}));
+
+/**
+ * GET /api/auth/google/login
+ * Redirect to Google OAuth2 authorization
+ */
+router.get('/google/login', asyncHandler(async (_req: Request, res: Response) => {
+  try {
+    const authUrl = authService.createGoogleAuthUrl();
+
+    // Redirect to Google OAuth
+    res.redirect(authUrl);
+  } catch (error) {
+    console.error('Google auth URL generation failed:', error);
+    res.status(500).json({
+      error: 'OAuth configuration error',
+      message: 'Google authentication is not properly configured'
+    });
+  }
+}));
+
+/**
+ * GET /api/auth/google/callback
+ * Handle Google OAuth2 callback with authorization code
+ */
+router.get('/google/callback', asyncHandler(async (req: Request, res: Response) => {
+  const { code, state, error } = req.query;
+
+  // Check for OAuth error
+  if (error) {
+    console.error('Google OAuth error:', error);
+    const errorDescription = req.query.error_description || 'OAuth authentication failed';
+    return res.redirect(`/login?error=${encodeURIComponent(errorDescription as string)}`);
+  }
+
+  // Validate required parameters
+  if (!code || typeof code !== 'string') {
+    console.error('Missing authorization code');
+    return res.redirect('/login?error=missing_code');
+  }
+
+  try {
+    // Exchange code for user info
+    const googleUser = await authService.exchangeGoogleCode(code, state as string);
+
+    // Create or update user
+    const user = await authService.createOrUpdateUser(googleUser);
+
+    // Generate auth session
+    const session = await authService.createAuthSession(user);
+
+    // Set secure cookies (production should use httpOnly and secure)
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    res.cookie('auth_token', session.access_token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+      path: '/'
+    });
+
+    res.cookie('refresh_token', session.refresh_token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      path: '/'
+    });
+
+    // Log successful login
+    console.log(`✅ User logged in via Google: ${user.email} (${user.role})`);
+
+    // Redirect to app
+    res.redirect('/chat');
+  } catch (error) {
+    console.error('Google callback error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
     res.redirect(`/login?error=${encodeURIComponent(errorMessage)}`);
   }

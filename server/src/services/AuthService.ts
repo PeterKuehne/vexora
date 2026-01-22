@@ -1,5 +1,5 @@
 /**
- * AuthService - Microsoft OAuth2, JWT Token Management and User Management
+ * AuthService - Microsoft & Google OAuth2, JWT Token Management and User Management
  * Implements Enterprise Authentication with RBAC
  */
 
@@ -16,6 +16,7 @@ import type {
   JWTPayload,
   LoginResult,
   MicrosoftUserInfo,
+  GoogleUserInfo,
   AuthSession,
   UserContext
 } from '../types/auth.js';
@@ -119,13 +120,126 @@ export class AuthService {
   }
 
   /**
+   * Create Google OAuth2 authorization URL
+   */
+  createGoogleAuthUrl(): string {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/auth/google/callback';
+
+    if (!clientId) {
+      throw new Error('Google OAuth not configured: GOOGLE_CLIENT_ID missing');
+    }
+
+    const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    authUrl.searchParams.set('client_id', clientId);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('scope', 'openid profile email');
+    authUrl.searchParams.set('state', this.generateState());
+
+    return authUrl.toString();
+  }
+
+  /**
+   * Exchange Google OAuth2 code for tokens and user info
+   */
+  async exchangeGoogleCode(code: string, state: string): Promise<GoogleUserInfo> {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/auth/google/callback';
+
+    if (!clientId || !clientSecret) {
+      throw new Error('Google OAuth not configured');
+    }
+
+    // Exchange code for access token
+    const tokenUrl = 'https://oauth2.googleapis.com/token';
+    const tokenParams = new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      code: code,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
+    });
+
+    const tokenResponse = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: tokenParams,
+    });
+
+    if (!tokenResponse.ok) {
+      const error = await tokenResponse.text();
+      throw new Error(`Google token exchange failed: ${error}`);
+    }
+
+    const tokens = await tokenResponse.json();
+
+    // Get user info from Google
+    const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        'Authorization': `Bearer ${tokens.access_token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!userResponse.ok) {
+      const error = await userResponse.text();
+      throw new Error(`Google user info failed: ${error}`);
+    }
+
+    const userInfo = await userResponse.json();
+
+    return {
+      id: userInfo.id,
+      email: userInfo.email,
+      verified_email: userInfo.verified_email || false,
+      name: userInfo.name,
+      given_name: userInfo.given_name,
+      family_name: userInfo.family_name,
+      picture: userInfo.picture,
+      locale: userInfo.locale,
+    };
+  }
+
+  /**
    * Create or update user from OAuth info
    */
-  async createOrUpdateUser(microsoftInfo: MicrosoftUserInfo): Promise<User> {
-    const email = microsoftInfo.mail || microsoftInfo.userPrincipalName;
+  async createOrUpdateUser(microsoftInfo: MicrosoftUserInfo): Promise<User>;
+  async createOrUpdateUser(googleInfo: GoogleUserInfo): Promise<User>;
+  async createOrUpdateUser(oauthInfo: MicrosoftUserInfo | GoogleUserInfo): Promise<User> {
+    // Determine provider and extract email/data
+    const isMicrosoft = 'userPrincipalName' in oauthInfo;
+    const isGoogle = 'verified_email' in oauthInfo;
+
+    let email: string;
+    let name: string;
+    let department: string | undefined;
+    let provider: 'microsoft' | 'google';
+    let providerId: string;
+
+    if (isMicrosoft) {
+      const msInfo = oauthInfo as MicrosoftUserInfo;
+      email = msInfo.mail || msInfo.userPrincipalName;
+      name = msInfo.displayName;
+      department = msInfo.department;
+      provider = 'microsoft';
+      providerId = msInfo.id;
+    } else if (isGoogle) {
+      const googleInfo = oauthInfo as GoogleUserInfo;
+      email = googleInfo.email;
+      name = googleInfo.name;
+      department = undefined; // Google doesn't provide department info by default
+      provider = 'google';
+      providerId = googleInfo.id;
+    } else {
+      throw new Error('Invalid OAuth provider info');
+    }
 
     if (!email) {
-      throw new Error('No email found in Microsoft profile');
+      throw new Error(`No email found in ${provider} profile`);
     }
 
     try {
@@ -142,11 +256,11 @@ export class AuthService {
       const userId = this.generateUserId();
       const createPayload: CreateUserPayload = {
         email,
-        name: microsoftInfo.displayName,
+        name,
         role: 'Employee', // Default role
-        department: microsoftInfo.department,
-        provider: 'microsoft',
-        provider_id: microsoftInfo.id,
+        department,
+        provider,
+        provider_id: providerId,
       };
 
       const user = await this.createUser(userId, createPayload);

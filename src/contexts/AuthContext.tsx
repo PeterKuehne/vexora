@@ -13,6 +13,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   login: () => Promise<void>;
+  googleLogin: () => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
@@ -97,10 +98,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Redirect to Microsoft OAuth endpoint
       window.location.href = 'http://localhost:3001/api/auth/microsoft/login';
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('Microsoft login failed:', error);
       setState(prev => ({
         ...prev,
-        error: 'Login failed. Please try again.'
+        error: 'Microsoft login failed. Please try again.'
+      }));
+    }
+  };
+
+  // Initiate Google OAuth login
+  const googleLogin = async () => {
+    try {
+      setState(prev => ({ ...prev, error: null }));
+
+      // Redirect to Google OAuth endpoint
+      window.location.href = 'http://localhost:3001/api/auth/google/login';
+    } catch (error) {
+      console.error('Google login failed:', error);
+      setState(prev => ({
+        ...prev,
+        error: 'Google login failed. Please try again.'
       }));
     }
   };
@@ -142,6 +159,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const contextValue: AuthContextType = {
     ...state,
     login,
+    googleLogin,
     logout,
     checkAuth,
     clearError
