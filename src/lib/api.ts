@@ -734,6 +734,80 @@ export async function bulkDeleteDocuments(ids: string[]): Promise<BulkDeleteResp
 }
 
 // ============================================
+// Quota Management
+// ============================================
+
+/**
+ * User quota usage information
+ */
+export interface UserQuotaUsage {
+  userId: string;
+  userRole: string;
+  usedBytes: number;
+  usedMB: number;
+  limitBytes: number;
+  limitMB: number;
+  availableBytes: number;
+  availableMB: number;
+  usagePercent: number;
+  isWarning: boolean;     // > 80%
+  isCritical: boolean;    // > 95%
+  isExceeded: boolean;    // >= 100%
+}
+
+/**
+ * Quota validation result
+ */
+export interface QuotaValidationResult {
+  allowed: boolean;
+  reason?: string;
+  currentUsage: UserQuotaUsage;
+}
+
+/**
+ * Get current user's quota usage
+ */
+export async function getQuotaUsage(): Promise<UserQuotaUsage> {
+  // Import httpClient dynamically to avoid circular dependencies
+  const { api } = await import('./httpClient');
+
+  const response = await api.get<{
+    success: boolean;
+    usage: UserQuotaUsage;
+  }>(`${env.API_URL}/api/quota/me`);
+
+  return response.usage;
+}
+
+/**
+ * Validate if a file upload would exceed quota
+ */
+export async function validateFileUpload(fileSize: number): Promise<QuotaValidationResult> {
+  // Import httpClient dynamically to avoid circular dependencies
+  const { api } = await import('./httpClient');
+
+  const response = await api.post<{
+    success: boolean;
+    validation: QuotaValidationResult;
+  }>(`${env.API_URL}/api/quota/validate`, { fileSize });
+
+  return response.validation;
+}
+
+/**
+ * Format bytes to human readable string
+ */
+export function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  const size = Math.round((bytes / Math.pow(1024, i)) * 100) / 100;
+
+  return `${size} ${sizes[i]}`;
+}
+
+// ============================================
 // Admin User Management
 // ============================================
 

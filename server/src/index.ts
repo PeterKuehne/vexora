@@ -30,8 +30,10 @@ import {
 import { type AuthenticatedRequest } from './types/auth.js'
 import { ollamaService, documentService, ragService } from './services/index.js'
 import { processingJobService } from './services/ProcessingJobService.js'
+import { quotaService } from './services/QuotaService.js'
 import authRoutes from './routes/auth.js'
 import adminRoutes from './routes/admin.js'
+import quotaRoutes from './routes/quota.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -87,6 +89,7 @@ app.use(express.json())
 // Apply rate limiting to auth routes to prevent brute force attacks
 app.use('/api/auth', rateLimiter, authRoutes)
 app.use('/api/admin', rateLimiter, adminRoutes)
+app.use('/api/quota', rateLimiter, quotaRoutes)
 
 // ============================================
 // File Upload Configuration
@@ -530,6 +533,19 @@ app.post('/api/documents/upload', authenticateToken, upload.single('document'), 
     throw new ValidationError(fileValidation.error || 'Datei-Validierung fehlgeschlagen', {
       field: 'document',
       details: [fileValidation.error || 'Unbekannter Validierungsfehler'],
+    })
+  }
+
+  // Validate against user quota
+  const user = req.user!;
+  const quotaValidation = await quotaService.validateUpload(user.id, user.role, req.file.size);
+  if (!quotaValidation.allowed) {
+    throw new ValidationError(quotaValidation.reason || 'Quota-Limit erreicht', {
+      field: 'quota',
+      details: [quotaValidation.reason || 'Upload würde Speicher-Quota überschreiten'],
+      metadata: {
+        currentUsage: quotaValidation.currentUsage
+      }
     })
   }
 

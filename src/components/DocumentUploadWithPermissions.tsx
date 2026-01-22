@@ -20,7 +20,7 @@ import { ProcessingProgress } from './ProcessingProgress';
 import { ClassificationDropdown, type ClassificationLevel } from './ClassificationDropdown';
 import { VisibilitySelector, type VisibilityType } from './VisibilitySelector';
 import { PermissionPreview } from './PermissionPreview';
-import { uploadDocumentWithPermissions, type DocumentPermissions } from '../lib/api';
+import { uploadDocumentWithPermissions, validateFileUpload, formatBytes, type DocumentPermissions } from '../lib/api';
 
 interface DocumentPermissionState {
   classification: ClassificationLevel;
@@ -58,7 +58,7 @@ export function DocumentUploadWithPermissions() {
   /**
    * Handle file selection (drag & drop or file picker)
    */
-  const handleFileSelection = useCallback((file: File) => {
+  const handleFileSelection = useCallback(async (file: File) => {
     // Basic validation
     if (file.type !== 'application/pdf') {
       alert('Nur PDF-Dateien sind erlaubt');
@@ -67,6 +67,32 @@ export function DocumentUploadWithPermissions() {
 
     if (file.size > 50 * 1024 * 1024) {
       alert('Maximum 50MB Dateigröße erlaubt');
+      return;
+    }
+
+    // Quota validation
+    try {
+      const quotaValidation = await validateFileUpload(file.size);
+      if (!quotaValidation.allowed) {
+        alert(`Upload nicht möglich: ${quotaValidation.reason}\n\nIhr aktueller Verbrauch: ${formatBytes(quotaValidation.currentUsage.usedBytes)} / ${formatBytes(quotaValidation.currentUsage.limitBytes)}`);
+        return;
+      }
+
+      // Show warning if quota is getting low
+      if (quotaValidation.currentUsage.isWarning) {
+        const proceed = confirm(
+          `Warnung: Ihr Speicher wird knapp!\n\n` +
+          `Aktueller Verbrauch: ${quotaValidation.currentUsage.usagePercent.toFixed(1)}%\n` +
+          `Nach dem Upload: ${formatBytes(quotaValidation.currentUsage.usedBytes + file.size)} / ${formatBytes(quotaValidation.currentUsage.limitBytes)}\n\n` +
+          `Möchten Sie trotzdem fortfahren?`
+        );
+        if (!proceed) {
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Quota validation failed:', error);
+      alert(`Quota-Validierung fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
       return;
     }
 

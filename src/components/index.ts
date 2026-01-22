@@ -80,6 +80,10 @@ export {
   StorageQuotaDebug,
   type StorageQuotaAlertProps,
 } from './StorageQuotaAlert';
+export {
+  StorageQuotaDisplay,
+  type StorageQuotaDisplayProps,
+} from './StorageQuotaDisplay';
 
 // Branding components
 export { Logo, LogoIcon, type LogoProps, type LogoSize, type LogoIconProps } from './Logo';

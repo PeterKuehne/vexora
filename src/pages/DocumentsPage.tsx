@@ -10,6 +10,7 @@ import { useDocuments } from '../contexts/DocumentContext';
 import { useAuth } from '../contexts/AuthContext';
 import { DocumentUploadWithPermissions } from '../components/DocumentUploadWithPermissions';
 import { DocumentList } from '../components/DocumentList';
+import { StorageQuotaDisplay } from '../components/StorageQuotaDisplay';
 import { Search, Filter, Upload, FileText, TrendingUp, Users, Clock } from 'lucide-react';
 
 export function DocumentsPage() {
@@ -252,6 +253,17 @@ export function DocumentsPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Storage Quota Display */}
+        <div className="mb-8">
+          <StorageQuotaDisplay
+            showDetails={true}
+            onQuotaLoaded={(usage) => {
+              // Could add quota data to context or state if needed
+              console.log('User quota loaded:', usage);
+            }}
+          />
         </div>
 
         {/* Upload Area - Collapsible */}

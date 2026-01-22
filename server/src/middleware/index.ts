@@ -7,3 +7,4 @@ export {
   inputSanitization,
   secureCookies
 } from './security.js'
+export { requireAuth } from "./requireAuth.js"

@@ -377,7 +377,7 @@ apps:
   test_command: npm run test
   port_env: PORT
 conventions:
-  version: 12
+  version: 13
   created_at: '2026-01-22T00:11:01.287858Z'
   source: anthropic-discovery
   state_management:
@@ -619,8 +619,8 @@ conventions:
     - Always use AuthProvider at app root level
     - Handle 401 responses with automatic logout
     - Verify tokens server-side before database queries
-  last_updated: '2026-01-22T13:40:03.532618Z'
-  updated_by_feature: 66
+  last_updated: '2026-01-22T15:00:39.140694Z'
+  updated_by_feature: 79
   permission_filtering:
     system: PostgreSQL RLS + Weaviate Vector Filter
     discovered_in_feature: 67
@@ -820,3 +820,25 @@ conventions:
     - navigate(-1) für Zurück-Navigation
     - Pfade immer absolut beginnen mit /
     - Route-Parameter als Props an Komponenten weitergeben
+  quota_management:
+    system: Role-based Storage Quotas
+    discovered_in_feature: 79
+    discovered_at: '2026-01-22T15:00:39.140302Z'
+    import_path: '@/lib/api (getQuotaUsage, validateFileUpload)'
+    reference_files:
+    - server/src/services/QuotaService.ts:1
+    - src/components/StorageQuotaDisplay.tsx:1
+    - src/lib/api.ts:770
+    usage_pattern: '// Frontend quota usage\nconst usage = await getQuotaUsage();\nconst validation = await validateFileUpload(file.size);\n\n//
+      Backend quota service\nconst quotaValidation = await quotaService.validateUpload(userId, userRole, fileSize);\nif (!quotaValidation.allowed)
+      {\n  throw new ValidationError(quotaValidation.reason);\n}\n\n// Role-based limits\nEmployee: 100MB, Manager: 500MB,
+      Admin: 10GB (unlimited)\nWarning: 80%, Critical: 95%, Exceeded: 100%'
+    guidelines:
+    - Use role-based quota limits aligned with authentication system
+    - Validate uploads before file processing
+    - Display quota status with progress bars and warning states
+    - Use formatBytes() for human-readable file sizes
+    - Implement real-time quota updates after uploads/deletions
+    - Show warnings at 80% usage, critical at 95%
+    - Admin users have unlimited quota (10GB technical limit)
+    - Integrate quota display prominently on document management pages
