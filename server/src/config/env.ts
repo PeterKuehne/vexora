@@ -39,6 +39,14 @@ export const env = {
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN ?? '15m',
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN ?? '30d',
 
+  // Security
+  FRONTEND_URL: process.env.FRONTEND_URL ?? (process.env.NODE_ENV === 'production'
+    ? 'https://your-domain.com'
+    : 'http://localhost:5173'),
+  BACKEND_URL: process.env.BACKEND_URL ?? (process.env.NODE_ENV === 'production'
+    ? 'https://api.your-domain.com'
+    : 'http://localhost:3001'),
+
   // Helpers
   isDevelopment: process.env.NODE_ENV !== 'production',
   isProduction: process.env.NODE_ENV === 'production',

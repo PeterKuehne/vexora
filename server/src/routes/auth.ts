@@ -6,6 +6,7 @@ import express, { type Request, type Response } from 'express';
 import { authService } from '../services/AuthService.js';
 import { asyncHandler } from '../middleware/index.js';
 import { ValidationError } from '../errors/index.js';
+import { env } from '../config/env.js';
 import type { AuthenticatedRequest } from '../types/auth.js';
 
 const router = express.Router();
@@ -35,7 +36,7 @@ router.get('/microsoft/login', asyncHandler(async (_req: Request, res: Response)
  */
 router.get('/microsoft/callback', asyncHandler(async (req: Request, res: Response) => {
   const { code, state, error } = req.query;
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const frontendUrl = env.FRONTEND_URL;
 
   // Check for OAuth error
   if (error) {
@@ -60,23 +61,24 @@ router.get('/microsoft/callback', asyncHandler(async (req: Request, res: Respons
     // Generate auth session
     const session = await authService.createAuthSession(user);
 
-    // Set secure cookies (production should use httpOnly and secure)
-    const isProduction = process.env.NODE_ENV === 'production';
+    // Set secure cookies with enhanced security settings
 
     res.cookie('auth_token', session.access_token, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
+      secure: env.isProduction,
+      sameSite: env.isProduction ? 'strict' : 'lax',
       maxAge: 15 * 60 * 1000, // 15 minutes
-      path: '/'
+      path: '/',
+      domain: env.isProduction ? undefined : undefined // Let browser handle domain
     });
 
     res.cookie('refresh_token', session.refresh_token, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
+      secure: env.isProduction,
+      sameSite: env.isProduction ? 'strict' : 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      path: '/'
+      path: '/',
+      domain: env.isProduction ? undefined : undefined // Let browser handle domain
     });
 
     // Log successful login
@@ -116,7 +118,7 @@ router.get('/google/login', asyncHandler(async (_req: Request, res: Response) =>
  */
 router.get('/google/callback', asyncHandler(async (req: Request, res: Response) => {
   const { code, state, error } = req.query;
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const frontendUrl = env.FRONTEND_URL;
 
   // Check for OAuth error
   if (error) {
@@ -141,23 +143,24 @@ router.get('/google/callback', asyncHandler(async (req: Request, res: Response) 
     // Generate auth session
     const session = await authService.createAuthSession(user);
 
-    // Set secure cookies (production should use httpOnly and secure)
-    const isProduction = process.env.NODE_ENV === 'production';
+    // Set secure cookies with enhanced security settings
 
     res.cookie('auth_token', session.access_token, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
+      secure: env.isProduction,
+      sameSite: env.isProduction ? 'strict' : 'lax',
       maxAge: 15 * 60 * 1000, // 15 minutes
-      path: '/'
+      path: '/',
+      domain: env.isProduction ? undefined : undefined // Let browser handle domain
     });
 
     res.cookie('refresh_token', session.refresh_token, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
+      secure: env.isProduction,
+      sameSite: env.isProduction ? 'strict' : 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      path: '/'
+      path: '/',
+      domain: env.isProduction ? undefined : undefined // Let browser handle domain
     });
 
     // Log successful login
@@ -234,15 +237,14 @@ router.post('/refresh', asyncHandler(async (req: Request, res: Response) => {
     // Generate new access token
     const newAccessToken = authService.generateAccessToken(user);
 
-    // Update access token cookie
-    const isProduction = process.env.NODE_ENV === 'production';
-
+    // Update access token cookie with enhanced security
     res.cookie('auth_token', newAccessToken, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
+      secure: env.isProduction,
+      sameSite: env.isProduction ? 'strict' : 'lax',
       maxAge: 15 * 60 * 1000, // 15 minutes
-      path: '/'
+      path: '/',
+      domain: env.isProduction ? undefined : undefined // Let browser handle domain
     });
 
     return res.json({

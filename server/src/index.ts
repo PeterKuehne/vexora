@@ -6,7 +6,18 @@ import path from 'path'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { env } from './config/env.js'
-import { errorHandler, asyncHandler, notFoundHandler, optionalAuth, authenticateToken } from './middleware/index.js'
+import {
+  errorHandler,
+  asyncHandler,
+  notFoundHandler,
+  optionalAuth,
+  authenticateToken,
+  enforceHTTPS,
+  securityHeaders,
+  createRateLimiter,
+  inputSanitization,
+  secureCookies
+} from './middleware/index.js'
 import { ValidationError } from './errors/index.js'
 import {
   chatRequestSchema,
@@ -24,6 +35,25 @@ import adminRoutes from './routes/admin.js'
 
 const app = express()
 const httpServer = createServer(app)
+
+// ============================================
+// Security Middleware (Applied First)
+// ============================================
+
+// HTTPS enforcement for production OAuth2 callbacks
+app.use(enforceHTTPS)
+
+// Comprehensive security headers
+app.use(securityHeaders)
+
+// Input sanitization against injection attacks
+app.use(inputSanitization)
+
+// Secure cookie configuration
+app.use(secureCookies)
+
+// Rate limiting for authentication endpoints
+const rateLimiter = createRateLimiter()
 
 // Socket.io setup with CORS
 const io = new Server(httpServer, {
@@ -51,11 +81,12 @@ app.use(cookieParser())
 app.use(express.json())
 
 // ============================================
-// Authentication Routes
+// Authentication Routes (with Rate Limiting)
 // ============================================
 
-app.use('/api/auth', authRoutes)
-app.use('/api/admin', adminRoutes)
+// Apply rate limiting to auth routes to prevent brute force attacks
+app.use('/api/auth', rateLimiter, authRoutes)
+app.use('/api/admin', rateLimiter, adminRoutes)
 
 // ============================================
 // File Upload Configuration

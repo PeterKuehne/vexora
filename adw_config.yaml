@@ -353,7 +353,7 @@ apps:
   type: frontend
   default_port: 5173
 conventions:
-  version: 10
+  version: 11
   created_at: '2026-01-22T00:11:01.287858Z'
   source: anthropic-discovery
   state_management:
@@ -595,8 +595,8 @@ conventions:
     - Always use AuthProvider at app root level
     - Handle 401 responses with automatic logout
     - Verify tokens server-side before database queries
-  last_updated: '2026-01-22T12:17:31.852226Z'
-  updated_by_feature: 74
+  last_updated: '2026-01-22T13:31:01.462023Z'
+  updated_by_feature: 90
   permission_filtering:
     system: PostgreSQL RLS + Weaviate Vector Filter
     discovered_in_feature: 67
@@ -750,3 +750,31 @@ conventions:
     - Use MANDATORY TailwindCSS pattern for dialog styling
     - Implement real-time permission preview
     - Always provide clear error messages for permission failures
+  security:
+    system: Express Security Middleware
+    discovered_in_feature: 90
+    discovered_at: '2026-01-22T13:31:01.461804Z'
+    import_path: '@/middleware/security'
+    reference_files:
+    - server/src/middleware/security.ts:1
+    - server/src/index.ts:18
+    - server/src/routes/auth.ts:6
+    usage_pattern: |-
+      // Security middleware application order (CRITICAL)
+      app.use(enforceHTTPS)           // HTTPS enforcement first
+      app.use(securityHeaders)        // Security headers
+      app.use(inputSanitization)      // Input validation
+      app.use(secureCookies)          // Cookie security
+      app.use('/api/auth', rateLimiter) // Rate limiting for auth
+
+      // OAuth callback URLs with HTTPS enforcement
+      const frontendUrl = env.FRONTEND_URL // Auto-selects HTTPS for production
+    guidelines:
+    - Apply security middleware in correct order (HTTPS > Headers > Input > Cookies)
+    - Use rate limiting on authentication endpoints to prevent brute force
+    - HTTPS enforcement mandatory for OAuth2 callbacks in production
+    - Content-Security-Policy blocks XSS with comprehensive directives
+    - Input sanitization validates all requests for dangerous patterns
+    - Secure cookies use httpOnly, secure, and sameSite settings
+    - Remove X-Powered-By header to prevent fingerprinting
+    - Set comprehensive permissions policy to restrict browser features
