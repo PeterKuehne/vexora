@@ -353,7 +353,7 @@ apps:
   type: frontend
   default_port: 5173
 conventions:
-  version: 8
+  version: 9
   created_at: '2026-01-22T00:11:01.287858Z'
   source: anthropic-discovery
   state_management:
@@ -595,8 +595,8 @@ conventions:
     - Always use AuthProvider at app root level
     - Handle 401 responses with automatic logout
     - Verify tokens server-side before database queries
-  last_updated: '2026-01-22T08:08:48.236585Z'
-  updated_by_feature: 78
+  last_updated: '2026-01-22T11:54:38.326940Z'
+  updated_by_feature: 69
   permission_filtering:
     system: PostgreSQL RLS + Weaviate Vector Filter
     discovered_in_feature: 67
@@ -711,3 +711,21 @@ conventions:
     - Use countActiveAdmins() for reliable admin count
     - Block both role changes and deactivation
     - Provide clear error messages to users
+  intelligent_rag:
+    system: Intent Detection + Automatic RAG Activation
+    discovered_in_feature: 69
+    discovered_at: '2026-01-22T11:54:38.326679Z'
+    import_path: '@/lib/intentDetection'
+    reference_files:
+    - src/lib/intentDetection.ts:1
+    - src/contexts/RAGContext.tsx:1
+    - src/components/RAGModeSelector.tsx:1
+    usage_pattern: '// Query Intent Analysis\nconst analysis = analyzeIntent(userQuery);\nif (analysis.shouldActivateRAG)
+      {\n  // Activate RAG for document search\n  ragOptions = { enabled: true, query: userQuery }\n}\n\n// RAG Mode Selection\nconst
+      { shouldActivateRAGForQuery } = useRAG();\nconst shouldUseRAG = shouldActivateRAGForQuery(userQuery);'
+    guidelines:
+    - Use analyzeIntent() to determine if user queries need document search
+    - 'Implement three RAG modes: manual, automatic, always'
+    - 'Performance optimization: skip RAG for smalltalk queries'
+    - 'Transparent user experience: show source citations when RAG is active'
+    - Fallback to RAG activation for ambiguous queries (better safe than sorry)

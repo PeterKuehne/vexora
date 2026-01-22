@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { TokenTest } from '../components/TokenTest';
+import { IntentDetectionTest } from '../components/IntentDetectionTest';
 
 export function LoginPage() {
   const { login, googleLogin, isAuthenticated, isLoading, error, clearError } = useAuth();
@@ -252,6 +253,11 @@ export function LoginPage() {
         {/* Token Test Component for Development */}
         <div className="mt-8">
           <TokenTest />
+        </div>
+
+        {/* Intent Detection Test Component for Feature #69 */}
+        <div className="mt-8">
+          <IntentDetectionTest />
         </div>
 
         {/* Footer */}

@@ -86,7 +86,7 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
 
   const toast = useToast();
   const { settings } = useSettings();
-  const { isRAGEnabled } = useRAG();
+  const { shouldActivateRAGForQuery } = useRAG();
 
   // Chat state
   const [isStreaming, setIsStreaming] = useState(false);
@@ -335,7 +335,7 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
           {
             model,
             signal: abortControllerRef.current.signal,
-            ...(isRAGEnabled && {
+            ...(shouldActivateRAGForQuery(content) && {
               ragOptions: {
                 enabled: true,
                 query: content.trim(), // Use the user's message as query
@@ -355,7 +355,7 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
         setIsStreaming(false);
       }
     },
-    [messages, isStreaming, model, settings.systemPrompt, settings.hybridSearchAlpha, settings.ragTopK, isRAGEnabled, addMessageToActive, updateMessageInActive, showErrorToast]
+    [messages, isStreaming, model, settings.systemPrompt, settings.hybridSearchAlpha, settings.ragTopK, shouldActivateRAGForQuery, addMessageToActive, updateMessageInActive, showErrorToast]
   );
 
   /**

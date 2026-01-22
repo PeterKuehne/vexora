@@ -13,6 +13,7 @@ import { AIMessage } from './AIMessage';
 import { UserMessage } from './UserMessage';
 import { ChatInput } from './ChatInput';
 import { RAGToggle } from './RAGToggle';
+import { RAGModeSelector } from './RAGModeSelector';
 import { WelcomeScreen } from './WelcomeScreen';
 import { useChat, useRAG, useDocuments } from '../contexts';
 import { ChevronDown } from 'lucide-react';
@@ -49,7 +50,7 @@ export function ChatContainer({ className }: ChatContainerProps) {
   } = useChat();
 
   // RAG state management
-  const { isRAGEnabled, setRAGEnabled, setRAGAvailable } = useRAG();
+  const { ragMode, setRAGMode, isRAGEnabled, setRAGEnabled, setRAGAvailable } = useRAG();
   const { documents } = useDocuments();
 
   // Handle scroll to check if button should be visible
@@ -169,13 +170,22 @@ export function ChatContainer({ className }: ChatContainerProps) {
         statusBar={renderStatusBar()}
         inputArea={
           <ChatAreaInputWrapper hint="Enter zum Senden, Shift+Enter für neue Zeile">
-            {/* RAG Toggle */}
-            <div className="mb-3">
-              <RAGToggle
-                enabled={isRAGEnabled}
-                onChange={setRAGEnabled}
-                disabled={false}
+            {/* RAG Mode Selector */}
+            <div className="mb-3 space-y-3">
+              <RAGModeSelector
+                mode={ragMode}
+                onChange={setRAGMode}
+                disabled={!documents || documents.length === 0}
               />
+
+              {/* Show legacy toggle only in manual mode */}
+              {ragMode === 'manual' && (
+                <RAGToggle
+                  enabled={isRAGEnabled}
+                  onChange={setRAGEnabled}
+                  disabled={false}
+                />
+              )}
             </div>
             {/* Chat Input */}
             <ChatInput
@@ -183,7 +193,11 @@ export function ChatContainer({ className }: ChatContainerProps) {
               onStop={stopStream}
               isStreaming={isStreaming}
               placeholder={
-                isRAGEnabled
+                ragMode === 'always'
+                  ? "Frage etwas... (RAG ist immer aktiv)"
+                  : ragMode === 'automatic'
+                  ? "Stelle eine Frage... (RAG aktiviert sich intelligent)"
+                  : isRAGEnabled
                   ? "Stelle eine Frage zu deinen Dokumenten..."
                   : "Schreibe eine Nachricht..."
               }

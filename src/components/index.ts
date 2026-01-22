@@ -294,6 +294,7 @@ export { SidebarTabs, type SidebarTab } from './SidebarTabs';
 
 // RAG components
 export { RAGToggle } from './RAGToggle';
+export { RAGModeSelector } from './RAGModeSelector';
 export { RAGSources } from './RAGSources';
 export { SourceDetailModal } from './SourceDetailModal';
 
