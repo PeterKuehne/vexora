@@ -352,14 +352,30 @@ apps:
   path: .
   type: frontend
   default_port: 5173
+  framework: vite
   start_command: npm run dev
+  stop_command: pkill -f "vite"
+  process_pattern: vite
   test_url: http://localhost:5173
+  ready_check_url: http://localhost:5173
+  ready_check_timeout: 30
+  dev_command: npm run dev
+  test_command: npm run test
+  port_env: PORT
 - name: backend
   path: .
   type: backend
   default_port: 3001
+  framework: express
   start_command: npm run dev:server
+  stop_command: pkill -f "tsx watch server"
+  process_pattern: tsx watch server
   health_check_url: http://localhost:3001/api/health
+  ready_check_url: http://localhost:3001/api/health
+  ready_check_timeout: 20
+  dev_command: npm run dev:server
+  test_command: npm run test
+  port_env: PORT
 conventions:
   version: 12
   created_at: '2026-01-22T00:11:01.287858Z'
