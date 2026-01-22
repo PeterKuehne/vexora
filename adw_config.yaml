@@ -353,7 +353,7 @@ apps:
   type: frontend
   default_port: 5173
 conventions:
-  version: 5
+  version: 6
   created_at: '2026-01-22T00:11:01.287858Z'
   source: anthropic-discovery
   state_management:
@@ -595,8 +595,8 @@ conventions:
     - Always use AuthProvider at app root level
     - Handle 401 responses with automatic logout
     - Verify tokens server-side before database queries
-  last_updated: '2026-01-22T01:29:00.083623Z'
-  updated_by_feature: 59
+  last_updated: '2026-01-22T01:58:33.552514Z'
+  updated_by_feature: 68
   permission_filtering:
     system: PostgreSQL RLS + Weaviate Vector Filter
     discovered_in_feature: 67
@@ -655,3 +655,20 @@ conventions:
     - Use TailwindCSS with theme support (MANDATORY)
     - Handle loading states with UserMenuSkeleton
     - Integrate with AuthContext for logout functionality
+  api_authentication:
+    system: JWT Authentication Middleware
+    discovered_in_feature: 68
+    discovered_at: '2026-01-22T01:58:33.551050Z'
+    import_path: server/src/middleware/auth.ts
+    reference_files:
+    - server/src/index.ts:142
+    - server/src/middleware/auth.ts:17
+    usage_pattern: '// Protected API endpoints\napp.post(''/api/chat'', authenticateToken, asyncHandler(async (req: AuthenticatedRequest,
+      res: Response) => {\n  // User context available via req.user\n  const userContext = req.user ? {\n    userId: req.user.user_id,\n    userRole:
+      req.user.role,\n    userDepartment: req.user.department\n  } : undefined;\n}));'
+    guidelines:
+    - All protected API endpoints MUST use authenticateToken middleware
+    - User context MUST be extracted from req.user after authentication
+    - Return consistent error structure for 401/403 responses
+    - Include userContext in successful API responses for debugging
+    - Use optionalAuth only for endpoints that support anonymous access

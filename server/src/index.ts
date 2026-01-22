@@ -5,7 +5,7 @@ import path from 'path'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { env } from './config/env.js'
-import { errorHandler, asyncHandler, notFoundHandler, optionalAuth } from './middleware/index.js'
+import { errorHandler, asyncHandler, notFoundHandler, optionalAuth, authenticateToken } from './middleware/index.js'
 import { ValidationError } from './errors/index.js'
 import {
   chatRequestSchema,
@@ -139,7 +139,7 @@ app.get('/', (_req: Request, res: Response) => {
 // Chat Endpoint
 // ============================================
 
-app.post('/api/chat', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+app.post('/api/chat', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   // Validate request body with Zod schema
   const validation = validate(chatRequestSchema, req.body)
   if (!validation.success) {
@@ -479,7 +479,7 @@ app.get('/api/models/embedding', asyncHandler(async (_req: Request, res: Respons
 // ============================================
 
 // Upload document endpoint with permissions
-app.post('/api/documents/upload', optionalAuth, upload.single('document'), asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+app.post('/api/documents/upload', authenticateToken, upload.single('document'), asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   if (!req.file) {
     throw new ValidationError('Keine Datei hochgeladen', {
       field: 'document',
@@ -573,7 +573,7 @@ app.get('/api/processing/:jobId', asyncHandler(async (req: Request, res: Respons
 }))
 
 // Get all documents endpoint
-app.get('/api/documents', asyncHandler(async (_req: Request, res: Response) => {
+app.get('/api/documents', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const documents = await documentService.getDocuments()
 
   res.json({
@@ -583,19 +583,19 @@ app.get('/api/documents', asyncHandler(async (_req: Request, res: Response) => {
 }))
 
 // Get all unique tags endpoint (BEFORE :id route!)
-app.get('/api/documents/tags', asyncHandler(async (_req: Request, res: Response) => {
+app.get('/api/documents/tags', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const tags = await documentService.getAllTags()
   res.json({ tags })
 }))
 
 // Get document categories endpoint (BEFORE :id route!)
-app.get('/api/documents/categories', asyncHandler(async (_req: Request, res: Response) => {
+app.get('/api/documents/categories', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { DOCUMENT_CATEGORIES } = await import('./services/DocumentService.js')
   res.json({ categories: DOCUMENT_CATEGORIES })
 }))
 
 // Get single document endpoint
-app.get('/api/documents/:id', asyncHandler(async (req: Request, res: Response) => {
+app.get('/api/documents/:id', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params
   const document = await documentService.getDocument(id || '')
 
@@ -611,7 +611,7 @@ app.get('/api/documents/:id', asyncHandler(async (req: Request, res: Response) =
 }))
 
 // Delete document endpoint
-app.delete('/api/documents/:id', asyncHandler(async (req: Request, res: Response) => {
+app.delete('/api/documents/:id', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params
   const success = await documentService.deleteDocument(id || '')
 
@@ -630,7 +630,7 @@ app.delete('/api/documents/:id', asyncHandler(async (req: Request, res: Response
 }))
 
 // Update document endpoint (category/tags)
-app.patch('/api/documents/:id', asyncHandler(async (req: Request, res: Response) => {
+app.patch('/api/documents/:id', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params
   const { category, tags } = req.body
 
@@ -651,7 +651,7 @@ app.patch('/api/documents/:id', asyncHandler(async (req: Request, res: Response)
 }))
 
 // Bulk delete documents endpoint
-app.post('/api/documents/bulk-delete', asyncHandler(async (req: Request, res: Response) => {
+app.post('/api/documents/bulk-delete', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { ids } = req.body
 
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -688,6 +688,242 @@ app.post('/api/documents/bulk-delete', asyncHandler(async (req: Request, res: Re
     deletedCount: successCount,
     failedCount: failCount,
   })
+}))
+
+// ============================================
+// RAG Endpoints
+// ============================================
+
+// RAG search endpoint - search for relevant documents
+app.post('/api/rag/search', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const { query, searchLimit = 5, searchThreshold = 0.5, hybridAlpha = 0.5 } = req.body
+
+  if (!query || typeof query !== 'string') {
+    res.status(400).json({
+      error: 'Search query is required',
+      code: 'MISSING_QUERY',
+      message: 'Query field must be provided as a string'
+    })
+    return
+  }
+
+  try {
+    // Extract user context for permission-aware search
+    const userContext = req.user ? {
+      userId: req.user.user_id,
+      userRole: req.user.role,
+      userDepartment: req.user.department,
+    } : undefined
+
+    const ragResponse = await ragService.generateResponse({
+      messages: [], // Empty messages for search-only
+      model: 'qwen3:8b',
+      query,
+      searchLimit,
+      searchThreshold,
+      hybridAlpha,
+      userContext,
+    })
+
+    res.json({
+      success: true,
+      query,
+      sources: ragResponse.sources,
+      searchResults: ragResponse.searchResults,
+      hasRelevantSources: ragResponse.hasRelevantSources,
+      userContext: {
+        role: req.user.role,
+        department: req.user.department,
+      }
+    })
+  } catch (error) {
+    console.error('RAG search failed:', error)
+    res.status(500).json({
+      error: 'RAG search failed',
+      code: 'RAG_SEARCH_ERROR',
+      message: 'Failed to search documents with RAG'
+    })
+  }
+}))
+
+// RAG chat endpoint - generate response with document context
+app.post('/api/rag/chat', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const {
+    messages,
+    query,
+    model = 'qwen3:8b',
+    searchLimit = 5,
+    searchThreshold = 0.5,
+    hybridAlpha = 0.5
+  } = req.body
+
+  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    res.status(400).json({
+      error: 'Messages array is required',
+      code: 'MISSING_MESSAGES',
+      message: 'Messages field must be provided as a non-empty array'
+    })
+    return
+  }
+
+  if (!query || typeof query !== 'string') {
+    res.status(400).json({
+      error: 'Query is required',
+      code: 'MISSING_QUERY',
+      message: 'Query field must be provided as a string'
+    })
+    return
+  }
+
+  try {
+    // Extract user context for permission-aware RAG
+    const userContext = req.user ? {
+      userId: req.user.user_id,
+      userRole: req.user.role,
+      userDepartment: req.user.department,
+    } : undefined
+
+    const ragResponse = await ragService.generateResponse({
+      messages,
+      model,
+      query,
+      searchLimit,
+      searchThreshold,
+      hybridAlpha,
+      userContext,
+    })
+
+    res.json({
+      success: true,
+      message: ragResponse.message,
+      sources: ragResponse.sources,
+      searchResults: ragResponse.searchResults,
+      hasRelevantSources: ragResponse.hasRelevantSources,
+      userContext: {
+        role: req.user.role,
+        department: req.user.department,
+      }
+    })
+  } catch (error) {
+    console.error('RAG chat failed:', error)
+    res.status(500).json({
+      error: 'RAG chat failed',
+      code: 'RAG_CHAT_ERROR',
+      message: 'Failed to generate RAG response'
+    })
+  }
+}))
+
+// ============================================
+// Ollama Endpoints
+// ============================================
+
+// Ollama models endpoint - protected version of /api/models
+app.get('/api/ollama/models', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  // Validate query parameters (optional filters)
+  const queryValidation = validate(modelQuerySchema, req.query)
+  if (!queryValidation.success) {
+    throw new ValidationError(formatValidationErrors(queryValidation.errors), {
+      field: 'query',
+      details: queryValidation.errors,
+    })
+  }
+  const query: ModelQuery = queryValidation.data
+
+  try {
+    // Use OllamaService to get models
+    const result = await ollamaService.getModels({
+      search: query.search,
+      family: query.family,
+    })
+
+    res.json({
+      success: true,
+      models: result.models,
+      defaultModel: ollamaService.getDefaultModel(),
+      totalCount: result.totalCount,
+      userContext: {
+        role: req.user.role,
+        department: req.user.department,
+      }
+    })
+  } catch (error) {
+    console.error('Ollama models failed:', error)
+    res.status(500).json({
+      error: 'Failed to get models',
+      code: 'OLLAMA_MODELS_ERROR',
+      message: 'Failed to retrieve Ollama models'
+    })
+  }
+}))
+
+// Ollama health endpoint - protected version for monitoring
+app.get('/api/ollama/health', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const ollamaHealth = await ollamaService.healthCheck(5000)
+
+    const healthStatus = {
+      success: true,
+      status: ollamaHealth.status,
+      url: ollamaHealth.url,
+      defaultModel: ollamaHealth.defaultModel,
+      availableModels: ollamaHealth.availableModels,
+      error: ollamaHealth.error,
+      userContext: {
+        role: req.user.role,
+        department: req.user.department,
+      }
+    }
+
+    // Set appropriate HTTP status
+    const httpStatus = ollamaHealth.status === 'ok' ? 200 : 503
+    res.status(httpStatus).json(healthStatus)
+  } catch (error) {
+    console.error('Ollama health check failed:', error)
+    res.status(500).json({
+      error: 'Health check failed',
+      code: 'OLLAMA_HEALTH_ERROR',
+      message: 'Failed to check Ollama health'
+    })
+  }
+}))
+
+// Ollama chat endpoint - direct protected access to Ollama
+app.post('/api/ollama/chat', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const { messages, model, options } = req.body
+
+  if (!messages || !Array.isArray(messages) || messages.length === 0) {
+    res.status(400).json({
+      error: 'Messages array is required',
+      code: 'MISSING_MESSAGES',
+      message: 'Messages field must be provided as a non-empty array'
+    })
+    return
+  }
+
+  try {
+    const response = await ollamaService.chat({
+      messages,
+      model: model || 'qwen3:8b',
+      options,
+    })
+
+    res.json({
+      success: true,
+      ...response,
+      userContext: {
+        role: req.user.role,
+        department: req.user.department,
+      }
+    })
+  } catch (error) {
+    console.error('Ollama chat failed:', error)
+    res.status(500).json({
+      error: 'Ollama chat failed',
+      code: 'OLLAMA_CHAT_ERROR',
+      message: 'Failed to get Ollama chat response'
+    })
+  }
 }))
 
 // ============================================
