@@ -578,9 +578,20 @@ app.get('/api/processing/:jobId', asyncHandler(async (req: Request, res: Respons
   })
 }))
 
-// Get all documents endpoint
+// Get all documents endpoint - with department filtering via RLS
 app.get('/api/documents', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-  const documents = await documentService.getDocuments()
+  // Set user context for PostgreSQL RLS filtering
+  await documentService.setUserContext(
+    req.user?.user_id || '',
+    req.user?.role || '',
+    req.user?.department || ''
+  )
+
+  // Get documents filtered by RLS policies (department, role, permissions)
+  const documents = await documentService.getAccessibleDocuments()
+
+  // Cleanup user context
+  await documentService.clearUserContext()
 
   res.json({
     documents,
@@ -600,14 +611,27 @@ app.get('/api/documents/categories', authenticateToken, asyncHandler(async (req:
   res.json({ categories: DOCUMENT_CATEGORIES })
 }))
 
-// Get single document endpoint
+// Get single document endpoint - with department filtering via RLS
 app.get('/api/documents/:id', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params
-  const document = await documentService.getDocument(id || '')
+
+  // Set user context for PostgreSQL RLS filtering
+  await documentService.setUserContext(
+    req.user?.user_id || '',
+    req.user?.role || '',
+    req.user?.department || ''
+  )
+
+  // Get all accessible documents and filter by ID (RLS-aware)
+  const allAccessibleDocuments = await documentService.getAccessibleDocuments()
+  const document = allAccessibleDocuments.find(doc => doc.id === id)
+
+  // Cleanup user context
+  await documentService.clearUserContext()
 
   if (!document) {
     res.status(404).json({
-      error: 'Dokument nicht gefunden',
+      error: 'Dokument nicht gefunden oder nicht autorisiert',
       id,
     })
     return
@@ -616,14 +640,41 @@ app.get('/api/documents/:id', authenticateToken, asyncHandler(async (req: Authen
   res.json({ document })
 }))
 
-// Delete document endpoint
+// Delete document endpoint - with department filtering via RLS
 app.delete('/api/documents/:id', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params
+
+  // Set user context for PostgreSQL RLS filtering
+  await documentService.setUserContext(
+    req.user?.user_id || '',
+    req.user?.role || '',
+    req.user?.department || ''
+  )
+
+  // Check if user has access to this document before attempting deletion
+  const allAccessibleDocuments = await documentService.getAccessibleDocuments()
+  const hasAccess = allAccessibleDocuments.some(doc => doc.id === id)
+
+  if (!hasAccess) {
+    // Cleanup user context
+    await documentService.clearUserContext()
+
+    res.status(404).json({
+      error: 'Dokument nicht gefunden oder nicht autorisiert für Löschung',
+      id,
+    })
+    return
+  }
+
+  // User has access, proceed with deletion
   const success = await documentService.deleteDocument(id || '')
 
+  // Cleanup user context
+  await documentService.clearUserContext()
+
   if (!success) {
-    res.status(404).json({
-      error: 'Dokument nicht gefunden',
+    res.status(500).json({
+      error: 'Fehler beim Löschen des Dokuments',
       id,
     })
     return
@@ -635,16 +686,42 @@ app.delete('/api/documents/:id', authenticateToken, asyncHandler(async (req: Aut
   })
 }))
 
-// Update document endpoint (category/tags)
+// Update document endpoint (category/tags) - with department filtering via RLS
 app.patch('/api/documents/:id', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params
   const { category, tags } = req.body
 
+  // Set user context for PostgreSQL RLS filtering
+  await documentService.setUserContext(
+    req.user?.user_id || '',
+    req.user?.role || '',
+    req.user?.department || ''
+  )
+
+  // Check if user has access to this document before attempting update
+  const allAccessibleDocuments = await documentService.getAccessibleDocuments()
+  const hasAccess = allAccessibleDocuments.some(doc => doc.id === id)
+
+  if (!hasAccess) {
+    // Cleanup user context
+    await documentService.clearUserContext()
+
+    res.status(404).json({
+      error: 'Dokument nicht gefunden oder nicht autorisiert für Bearbeitung',
+      id,
+    })
+    return
+  }
+
+  // User has access, proceed with update
   const document = await documentService.updateDocument(id || '', { category, tags })
 
+  // Cleanup user context
+  await documentService.clearUserContext()
+
   if (!document) {
-    res.status(404).json({
-      error: 'Dokument nicht gefunden',
+    res.status(500).json({
+      error: 'Fehler beim Aktualisieren des Dokuments',
       id,
     })
     return

@@ -19,13 +19,13 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.startsWith('Bearer ')
       ? authHeader.substring(7)
-      : null;
+      : req.cookies?.auth_token || null;
 
     if (!token) {
       res.status(401).json({
         error: 'Access token required',
         code: 'MISSING_TOKEN',
-        message: 'Authorization header with Bearer token is required'
+        message: 'Authorization header with Bearer token or auth_token cookie is required'
       });
       return;
     }
@@ -86,7 +86,7 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.startsWith('Bearer ')
       ? authHeader.substring(7)
-      : null;
+      : req.cookies?.auth_token || null;
 
     if (!token) {
       // No token provided - continue without authentication
