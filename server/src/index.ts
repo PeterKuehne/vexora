@@ -5,7 +5,7 @@ import path from 'path'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { env } from './config/env.js'
-import { errorHandler, asyncHandler, notFoundHandler } from './middleware/index.js'
+import { errorHandler, asyncHandler, notFoundHandler, optionalAuth } from './middleware/index.js'
 import { ValidationError } from './errors/index.js'
 import {
   chatRequestSchema,
@@ -15,6 +15,7 @@ import {
   type ChatRequest,
   type ModelQuery,
 } from './validation/index.js'
+import { type AuthenticatedRequest } from './types/auth.js'
 import { ollamaService, documentService, ragService } from './services/index.js'
 import { processingJobService } from './services/ProcessingJobService.js'
 import authRoutes from './routes/auth.js'
@@ -138,7 +139,7 @@ app.get('/', (_req: Request, res: Response) => {
 // Chat Endpoint
 // ============================================
 
-app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
+app.post('/api/chat', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   // Validate request body with Zod schema
   const validation = validate(chatRequestSchema, req.body)
   if (!validation.success) {
@@ -182,6 +183,13 @@ app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
     if (ragEnabled && ragQuery) {
       // RAG-enabled streaming response
       try {
+        // Extract user context for permission-aware RAG
+        const userContext = req.user ? {
+          userId: req.user.user_id,
+          userRole: req.user.role,
+          userDepartment: req.user.department,
+        } : undefined;
+
         const ragResponse = await ragService.generateStreamingResponse({
           messages: chatRequest.messages,
           model: chatRequest.model || 'qwen3:8b',
@@ -189,6 +197,7 @@ app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
           searchLimit: chatRequest.rag?.searchLimit || 5,
           searchThreshold: chatRequest.rag?.searchThreshold || 0.5,
           hybridAlpha: chatRequest.rag?.hybridAlpha ?? 0.5,
+          userContext, // NEW: Pass user context for permission filtering
         })
 
         // Send sources first (as metadata)
@@ -355,6 +364,13 @@ app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
     if (ragEnabled && ragQuery) {
       // RAG-enabled non-streaming response
       try {
+        // Extract user context for permission-aware RAG (non-streaming)
+        const userContext = req.user ? {
+          userId: req.user.user_id,
+          userRole: req.user.role,
+          userDepartment: req.user.department,
+        } : undefined;
+
         const ragResponse = await ragService.generateResponse({
           messages: chatRequest.messages,
           model: chatRequest.model || 'qwen3:8b',
@@ -362,6 +378,7 @@ app.post('/api/chat', asyncHandler(async (req: Request, res: Response) => {
           searchLimit: chatRequest.rag?.searchLimit || 5,
           searchThreshold: chatRequest.rag?.searchThreshold || 0.5,
           hybridAlpha: chatRequest.rag?.hybridAlpha ?? 0.5,
+          userContext, // NEW: Pass user context for permission filtering
         })
 
         res.json({

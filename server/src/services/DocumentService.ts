@@ -350,6 +350,87 @@ class DocumentService {
 
     return { valid: true };
   }
+
+  /**
+   * Set user context for Row Level Security (RLS)
+   * Must be called before any document access queries that require permissions
+   */
+  async setUserContext(userId: string, userRole: string, userDepartment?: string): Promise<void> {
+    await this.initialize();
+
+    await databaseService.query(
+      'SELECT set_user_context($1, $2, $3)',
+      [userId, userRole, userDepartment || '']
+    );
+
+    console.log(`🔐 Set user context: ${userRole} (${userDepartment}) for RLS`);
+  }
+
+  /**
+   * Get accessible document IDs for the current user context
+   * Uses PostgreSQL RLS policies to filter documents based on:
+   * - Role hierarchy (Admin > Manager > Employee)
+   * - Department access
+   * - Owner permissions
+   * - Explicit allowed roles/users
+   * - Classification level access
+   */
+  async getAccessibleDocumentIds(): Promise<string[]> {
+    await this.initialize();
+
+    // Query uses RLS - will automatically filter based on current user context
+    const result = await databaseService.query(
+      `SELECT id FROM documents WHERE status = 'completed'`
+    );
+
+    const documentIds = result.rows.map(row => row.id);
+
+    console.log(`🔍 Found ${documentIds.length} accessible documents for current user context`);
+
+    return documentIds;
+  }
+
+  /**
+   * Get full accessible documents with metadata for the current user context
+   */
+  async getAccessibleDocuments(): Promise<DocumentMetadata[]> {
+    await this.initialize();
+
+    const result = await databaseService.query(
+      `SELECT
+        id, filename, file_type, file_size,
+        upload_date, chunk_count, category, tags,
+        owner_id, department, classification
+       FROM documents
+       WHERE status = 'completed'
+       ORDER BY upload_date DESC`
+    );
+
+    return result.rows.map(row => ({
+      id: row.id,
+      filename: row.id,
+      originalName: row.filename,
+      size: parseInt(row.file_size),
+      type: 'pdf',
+      uploadedAt: row.upload_date,
+      pages: Math.ceil(row.chunk_count / 2),
+      category: (row.category || 'Allgemein') as DocumentCategory,
+      tags: row.tags || [],
+    }));
+  }
+
+  /**
+   * Clear user context (for cleanup)
+   */
+  async clearUserContext(): Promise<void> {
+    await this.initialize();
+
+    await databaseService.query(
+      `SELECT set_config('app.user_id', NULL, true),
+              set_config('app.user_role', NULL, true),
+              set_config('app.user_department', NULL, true)`
+    );
+  }
 }
 
 export const documentService = new DocumentService();

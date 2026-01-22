@@ -34,6 +34,11 @@ export const env = {
   // Weaviate
   WEAVIATE_URL: process.env.WEAVIATE_URL ?? 'http://localhost:8080',
 
+  // Authentication
+  JWT_SECRET: process.env.JWT_SECRET ?? 'your-super-secret-jwt-key-change-in-production',
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN ?? '15m',
+  JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN ?? '30d',
+
   // Helpers
   isDevelopment: process.env.NODE_ENV !== 'production',
   isProduction: process.env.NODE_ENV === 'production',

@@ -45,6 +45,7 @@ export interface VectorSearchRequest {
   limit?: number;
   threshold?: number;
   hybridAlpha?: number; // 0 = pure BM25/keyword, 1 = pure vector/semantic
+  allowedDocumentIds?: string[]; // NEW: Filter search to only these document IDs
 }
 
 export interface VectorSearchResponse {
@@ -301,7 +302,7 @@ class VectorService {
       throw new Error('Weaviate client not initialized');
     }
 
-    const { query, limit = 5, threshold = 0.1, hybridAlpha = 0.5 } = request;
+    const { query, limit = 5, threshold = 0.1, hybridAlpha = 0.5, allowedDocumentIds } = request;
 
     try {
       const collection = this.client.collections.get<DocumentChunkProperties>(COLLECTION_NAME);
@@ -309,16 +310,29 @@ class VectorService {
       // Generate query embedding for vector search
       const queryEmbedding = await embeddingService.generateEmbedding(query, EMBEDDING_MODEL);
 
-      // Use hybrid search (BM25 + Vector)
-      const result = await collection.query.hybrid(query, {
+      // Build query with permission filter if provided
+      const queryOptions = {
         limit,
         alpha: hybridAlpha, // 0 = BM25, 1 = Vector, 0.5 = balanced
         fusionType: 'relativeScoreFusion' as any, // Default from v1.24
         vector: queryEmbedding.embedding,
         returnMetadata: ['score'],
-      });
+      } as any;
 
-      console.log(`🔍 Hybrid search: "${query}" (alpha: ${hybridAlpha}, results: ${result.objects.length})`);
+      // Apply permission filter if allowed documents are specified
+      if (allowedDocumentIds && allowedDocumentIds.length > 0) {
+        queryOptions.where = collection.filter.byProperty('documentId').containsAny(allowedDocumentIds);
+        console.log(`🔐 Permission filter: ${allowedDocumentIds.length} allowed documents`);
+      }
+
+      // Use hybrid search (BM25 + Vector) with optional permission filter
+      const result = await collection.query.hybrid(query, queryOptions);
+
+      const logMessage = allowedDocumentIds
+        ? `🔍 Permission-aware hybrid search: "${query}" (alpha: ${hybridAlpha}, allowed: ${allowedDocumentIds.length}, results: ${result.objects.length})`
+        : `🔍 Hybrid search: "${query}" (alpha: ${hybridAlpha}, results: ${result.objects.length})`;
+
+      console.log(logMessage);
 
       // Filter by threshold and map to SearchResult format
       const results: SearchResult[] = result.objects
