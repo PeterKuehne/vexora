@@ -13,7 +13,7 @@ import {
   ProtectedRoute,
   type SidebarControls,
 } from './components';
-import { LoginPage, AdminUsersPage, DocumentsPage, ProfilePage } from './pages';
+import { LoginPage, AdminUsersPage, AuditLogsPage, DocumentsPage, ProfilePage } from './pages';
 import { checkHealth } from './lib/api';
 import {
   ConversationProvider,
@@ -222,12 +222,20 @@ function AppRoutes() {
         }
       />
 
-      {/* Protected Admin Route */}
+      {/* Protected Admin Routes */}
       <Route
         path="/admin"
         element={
           <ProtectedRoute requiredRole="Admin">
             <AdminUsersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/audit-logs"
+        element={
+          <ProtectedRoute requiredRole="Admin">
+            <AuditLogsPage />
           </ProtectedRoute>
         }
       />

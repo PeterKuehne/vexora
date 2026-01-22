@@ -5,8 +5,9 @@
  */
 
 import { NavLink, useLocation } from 'react-router-dom';
-import { MessageSquare, FileText } from 'lucide-react';
+import { MessageSquare, FileText, Users, Shield } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NavigationLinksProps {
   /** Whether to show icons alongside labels */
@@ -26,6 +27,7 @@ export function NavigationLinks({
   className = '',
 }: NavigationLinksProps) {
   const { isDark } = useTheme();
+  const { user } = useAuth();
   const location = useLocation();
 
   // Size classes following TailwindCSS convention
@@ -74,7 +76,7 @@ export function NavigationLinks({
   `.trim();
 
   // Navigation items
-  const navItems = [
+  const baseNavItems = [
     {
       to: '/chat',
       label: 'Chat',
@@ -88,6 +90,25 @@ export function NavigationLinks({
       description: 'Dokumentenverwaltung',
     },
   ];
+
+  // Admin navigation items (only visible to Admins)
+  const adminNavItems = user?.role === 'Admin' ? [
+    {
+      to: '/admin',
+      label: 'Benutzer',
+      icon: Users,
+      description: 'Benutzerverwaltung',
+    },
+    {
+      to: '/admin/audit-logs',
+      label: 'Audit-Logs',
+      icon: Shield,
+      description: 'Systemaktivitäten',
+    },
+  ] : [];
+
+  // Combine navigation items
+  const navItems = [...baseNavItems, ...adminNavItems];
 
   return (
     <nav

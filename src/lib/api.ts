@@ -7,6 +7,7 @@
 
 import { env } from './env';
 import type { Message, MessageRole } from '../types/message';
+import type { AuditLogEntry } from '../types/auth';
 
 // ============================================
 // Types
@@ -865,6 +866,74 @@ export async function fetchUserStatistics(): Promise<{
     };
     timestamp: string;
   }>(`${env.API_URL}/api/admin/stats`);
+}
+
+/**
+ * Get audit logs (Admin only)
+ */
+export async function fetchAuditLogs(
+  limit = 100,
+  offset = 0,
+  daysBack = 90
+): Promise<{
+  success: true;
+  data: {
+    auditLogs: AuditLogEntry[];
+    statistics: {
+      totalLogs: number;
+      successCount: number;
+      failureCount: number;
+      deniedCount: number;
+      topActions: Array<{ action: string; count: number }>;
+    };
+    pagination: {
+      limit: number;
+      offset: number;
+      daysBack: number;
+      returned: number;
+    };
+    userContext: {
+      userId: string;
+      userRole: string;
+      userDepartment?: string;
+    };
+  };
+  timestamp: string;
+}> {
+  const params = new URLSearchParams({
+    limit: limit.toString(),
+    offset: offset.toString(),
+    daysBack: daysBack.toString()
+  });
+
+  // Import httpClient dynamically to avoid circular dependencies
+  const { api } = await import('./httpClient');
+
+  return api.get<{
+    success: true;
+    data: {
+      auditLogs: AuditLogEntry[];
+      statistics: {
+        totalLogs: number;
+        successCount: number;
+        failureCount: number;
+        deniedCount: number;
+        topActions: Array<{ action: string; count: number }>;
+      };
+      pagination: {
+        limit: number;
+        offset: number;
+        daysBack: number;
+        returned: number;
+      };
+      userContext: {
+        userId: string;
+        userRole: string;
+        userDepartment?: string;
+      };
+    };
+    timestamp: string;
+  }>(`${env.API_URL}/api/admin/audit-logs?${params}`);
 }
 
 // ============================================

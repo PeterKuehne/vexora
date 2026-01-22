@@ -241,4 +241,66 @@ router.get('/stats', authenticateToken, requireAdminRole, asyncHandler(async (re
   }
 }));
 
+/**
+ * GET /api/admin/audit-logs
+ * Get audit logs (Admin only)
+ */
+router.get('/audit-logs', authenticateToken, requireAdminRole, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 100;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const daysBack = parseInt(req.query.daysBack as string) || 90;
+
+    // Validate parameters
+    if (limit > 1000) {
+      return res.status(400).json({
+        error: 'Bad request',
+        code: 'LIMIT_TOO_HIGH',
+        message: 'Limit cannot exceed 1000'
+      });
+    }
+
+    if (offset < 0 || limit < 1 || daysBack < 1 || daysBack > 365) {
+      return res.status(400).json({
+        error: 'Bad request',
+        code: 'INVALID_PARAMETERS',
+        message: 'Invalid pagination or date parameters'
+      });
+    }
+
+    const auditLogs = await authService.getAuditLogs(limit, offset, daysBack);
+    const stats = await authService.getAuditLogStats();
+
+    const userContext = req.user ? {
+      userId: req.user.user_id,
+      userRole: req.user.role,
+      userDepartment: req.user.department
+    } : undefined;
+
+    res.json({
+      success: true,
+      data: {
+        auditLogs,
+        statistics: stats,
+        pagination: {
+          limit,
+          offset,
+          daysBack,
+          returned: auditLogs.length
+        },
+        userContext
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error fetching audit logs:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      code: 'AUDIT_LOGS_FETCH_FAILED',
+      message: 'Failed to fetch audit logs'
+    });
+  }
+}));
+
 export default router;

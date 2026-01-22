@@ -741,6 +741,122 @@ export class AuthService {
       // Don't throw here to avoid breaking the main operation
     }
   }
+
+  /**
+   * Get audit logs for admin review
+   * @param limit Maximum number of logs to return (default: 100)
+   * @param offset Number of logs to skip (default: 0)
+   * @param daysBack Number of days to look back (default: 90)
+   */
+  async getAuditLogs(limit = 100, offset = 0, daysBack = 90): Promise<AuditLog[]> {
+    try {
+      const result = await databaseService.query(`
+        SELECT
+          al.id,
+          al.user_id,
+          u.email as user_email,
+          al.action,
+          al.resource_type,
+          al.resource_id,
+          al.result,
+          al.ip_address,
+          al.user_agent,
+          al.metadata,
+          al.created_at
+        FROM audit_logs al
+        LEFT JOIN users u ON al.user_id = u.id
+        WHERE al.created_at >= NOW() - INTERVAL '${daysBack} days'
+        ORDER BY al.created_at DESC
+        LIMIT $1 OFFSET $2
+      `, [limit, offset]);
+
+      return result.rows.map(row => ({
+        id: row.id,
+        user_id: row.user_id,
+        user_email: row.user_email || 'Unknown User',
+        action: row.action,
+        resource_type: row.resource_type,
+        resource_id: row.resource_id,
+        result: row.result as AuditResult,
+        ip_address: row.ip_address,
+        user_agent: row.user_agent,
+        metadata: row.metadata,
+        created_at: row.created_at
+      }));
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      throw new Error('Failed to fetch audit logs');
+    }
+  }
+
+  /**
+   * Get audit log statistics for admin dashboard
+   */
+  async getAuditLogStats(): Promise<{
+    totalLogs: number;
+    successCount: number;
+    failureCount: number;
+    deniedCount: number;
+    topActions: Array<{ action: string; count: number }>;
+  }> {
+    try {
+      // Get total counts by result
+      const countsResult = await databaseService.query(`
+        SELECT
+          result,
+          COUNT(*) as count
+        FROM audit_logs
+        WHERE created_at >= NOW() - INTERVAL '90 days'
+        GROUP BY result
+      `);
+
+      // Get top actions
+      const actionsResult = await databaseService.query(`
+        SELECT
+          action,
+          COUNT(*) as count
+        FROM audit_logs
+        WHERE created_at >= NOW() - INTERVAL '90 days'
+        GROUP BY action
+        ORDER BY count DESC
+        LIMIT 5
+      `);
+
+      const stats = {
+        totalLogs: 0,
+        successCount: 0,
+        failureCount: 0,
+        deniedCount: 0,
+        topActions: actionsResult.rows.map(row => ({
+          action: row.action,
+          count: parseInt(row.count)
+        }))
+      };
+
+      // Calculate counts
+      for (const row of countsResult.rows) {
+        const count = parseInt(row.count);
+        stats.totalLogs += count;
+
+        switch (row.result) {
+          case 'success':
+            stats.successCount = count;
+            break;
+          case 'failure':
+            stats.failureCount = count;
+            break;
+          case 'denied':
+            stats.deniedCount = count;
+            break;
+        }
+      }
+
+      return stats;
+    } catch (error) {
+      console.error('Error fetching audit log statistics:', error);
+      throw new Error('Failed to fetch audit log statistics');
+    }
+  }
 }
 
 // Export singleton instance
