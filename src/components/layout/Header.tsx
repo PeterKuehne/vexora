@@ -11,6 +11,7 @@ import type { Theme } from '../../types/settings';
 import type { User } from '../../../server/src/types/auth';
 import { Logo } from '../Logo';
 import { ModelSelector } from '../ModelSelector';
+import { NavigationLinks, NavigationDivider } from '../NavigationLinks';
 import { NewChatButton } from '../NewChatButton';
 import { SettingsButton } from '../SettingsButton';
 import { ThemeToggle } from '../ThemeToggle';
@@ -133,7 +134,16 @@ export function Header({
         {/* Logo/Title */}
         <Logo size="md" />
 
-        {/* New Conversation Button */}
+        {/* Navigation Links - Chat | Dokumente */}
+        <NavigationDivider />
+        <NavigationLinks
+          showIcons={false}
+          size="sm"
+          direction="horizontal"
+          className="hidden sm:flex"
+        />
+
+        {/* New Conversation Button - only show on chat page */}
         {onNewConversation && (
           <NewChatButton
             onClick={onNewConversation}

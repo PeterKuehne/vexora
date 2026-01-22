@@ -353,7 +353,7 @@ apps:
   type: frontend
   default_port: 5173
 conventions:
-  version: 6
+  version: 7
   created_at: '2026-01-22T00:11:01.287858Z'
   source: anthropic-discovery
   state_management:
@@ -595,8 +595,8 @@ conventions:
     - Always use AuthProvider at app root level
     - Handle 401 responses with automatic logout
     - Verify tokens server-side before database queries
-  last_updated: '2026-01-22T01:58:33.552514Z'
-  updated_by_feature: 68
+  last_updated: '2026-01-22T07:58:44.507815Z'
+  updated_by_feature: 70
   permission_filtering:
     system: PostgreSQL RLS + Weaviate Vector Filter
     discovered_in_feature: 67
@@ -672,3 +672,23 @@ conventions:
     - Return consistent error structure for 401/403 responses
     - Include userContext in successful API responses for debugging
     - Use optionalAuth only for endpoints that support anonymous access
+  navigation:
+    system: React Router + Custom NavigationLinks
+    discovered_in_feature: 70
+    discovered_at: '2026-01-22T07:58:44.507584Z'
+    import_path: '@/components/NavigationLinks'
+    reference_files:
+    - src/components/NavigationLinks.tsx:1
+    - src/components/layout/Header.tsx:137
+    - src/pages/DocumentsPage.tsx:1
+    usage_pattern: // Header Navigation Integration\nimport { NavigationLinks, NavigationDivider } from '@/components/NavigationLinks';\n\n<NavigationDivider
+      />\n<NavigationLinks\n  showIcons={false}\n  size=\"sm\"\n  direction=\"horizontal\"\n  className=\"hidden sm:flex\"\n/>\n\n//
+      React Router Setup\n<Route path=\"/chat\" element={<ProtectedRoute><ChatApp /></ProtectedRoute>} />\n<Route path=\"/documents\"
+      element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />"
+    guidelines:
+    - Nutze NavLink für aktive Zustandsanzeige
+    - Implementiere responsive Navigation (hidden sm:flex)
+    - 'Folge TailwindCSS Theme-Support mit {isDark ? ''dark'' : ''light''} Pattern'
+    - Verwende Lucide Icons für konsistente Ikonografie
+    - Integriere mit ProtectedRoute für Sicherheit
+    - Erstelle vollständige separate Pages, nicht nur Sidebar-Panels

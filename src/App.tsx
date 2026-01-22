@@ -13,7 +13,7 @@ import {
   ProtectedRoute,
   type SidebarControls,
 } from './components';
-import { LoginPage, AdminUsersPage } from './pages';
+import { LoginPage, AdminUsersPage, DocumentsPage } from './pages';
 import { checkHealth } from './lib/api';
 import {
   ConversationProvider,
@@ -210,15 +210,14 @@ function AppRoutes() {
         }
       />
 
-      {/* Protected Documents Route (Future Feature) */}
+      {/* Protected Documents Route - Full-screen Document Management */}
       <Route
         path="/documents"
         element={
           <ProtectedRoute>
-            <div className="p-8 text-center">
-              <h1 className="text-2xl font-bold mb-4">Dokumente</h1>
-              <p className="text-gray-600">Dokumentenverwaltung wird in einem zukünftigen Feature verfügbar sein.</p>
-            </div>
+            <DocumentProvider>
+              <DocumentsPage />
+            </DocumentProvider>
           </ProtectedRoute>
         }
       />

@@ -282,6 +282,9 @@ export {
 // export { Layout } from './Layout';
 // export { ChatArea } from './ChatArea';
 
+// Navigation components
+export { NavigationLinks, NavigationDivider } from './NavigationLinks';
+
 // Document Management components
 export { DocumentUpload } from './DocumentUpload';
 export { DocumentList } from './DocumentList';
