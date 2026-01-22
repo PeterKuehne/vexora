@@ -27,7 +27,15 @@ import {
 } from '../lib/api';
 import { useToast } from './ToastContext';
 import { useProcessing } from '../hooks/useProcessing';
-import type { ProcessingJob } from '../lib/socket';
+import { useSocket } from '../hooks/useSocket';
+import type {
+  ProcessingJob,
+  DocumentUploadedEvent,
+  DocumentDeletedEvent,
+  DocumentUpdatedEvent,
+  DocumentPermissionsChangedEvent,
+  DocumentsBulkDeletedEvent
+} from '../lib/socket';
 
 // Re-export types and constants from api.ts for consumers
 export { DOCUMENT_CATEGORIES };
@@ -113,6 +121,121 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       setIsLoading(false);
     }
   }, [addToast]);
+
+  // Real-time document event handlers
+  const handleDocumentUploaded = useCallback((event: DocumentUploadedEvent) => {
+    console.log('📤 Real-time: Document uploaded', event);
+
+    // Add document to state if not already present
+    setDocuments(prevDocs => {
+      const exists = prevDocs.some(doc => doc.id === event.document.id);
+      if (!exists) {
+        const newDoc: DocumentMetadata = {
+          id: event.document.id,
+          filename: event.document.filename,
+          originalName: event.document.originalName,
+          size: event.document.size,
+          type: 'pdf',
+          uploadedAt: event.document.createdAt,
+          pages: 0, // Will be updated when available
+          category: (event.document.category as DocumentCategory) || 'Allgemein',
+          tags: event.document.tags
+        };
+        return [newDoc, ...prevDocs]; // Add to beginning for newest first
+      }
+      return prevDocs;
+    });
+
+    // Show notification
+    addToast('success', `Dokument "${event.document.originalName}" wurde hochgeladen`, {
+      title: 'Neues Dokument'
+    });
+  }, [addToast]);
+
+  const handleDocumentDeleted = useCallback((event: DocumentDeletedEvent) => {
+    console.log('🗑️ Real-time: Document deleted', event);
+
+    // Remove document from state
+    setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== event.document.id));
+
+    // Remove from selection if selected
+    setSelectedIds(prevSelected => {
+      const newSelected = new Set(prevSelected);
+      newSelected.delete(event.document.id);
+      return newSelected;
+    });
+
+    // Show notification
+    addToast('info', `Dokument "${event.document.originalName}" wurde gelöscht`, {
+      title: 'Dokument entfernt'
+    });
+  }, [addToast]);
+
+  const handleDocumentUpdated = useCallback((event: DocumentUpdatedEvent) => {
+    console.log('✏️ Real-time: Document updated', event);
+
+    // Update document in state
+    setDocuments(prevDocs =>
+      prevDocs.map(doc =>
+        doc.id === event.document.id
+          ? {
+              ...doc,
+              category: (event.document.category as DocumentCategory) || doc.category,
+              tags: event.document.tags,
+              updatedAt: event.timestamp
+            }
+          : doc
+      )
+    );
+
+    // Show notification
+    addToast('success', `Dokument "${event.document.originalName}" wurde aktualisiert`, {
+      title: 'Dokument geändert'
+    });
+  }, [addToast]);
+
+  const handleDocumentPermissionsChanged = useCallback((event: DocumentPermissionsChangedEvent) => {
+    console.log('🔐 Real-time: Document permissions changed', event);
+
+    // For now, refresh documents to get updated permissions
+    // In a more sophisticated implementation, we'd update the specific document
+    refreshDocuments();
+
+    // Show notification
+    addToast('info', `Berechtigungen für "${event.document.originalName}" wurden geändert`, {
+      title: 'Berechtigungen aktualisiert'
+    });
+  }, [addToast, refreshDocuments]);
+
+  const handleDocumentsBulkDeleted = useCallback((event: DocumentsBulkDeletedEvent) => {
+    console.log('🗑️ Real-time: Documents bulk deleted', event);
+
+    // Remove all deleted documents from state
+    const deletedIds = new Set(event.documents.map(doc => doc.id));
+    setDocuments(prevDocs => prevDocs.filter(doc => !deletedIds.has(doc.id)));
+
+    // Remove from selection if selected
+    setSelectedIds(prevSelected => {
+      const newSelected = new Set(prevSelected);
+      deletedIds.forEach(id => newSelected.delete(id));
+      return newSelected;
+    });
+
+    // Show notification
+    addToast('info', `${event.documents.length} Dokument(e) wurden gelöscht`, {
+      title: 'Dokumente entfernt'
+    });
+  }, [addToast]);
+
+  // Socket connection with document event handlers
+  useSocket({
+    autoConnect: true,
+    onDocumentUploaded: handleDocumentUploaded,
+    onDocumentDeleted: handleDocumentDeleted,
+    onDocumentUpdated: handleDocumentUpdated,
+    onDocumentPermissionsChanged: handleDocumentPermissionsChanged,
+    onDocumentsBulkDeleted: handleDocumentsBulkDeleted
+  });
 
   /**
    * Upload a PDF file with progress tracking

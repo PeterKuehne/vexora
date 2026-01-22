@@ -31,6 +31,7 @@ import { type AuthenticatedRequest } from './types/auth.js'
 import { ollamaService, documentService, ragService } from './services/index.js'
 import { processingJobService } from './services/ProcessingJobService.js'
 import { quotaService } from './services/QuotaService.js'
+import { documentEventService } from './services/DocumentEventService.js'
 import authRoutes from './routes/auth.js'
 import adminRoutes from './routes/admin.js'
 import quotaRoutes from './routes/quota.js'
@@ -713,8 +714,25 @@ app.delete('/api/documents/:id', authenticateToken, asyncHandler(async (req: Aut
     return
   }
 
+  // Get document details before deletion for real-time event
+  const documentToDelete = allAccessibleDocuments.find(doc => doc.id === id)
+
   // User has access, proceed with deletion
   const success = await documentService.deleteDocument(id || '')
+
+  // Emit real-time document deleted event
+  if (success && documentToDelete) {
+    documentEventService.emitDocumentDeleted({
+      document: {
+        id: documentToDelete.id,
+        filename: documentToDelete.filename,
+        originalName: documentToDelete.original_name || documentToDelete.filename
+      },
+      deletedBy: req.user?.user_id || 'unknown',
+      deletedByEmail: req.user?.email || 'unknown@example.com',
+      affectedUsers: [req.user?.user_id || 'unknown'] // For now, just the deleting user
+    })
+  }
 
   // Cleanup user context
   await documentService.clearUserContext()
@@ -1200,6 +1218,27 @@ app.post('/api/ollama/chat', authenticateToken, asyncHandler(async (req: Authent
 // Listen for processing updates and broadcast to connected clients
 processingJobService.on('processingUpdate', (event) => {
   io.emit('processing:update', event)
+})
+
+// Listen for document events and broadcast to connected clients
+documentEventService.on('document:uploaded', (event) => {
+  io.emit('document:uploaded', event)
+})
+
+documentEventService.on('document:deleted', (event) => {
+  io.emit('document:deleted', event)
+})
+
+documentEventService.on('document:updated', (event) => {
+  io.emit('document:updated', event)
+})
+
+documentEventService.on('document:permissions_changed', (event) => {
+  io.emit('document:permissions_changed', event)
+})
+
+documentEventService.on('documents:bulk_deleted', (event) => {
+  io.emit('documents:bulk_deleted', event)
 })
 
 io.on('connection', (socket) => {

@@ -1,6 +1,7 @@
 import { ProcessingJob, ProcessingStatus, ProcessingUpdate, ProcessingEvent } from '../types/processing.js';
 import { EventEmitter } from 'events';
 import { documentService } from './DocumentService.js';
+import { documentEventService } from './DocumentEventService.js';
 
 /**
  * ProcessingJobService - Manages asynchronous document processing jobs
@@ -181,6 +182,11 @@ class ProcessingJobService extends EventEmitter {
 
       if (result.success) {
         console.log(`✅ PDF processed successfully: ${result.document?.id}`);
+
+        // Emit document uploaded event for real-time updates
+        if (result.document) {
+          this.emitDocumentUploadedEvent(result.document, job);
+        }
       } else {
         console.error(`❌ PDF processing failed: ${result.error}`);
         throw new Error(result.error);
@@ -268,6 +274,64 @@ class ProcessingJobService extends EventEmitter {
         }
       }
     }
+  }
+
+  /**
+   * Emit document uploaded event for real-time notifications
+   */
+  private emitDocumentUploadedEvent(document: any, job: ProcessingJob): void {
+    try {
+      // Extract metadata from job
+      const metadata = job.metadata || {};
+
+      const documentUploadedEvent = {
+        type: 'document:uploaded' as const,
+        document: {
+          id: document.id,
+          filename: document.filename || job.filename,
+          originalName: document.original_name || job.originalName,
+          category: document.category || 'general',
+          tags: document.tags || [],
+          size: document.size || 0,
+          uploadedBy: metadata.ownerId || 'unknown',
+          uploadedByEmail: metadata.ownerEmail || 'unknown@example.com',
+          createdAt: document.created_at || new Date().toISOString()
+        },
+        affectedUsers: this.getAffectedUsersForDocument(metadata),
+        timestamp: new Date().toISOString()
+      };
+
+      // Emit the document uploaded event via DocumentEventService
+      documentEventService.emitDocumentUploaded({
+        document: documentUploadedEvent.document,
+        affectedUsers: documentUploadedEvent.affectedUsers
+      });
+    } catch (error) {
+      console.error(`❌ Failed to emit document uploaded event:`, error);
+    }
+  }
+
+  /**
+   * Determine which users should receive real-time updates for this document
+   */
+  private getAffectedUsersForDocument(metadata: any): string[] {
+    const affectedUsers: string[] = [];
+
+    // Always include document owner
+    if (metadata.ownerId) {
+      affectedUsers.push(metadata.ownerId);
+    }
+
+    // Include users based on visibility settings
+    if (metadata.visibility === 'specific_users' && metadata.specificUsers) {
+      affectedUsers.push(...metadata.specificUsers);
+    }
+
+    // For department/all_users visibility, this would need to be resolved
+    // from user database. For now, return owner + specific users
+    // This can be enhanced later with user lookup by department/role
+
+    return [...new Set(affectedUsers)]; // Remove duplicates
   }
 }
 

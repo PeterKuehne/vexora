@@ -9,10 +9,20 @@ import {
   onChatStreamStart,
   onChatStreamToken,
   onChatStreamEnd,
+  onDocumentUploaded as subscribeDocumentUploaded,
+  onDocumentDeleted as subscribeDocumentDeleted,
+  onDocumentUpdated as subscribeDocumentUpdated,
+  onDocumentPermissionsChanged as subscribeDocumentPermissionsChanged,
+  onDocumentsBulkDeleted as subscribeDocumentsBulkDeleted,
   type ChatMessagePayload,
   type ChatMessageAck,
   type ChatStreamToken,
   type ChatStreamEvent,
+  type DocumentUploadedEvent,
+  type DocumentDeletedEvent,
+  type DocumentUpdatedEvent,
+  type DocumentPermissionsChangedEvent,
+  type DocumentsBulkDeletedEvent,
 } from '../lib/socket'
 
 export interface UseSocketReturn {
@@ -28,13 +38,29 @@ export interface UseSocketOptions {
   onStreamStart?: (data: ChatStreamEvent) => void
   onStreamToken?: (data: ChatStreamToken) => void
   onStreamEnd?: (data: ChatStreamEvent) => void
+  onDocumentUploaded?: (event: DocumentUploadedEvent) => void
+  onDocumentDeleted?: (event: DocumentDeletedEvent) => void
+  onDocumentUpdated?: (event: DocumentUpdatedEvent) => void
+  onDocumentPermissionsChanged?: (event: DocumentPermissionsChangedEvent) => void
+  onDocumentsBulkDeleted?: (event: DocumentsBulkDeletedEvent) => void
 }
 
 /**
  * React hook for Socket.io connection management
  */
 export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
-  const { autoConnect = true, onMessageAck, onStreamStart, onStreamToken, onStreamEnd } = options
+  const {
+    autoConnect = true,
+    onMessageAck,
+    onStreamStart,
+    onStreamToken,
+    onStreamEnd,
+    onDocumentUploaded,
+    onDocumentDeleted,
+    onDocumentUpdated,
+    onDocumentPermissionsChanged,
+    onDocumentsBulkDeleted
+  } = options
 
   const [isConnected, setIsConnected] = useState(isSocketConnected())
 
@@ -63,6 +89,7 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
   useEffect(() => {
     const unsubscribers: (() => void)[] = []
 
+    // Chat events
     if (onMessageAck) {
       unsubscribers.push(onChatMessageAck(onMessageAck))
     }
@@ -76,10 +103,37 @@ export function useSocket(options: UseSocketOptions = {}): UseSocketReturn {
       unsubscribers.push(onChatStreamEnd(onStreamEnd))
     }
 
+    // Document events
+    if (onDocumentUploaded) {
+      unsubscribers.push(subscribeDocumentUploaded(onDocumentUploaded))
+    }
+    if (onDocumentDeleted) {
+      unsubscribers.push(subscribeDocumentDeleted(onDocumentDeleted))
+    }
+    if (onDocumentUpdated) {
+      unsubscribers.push(subscribeDocumentUpdated(onDocumentUpdated))
+    }
+    if (onDocumentPermissionsChanged) {
+      unsubscribers.push(subscribeDocumentPermissionsChanged(onDocumentPermissionsChanged))
+    }
+    if (onDocumentsBulkDeleted) {
+      unsubscribers.push(subscribeDocumentsBulkDeleted(onDocumentsBulkDeleted))
+    }
+
     return () => {
       unsubscribers.forEach((unsub) => unsub())
     }
-  }, [onMessageAck, onStreamStart, onStreamToken, onStreamEnd])
+  }, [
+    onMessageAck,
+    onStreamStart,
+    onStreamToken,
+    onStreamEnd,
+    onDocumentUploaded,
+    onDocumentDeleted,
+    onDocumentUpdated,
+    onDocumentPermissionsChanged,
+    onDocumentsBulkDeleted
+  ])
 
   const connect = useCallback(() => {
     connectSocket()

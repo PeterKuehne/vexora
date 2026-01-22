@@ -69,6 +69,83 @@ export interface ActiveJobsPayload {
   timestamp: string
 }
 
+// Document Real-time Event Types
+export interface DocumentUploadedEvent {
+  type: 'document:uploaded'
+  document: {
+    id: string
+    filename: string
+    originalName: string
+    category: string
+    tags: string[]
+    size: number
+    uploadedBy: string
+    uploadedByEmail: string
+    createdAt: string
+  }
+  affectedUsers: string[] // User IDs who can see this document
+  timestamp: string
+}
+
+export interface DocumentDeletedEvent {
+  type: 'document:deleted'
+  document: {
+    id: string
+    filename: string
+    originalName: string
+  }
+  deletedBy: string
+  deletedByEmail: string
+  affectedUsers: string[] // User IDs who had access to this document
+  timestamp: string
+}
+
+export interface DocumentUpdatedEvent {
+  type: 'document:updated'
+  document: {
+    id: string
+    filename: string
+    originalName: string
+    category: string
+    tags: string[]
+    updatedFields: string[] // Which fields were updated
+  }
+  updatedBy: string
+  updatedByEmail: string
+  affectedUsers: string[] // User IDs who can see this document
+  timestamp: string
+}
+
+export interface DocumentPermissionsChangedEvent {
+  type: 'document:permissions_changed'
+  document: {
+    id: string
+    filename: string
+    originalName: string
+    classification: string
+    visibility: string
+    specificUsers: string[]
+  }
+  changedBy: string
+  changedByEmail: string
+  addedUsers: string[]    // Users who gained access
+  removedUsers: string[]  // Users who lost access
+  timestamp: string
+}
+
+export interface DocumentsBulkDeletedEvent {
+  type: 'documents:bulk_deleted'
+  documents: Array<{
+    id: string
+    filename: string
+    originalName: string
+  }>
+  deletedBy: string
+  deletedByEmail: string
+  affectedUsers: string[] // User IDs who had access to any of these documents
+  timestamp: string
+}
+
 // Get or create socket connection
 export function getSocket(): Socket {
   if (!socket) {
@@ -166,6 +243,37 @@ export function onActiveJobs(callback: (data: ActiveJobsPayload) => void): () =>
   const sock = getSocket()
   sock.on('processing:active_jobs', callback)
   return () => sock.off('processing:active_jobs', callback)
+}
+
+// Document Real-time Event Subscription Functions
+export function onDocumentUploaded(callback: (event: DocumentUploadedEvent) => void): () => void {
+  const sock = getSocket()
+  sock.on('document:uploaded', callback)
+  return () => sock.off('document:uploaded', callback)
+}
+
+export function onDocumentDeleted(callback: (event: DocumentDeletedEvent) => void): () => void {
+  const sock = getSocket()
+  sock.on('document:deleted', callback)
+  return () => sock.off('document:deleted', callback)
+}
+
+export function onDocumentUpdated(callback: (event: DocumentUpdatedEvent) => void): () => void {
+  const sock = getSocket()
+  sock.on('document:updated', callback)
+  return () => sock.off('document:updated', callback)
+}
+
+export function onDocumentPermissionsChanged(callback: (event: DocumentPermissionsChangedEvent) => void): () => void {
+  const sock = getSocket()
+  sock.on('document:permissions_changed', callback)
+  return () => sock.off('document:permissions_changed', callback)
+}
+
+export function onDocumentsBulkDeleted(callback: (event: DocumentsBulkDeletedEvent) => void): () => void {
+  const sock = getSocket()
+  sock.on('documents:bulk_deleted', callback)
+  return () => sock.off('documents:bulk_deleted', callback)
 }
 
 // Export socket instance for direct access if needed
