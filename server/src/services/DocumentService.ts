@@ -4,6 +4,7 @@ import path from 'path';
 import { z } from 'zod';
 import { vectorService } from './VectorService.js';
 import { databaseService } from './DatabaseService.js';
+import { LoggerService } from './LoggerService.js';
 
 /**
  * DocumentService - Handles PDF processing and document management with PostgreSQL persistence
@@ -171,11 +172,28 @@ class DocumentService {
         ]
       );
 
+      // Log successful document upload
+      LoggerService.logDocument('upload', {
+        documentId: documentId,
+        userId: permissionMetadata?.ownerId,
+        fileName: validatedMetadata.originalName,
+        fileSize: validatedMetadata.size,
+        department: permissionMetadata?.department,
+        classification: permissionMetadata?.classification || 'internal'
+      });
+
       return {
         success: true,
         document,
       };
     } catch (error) {
+      // Log upload error
+      LoggerService.logError(error instanceof Error ? error : new Error('Document upload failed'), {
+        fileName: metadata.originalName,
+        fileSize: metadata.size,
+        department: permissionMetadata?.department
+      });
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error during PDF processing',
@@ -394,6 +412,14 @@ class DocumentService {
     } catch {
       // File might already be deleted or moved
     }
+
+    // Log successful document deletion
+    LoggerService.logDocument('delete', {
+      documentId: id,
+      fileName: doc.originalName,
+      fileSize: doc.size,
+      department: doc.department
+    });
 
     return true;
   }

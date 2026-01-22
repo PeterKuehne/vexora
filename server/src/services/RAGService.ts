@@ -9,6 +9,7 @@ import { vectorService, type VectorSearchResponse } from './VectorService.js'
 import { ollamaService } from './OllamaService.js'
 import { documentService } from './DocumentService.js'
 import { type ChatMessage } from '../validation/index.js'
+import { LoggerService } from './LoggerService.js'
 
 // ============================================
 // Types
@@ -152,6 +153,16 @@ class RAGService {
         await documentService.clearUserContext();
       }
 
+      // Log successful RAG query (without content for privacy)
+      LoggerService.logRAG('query', {
+        userId: userContext?.userId,
+        queryLength: query.length,
+        resultsCount: sources.length,
+        model: model,
+        duration: undefined, // Could add timing if needed
+        department: userContext?.userDepartment
+      });
+
       return {
         message: response.message.content,
         sources,
@@ -160,6 +171,14 @@ class RAGService {
       }
     } catch (error) {
       console.error('❌ RAG generation failed:', error)
+
+      // Log RAG query error
+      LoggerService.logError(error instanceof Error ? error : new Error('RAG query failed'), {
+        userId: userContext?.userId,
+        queryLength: query.length,
+        model: model,
+        department: userContext?.userDepartment
+      });
 
       // Ensure user context is cleaned up even on error
       if (request.userContext) {

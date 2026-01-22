@@ -51,14 +51,14 @@ export function ProfilePage() {
     <div
       className={`
         min-h-screen
-        ${isDark ? 'bg-gray-900' : 'bg-gray-50'}
+        ${isDark ? 'bg-background' : 'bg-white'}
       `.trim()}
     >
       {/* Navigation Header */}
       <div
         className={`
           border-b
-          ${isDark ? 'border-white/10 bg-gray-800' : 'border-gray-200 bg-white'}
+          ${isDark ? 'border-white/10 bg-surface' : 'border-gray-200 bg-white'}
         `.trim()}
       >
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -105,7 +105,7 @@ export function ProfilePage() {
         <div
           className={`
             rounded-xl border shadow-sm
-            ${isDark ? 'bg-gray-800 border-white/10' : 'bg-white border-gray-200'}
+            ${isDark ? 'bg-surface border-white/10' : 'bg-white border-gray-200'}
           `.trim()}
         >
           {/* Profile Header */}

@@ -129,7 +129,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   rounded-lg shadow-2xl
                   transform overflow-hidden
                   transition-all
-                  ${isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
+                  ${isDark ? 'bg-surface text-white' : 'bg-white text-gray-900'}
                 `}
               >
                 {/* Header */}
@@ -138,7 +138,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     flex items-center justify-between
                     px-6 py-4
                     border-b
-                    ${isDark ? 'border-gray-700' : 'border-gray-200'}
+                    ${isDark ? 'border-white/10' : 'border-gray-200'}
                   `}
                 >
                   <Dialog.Title as="h2" className="text-xl font-semibold">
@@ -151,7 +151,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       transition-colors
                       ${
                         isDark
-                          ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                          ? 'text-gray-400 hover:text-white hover:bg-white/10'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                       }
                     `}
@@ -169,7 +169,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       className={`
                         w-64 shrink-0
                         border-r
-                        ${isDark ? 'border-gray-700' : 'border-gray-200'}
+                        ${isDark ? 'border-white/10' : 'border-gray-200'}
                       `}
                     >
                       <Tab.List className="flex flex-col p-2">
@@ -187,7 +187,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                         ? 'bg-blue-600 text-white'
                                         : 'bg-blue-100 text-blue-900'
                                       : isDark
-                                        ? 'text-gray-300 hover:text-white hover:bg-gray-700'
+                                        ? 'text-gray-300 hover:text-white hover:bg-white/10'
                                         : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
                                   }
                                 `}
@@ -239,7 +239,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                         settings.theme === theme
                                           ? 'border-blue-500 bg-blue-100 text-blue-900'
                                           : isDark
-                                            ? 'border-gray-600 text-gray-300 hover:border-gray-500'
+                                            ? 'border-white/20 text-gray-300 hover:border-white/30'
                                             : 'border-gray-300 text-gray-700 hover:border-gray-400'
                                       }
                                     `}
@@ -265,7 +265,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                         fontSize === size
                                           ? 'border-blue-500 bg-blue-100 text-blue-900'
                                           : isDark
-                                            ? 'border-gray-600 text-gray-300 hover:border-gray-500'
+                                            ? 'border-white/20 text-gray-300 hover:border-white/30'
                                             : 'border-gray-300 text-gray-700 hover:border-gray-400'
                                       }
                                     `}
@@ -301,7 +301,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     flex items-center justify-between
                     px-6 py-4
                     border-t
-                    ${isDark ? 'border-gray-700' : 'border-gray-200'}
+                    ${isDark ? 'border-white/10' : 'border-gray-200'}
                   `}
                 >
                   <button
@@ -312,7 +312,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       border transition-colors
                       ${
                         isDark
-                          ? 'border-gray-600 text-gray-300 hover:border-gray-500 hover:text-white'
+                          ? 'border-white/20 text-gray-300 hover:border-white/30 hover:text-white'
                           : 'border-gray-300 text-gray-700 hover:border-gray-400 hover:text-gray-900'
                       }
                     `}

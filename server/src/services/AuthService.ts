@@ -21,6 +21,7 @@ import type {
   UserContext
 } from '../types/auth.js';
 import { databaseService } from './index.js';
+import { LoggerService } from './LoggerService.js';
 
 export class AuthService {
   private readonly jwtSecret: string;
@@ -30,7 +31,9 @@ export class AuthService {
   constructor() {
     this.jwtSecret = process.env.JWT_SECRET || 'dev-secret-change-in-production';
     if (!this.jwtSecret || this.jwtSecret === 'dev-secret-change-in-production') {
-      console.warn('⚠️ Using default JWT secret. Set JWT_SECRET in production!');
+      LoggerService.logWarning('Using default JWT secret in development', {
+        environment: process.env.NODE_ENV || 'development'
+      });
     }
   }
 
@@ -264,10 +267,22 @@ export class AuthService {
       };
 
       const user = await this.createUser(userId, createPayload);
-      console.log(`✅ Created new user: ${email} (${user.role})`);
+      LoggerService.logAuth('login', {
+        userId: user.id,
+        email: user.email,
+        ip: userInfo.ip
+      });
+      LoggerService.logInfo('User created/updated successfully', {
+        userId: user.id,
+        email: user.email,
+        role: user.role
+      });
       return user;
     } catch (error) {
-      console.error('Error creating/updating user:', error);
+      LoggerService.logError(error instanceof Error ? error : new Error('Failed to create or update user'), {
+        email,
+        provider: userInfo.provider
+      });
       throw new Error('Failed to create or update user');
     }
   }
@@ -344,7 +359,9 @@ export class AuthService {
 
       return null;
     } catch (error) {
-      console.error('Error verifying refresh token:', error);
+      LoggerService.logError(error instanceof Error ? error : new Error('Refresh token verification failed'), {
+        tokenId: 'REDACTED'
+      });
       return null;
     }
   }

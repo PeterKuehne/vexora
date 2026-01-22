@@ -8,6 +8,7 @@ import { asyncHandler } from '../middleware/index.js';
 import { ValidationError } from '../errors/index.js';
 import { env } from '../config/env.js';
 import type { AuthenticatedRequest } from '../types/auth.js';
+import { LoggerService } from '../services/LoggerService.js';
 
 const router = express.Router();
 
@@ -324,6 +325,42 @@ router.get('/status', asyncHandler(async (req: Request, res: Response) => {
     });
   } catch (error) {
     return res.json({ authenticated: false });
+  }
+}));
+
+/**
+ * GET /api/auth/test-logger
+ * Test LoggerService functionality
+ */
+router.get('/test-logger', asyncHandler(async (_req: Request, res: Response) => {
+  try {
+    // Test all logger methods
+    LoggerService.logInfo('LoggerService test started', { test: true, timestamp: new Date().toISOString() });
+    LoggerService.logWarning('Test warning message', { level: 'warning' });
+    LoggerService.logError('Test error message', { level: 'error', sensitive_password: 'secret123' });
+
+    // Test auth logging
+    LoggerService.logAuth('login', {
+      userId: 'test-user-123',
+      email: 'test@example.com',
+      ip: '127.0.0.1'
+    });
+
+    // Test redaction function
+    const redactionResult = LoggerService.testRedaction();
+
+    return res.json({
+      success: true,
+      message: 'LoggerService test completed',
+      redactionTest: redactionResult,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    LoggerService.logError(error instanceof Error ? error : new Error('LoggerService test failed'));
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 }));
 

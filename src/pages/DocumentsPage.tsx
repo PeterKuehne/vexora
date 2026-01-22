@@ -45,7 +45,7 @@ export function DocumentsPage() {
     <div className={`
       min-h-screen
       transition-colors duration-150
-      ${isDark ? 'bg-gray-900' : 'bg-gray-50'}
+      ${isDark ? 'bg-background' : 'bg-white'}
     `}>
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
 
@@ -94,7 +94,7 @@ export function DocumentsPage() {
             p-6 rounded-lg border
             transition-colors duration-150
             ${isDark
-              ? 'bg-gray-800 border-gray-700'
+              ? 'bg-surface border-white/10'
               : 'bg-white border-gray-200'
             }
           `}>
@@ -135,7 +135,7 @@ export function DocumentsPage() {
             p-6 rounded-lg border
             transition-colors duration-150
             ${isDark
-              ? 'bg-gray-800 border-gray-700'
+              ? 'bg-surface border-white/10'
               : 'bg-white border-gray-200'
             }
           `}>
@@ -176,7 +176,7 @@ export function DocumentsPage() {
             p-6 rounded-lg border
             transition-colors duration-150
             ${isDark
-              ? 'bg-gray-800 border-gray-700'
+              ? 'bg-surface border-white/10'
               : 'bg-white border-gray-200'
             }
           `}>
@@ -217,7 +217,7 @@ export function DocumentsPage() {
             p-6 rounded-lg border
             transition-colors duration-150
             ${isDark
-              ? 'bg-gray-800 border-gray-700'
+              ? 'bg-surface border-white/10'
               : 'bg-white border-gray-200'
             }
           `}>
@@ -272,7 +272,7 @@ export function DocumentsPage() {
             mb-8 p-6 rounded-lg border
             transition-colors duration-150
             ${isDark
-              ? 'bg-gray-800 border-gray-700'
+              ? 'bg-surface border-white/10'
               : 'bg-white border-gray-200'
             }
           `}>

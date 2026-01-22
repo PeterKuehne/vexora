@@ -146,14 +146,14 @@ export function AdminUsersPage() {
       <div className={`
         min-h-screen flex items-center justify-center
         transition-colors duration-150
-        ${isDark ? 'bg-gray-900' : 'bg-gray-50'}
+        ${isDark ? 'bg-background' : 'bg-white'}
       `}>
         <div className={`
           flex items-center space-x-3
           px-6 py-4 rounded-lg
           transition-colors duration-150
           ${isDark
-            ? 'text-gray-300 bg-gray-800/50'
+            ? 'text-gray-300 bg-surface/50'
             : 'text-gray-600 bg-white/50'
           }
         `}>
@@ -200,7 +200,7 @@ export function AdminUsersPage() {
             p-6 rounded-lg border
             transition-colors duration-150
             ${isDark
-              ? 'bg-gray-800 border-gray-700'
+              ? 'bg-surface border-white/10'
               : 'bg-white border-gray-200'
             }
           `}>
@@ -224,7 +224,7 @@ export function AdminUsersPage() {
             p-6 rounded-lg border
             transition-colors duration-150
             ${isDark
-              ? 'bg-gray-800 border-gray-700'
+              ? 'bg-surface border-white/10'
               : 'bg-white border-gray-200'
             }
           `}>
@@ -248,7 +248,7 @@ export function AdminUsersPage() {
             p-6 rounded-lg border
             transition-colors duration-150
             ${isDark
-              ? 'bg-gray-800 border-gray-700'
+              ? 'bg-surface border-white/10'
               : 'bg-white border-gray-200'
             }
           `}>
@@ -272,7 +272,7 @@ export function AdminUsersPage() {
             p-6 rounded-lg border
             transition-colors duration-150
             ${isDark
-              ? 'bg-gray-800 border-gray-700'
+              ? 'bg-surface border-white/10'
               : 'bg-white border-gray-200'
             }
           `}>
@@ -320,7 +320,7 @@ export function AdminUsersPage() {
             <table className="min-w-full">
               <thead className={`
                 transition-colors duration-150
-                ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}
+                ${isDark ? 'bg-surface-secondary' : 'bg-gray-50'}
               `}>
                 <tr>
                   <th className={`
@@ -383,7 +383,7 @@ export function AdminUsersPage() {
                   <tr key={user.id} className={`
                     transition-colors duration-150
                     ${isDark
-                      ? 'hover:bg-gray-700/50'
+                      ? 'hover:bg-white/5'
                       : 'hover:bg-gray-50'
                     }
                   `}>
@@ -398,7 +398,7 @@ export function AdminUsersPage() {
                             transition-colors duration-150
                             focus:outline-none focus:ring-2 focus:ring-blue-500
                             ${isDark
-                              ? 'bg-gray-600 border-gray-500 text-white'
+                              ? 'bg-surface-secondary border-white/20 text-white'
                               : 'bg-white border-gray-300 text-gray-900'
                             }
                           `}
@@ -431,7 +431,7 @@ export function AdminUsersPage() {
                               transition-colors duration-150
                               focus:outline-none focus:ring-2 focus:ring-blue-500
                               ${isDark
-                                ? 'bg-gray-600 border-gray-500 text-white'
+                                ? 'bg-surface-secondary border-white/20 text-white'
                                 : 'bg-white border-gray-300 text-gray-900'
                               }
                             `}
@@ -482,7 +482,7 @@ export function AdminUsersPage() {
                             transition-colors duration-150
                             focus:outline-none focus:ring-2 focus:ring-blue-500
                             ${isDark
-                              ? 'bg-gray-600 border-gray-500 text-white'
+                              ? 'bg-surface-secondary border-white/20 text-white'
                               : 'bg-white border-gray-300 text-gray-900'
                             }
                           `}
@@ -581,8 +581,8 @@ export function AdminUsersPage() {
                               transition-all duration-150
                               focus:outline-none focus:ring-2 focus:ring-gray-500
                               ${isDark
-                                ? 'bg-gray-600 text-white hover:bg-gray-500'
-                                : 'bg-gray-400 text-white hover:bg-gray-500'
+                                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                : 'bg-blue-400 text-white hover:bg-blue-500'
                               }
                             `}
                           >
@@ -599,7 +599,7 @@ export function AdminUsersPage() {
                             focus:outline-none focus:ring-2 focus:ring-blue-500
                             ${user.id === currentUser?.id
                               ? isDark
-                                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                                ? 'bg-surface-secondary text-gray-500 cursor-not-allowed'
                                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                               : isDark
                               ? 'bg-blue-600 text-white hover:bg-blue-500'
