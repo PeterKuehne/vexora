@@ -99,6 +99,14 @@ class HttpClient {
     });
   }
 
+  async patch(url: string, data?: any, options: HttpClientOptions = {}): Promise<Response> {
+    return this.request(url, {
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : null,
+      ...options,
+    });
+  }
+
   async delete(url: string, options: HttpClientOptions = {}): Promise<Response> {
     return this.request(url, { method: 'DELETE', ...options });
   }
@@ -217,6 +225,11 @@ export const api = {
 
   put: async <T = any>(url: string, data?: any, options: HttpClientOptions = {}): Promise<T> => {
     const response = await httpClient.put(url, data, options);
+    return response.json();
+  },
+
+  patch: async <T = any>(url: string, data?: any, options: HttpClientOptions = {}): Promise<T> => {
+    const response = await httpClient.patch(url, data, options);
     return response.json();
   },
 

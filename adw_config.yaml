@@ -353,7 +353,7 @@ apps:
   type: frontend
   default_port: 5173
 conventions:
-  version: 9
+  version: 10
   created_at: '2026-01-22T00:11:01.287858Z'
   source: anthropic-discovery
   state_management:
@@ -595,8 +595,8 @@ conventions:
     - Always use AuthProvider at app root level
     - Handle 401 responses with automatic logout
     - Verify tokens server-side before database queries
-  last_updated: '2026-01-22T11:54:38.326940Z'
-  updated_by_feature: 69
+  last_updated: '2026-01-22T12:17:31.852226Z'
+  updated_by_feature: 74
   permission_filtering:
     system: PostgreSQL RLS + Weaviate Vector Filter
     discovered_in_feature: 67
@@ -729,3 +729,24 @@ conventions:
     - 'Performance optimization: skip RAG for smalltalk queries'
     - 'Transparent user experience: show source citations when RAG is active'
     - Fallback to RAG activation for ambiguous queries (better safe than sorry)
+  document_permissions:
+    system: Document Permission Management System
+    discovered_in_feature: 74
+    discovered_at: '2026-01-22T12:17:31.852035Z'
+    import_path: '@/components/PermissionEditDialog'
+    reference_files:
+    - src/components/PermissionEditDialog.tsx:1
+    - src/components/DocumentList.tsx:36
+    - server/src/index.ts:793
+    - src/lib/api.ts:875
+    usage_pattern: '// Frontend: Permission Edit Button + Dialog\nconst canEditPermissions = user && (\n  user.id === document.metadata?.owner_id
+      ||\n  user.role === ''Admin'' ||\n  (user.role === ''Manager'' && !document.metadata?.owner_id)\n);\n\n// Backend: API
+      Endpoint\napp.patch(''/api/documents/:id/permissions'', authenticateToken, ...);\n\n// API Usage\nimport { updateDocumentPermissions
+      } from ''@/lib/api'';\nconst result = await updateDocumentPermissions(docId, permissions);'
+    guidelines:
+    - 'Use role-based permission hierarchy: Employee < Manager < Admin'
+    - Support fallback for legacy documents without owner_id
+    - Always validate classification levels against user role
+    - Use MANDATORY TailwindCSS pattern for dialog styling
+    - Implement real-time permission preview
+    - Always provide clear error messages for permission failures

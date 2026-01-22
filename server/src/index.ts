@@ -38,7 +38,7 @@ const io = new Server(httpServer, {
 app.use(
   cors({
     origin: env.CORS_ORIGINS,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   })
@@ -731,6 +731,139 @@ app.patch('/api/documents/:id', authenticateToken, asyncHandler(async (req: Auth
     success: true,
     document,
   })
+}))
+
+// Update document permissions endpoint
+app.patch('/api/documents/:id/permissions', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params
+  const { classification, visibility, specificUsers } = req.body
+
+  // Validate required fields
+  if (!classification || !visibility) {
+    res.status(400).json({
+      error: 'classification and visibility are required',
+      code: 'MISSING_REQUIRED_FIELDS'
+    })
+    return
+  }
+
+  // Validate classification values
+  const validClassifications = ['public', 'internal', 'confidential', 'restricted']
+  if (!validClassifications.includes(classification)) {
+    res.status(400).json({
+      error: 'Invalid classification value',
+      code: 'INVALID_CLASSIFICATION',
+      allowedValues: validClassifications
+    })
+    return
+  }
+
+  // Validate visibility values
+  const validVisibilities = ['only_me', 'department', 'all_users', 'specific_users']
+  if (!validVisibilities.includes(visibility)) {
+    res.status(400).json({
+      error: 'Invalid visibility value',
+      code: 'INVALID_VISIBILITY',
+      allowedValues: validVisibilities
+    })
+    return
+  }
+
+  // Set user context for PostgreSQL RLS filtering
+  await documentService.setUserContext(
+    req.user?.user_id || '',
+    req.user?.role || '',
+    req.user?.department || ''
+  )
+
+  try {
+    // Check if user has permission to edit this document (owner or admin)
+    const allAccessibleDocuments = await documentService.getAccessibleDocuments()
+    const document = allAccessibleDocuments.find(doc => doc.id === id)
+
+    if (!document) {
+      await documentService.clearUserContext()
+      res.status(404).json({
+        error: 'Dokument nicht gefunden oder nicht autorisiert für Bearbeitung',
+        code: 'DOCUMENT_NOT_FOUND'
+      })
+      return
+    }
+
+    // Check permission to edit (owner, admin, or manager as fallback for legacy documents)
+    const isOwner = document.metadata?.owner_id === req.user?.user_id
+    const isAdmin = req.user?.role === 'Admin'
+    const isManagerForLegacyDoc = req.user?.role === 'Manager' && !document.metadata?.owner_id
+
+    if (!isOwner && !isAdmin && !isManagerForLegacyDoc) {
+      await documentService.clearUserContext()
+      res.status(403).json({
+        error: 'Nur der Dokumentenbesitzer oder Administrator können Berechtigungen ändern',
+        code: 'PERMISSION_DENIED'
+      })
+      return
+    }
+
+    // Role-based classification validation
+    const userRole = req.user?.role || ''
+    const roleLevel = userRole === 'Admin' ? 3 : userRole === 'Manager' ? 2 : 1
+
+    const classificationLevels: Record<string, number> = {
+      'public': 1,
+      'internal': 1,
+      'confidential': 2,
+      'restricted': 3
+    }
+
+    const requiredLevel = classificationLevels[classification] || 1
+
+    if (roleLevel < requiredLevel) {
+      await documentService.clearUserContext()
+      res.status(403).json({
+        error: `Ihre Rolle (${userRole}) erlaubt keine ${classification} Klassifizierung`,
+        code: 'INSUFFICIENT_ROLE_LEVEL',
+        allowedClassifications: Object.keys(classificationLevels).filter(c => classificationLevels[c] <= roleLevel)
+      })
+      return
+    }
+
+    // Update document permissions
+    const updatedDocument = await documentService.updateDocumentPermissions(id, {
+      classification,
+      visibility,
+      specificUsers: specificUsers || []
+    })
+
+    await documentService.clearUserContext()
+
+    if (!updatedDocument) {
+      res.status(500).json({
+        error: 'Fehler beim Aktualisieren der Dokumentenberechtigungen',
+        code: 'UPDATE_FAILED'
+      })
+      return
+    }
+
+    res.json({
+      success: true,
+      message: 'Dokumentenberechtigungen erfolgreich aktualisiert',
+      document: {
+        id: updatedDocument.id,
+        classification: updatedDocument.metadata?.classification,
+        visibility: updatedDocument.metadata?.visibility,
+        specificUsers: updatedDocument.metadata?.specificUsers,
+        updatedAt: updatedDocument.updatedAt
+      }
+    })
+
+  } catch (error) {
+    await documentService.clearUserContext()
+    console.error('Error updating document permissions:', error)
+    res.status(500).json({
+      error: 'Interner Server-Fehler beim Aktualisieren der Berechtigungen',
+      code: 'INTERNAL_SERVER_ERROR'
+    })
+  }
 }))
 
 // Bulk delete documents endpoint

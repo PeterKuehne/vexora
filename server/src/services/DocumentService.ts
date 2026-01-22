@@ -284,6 +284,57 @@ class DocumentService {
   }
 
   /**
+   * Update document permissions (classification, visibility, specific users)
+   */
+  async updateDocumentPermissions(
+    id: string,
+    permissions: {
+      classification: string;
+      visibility: string;
+      specificUsers: string[]
+    }
+  ): Promise<DocumentMetadata | null> {
+    await this.initialize();
+
+    try {
+      // Update permissions in the metadata JSON field
+      const updateQuery = `
+        UPDATE documents
+        SET
+          metadata = jsonb_set(
+            jsonb_set(
+              jsonb_set(
+                COALESCE(metadata, '{}'),
+                '{classification}',
+                $1
+              ),
+              '{visibility}',
+              $2
+            ),
+            '{specificUsers}',
+            $3
+          ),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $4
+      `;
+
+      await databaseService.query(updateQuery, [
+        JSON.stringify(permissions.classification),
+        JSON.stringify(permissions.visibility),
+        JSON.stringify(permissions.specificUsers),
+        id
+      ]);
+
+      // Return the updated document
+      return this.getDocument(id);
+
+    } catch (error) {
+      console.error('Error updating document permissions:', error);
+      throw new Error('Failed to update document permissions');
+    }
+  }
+
+  /**
    * Get all unique tags across all documents
    */
   async getAllTags(): Promise<string[]> {

@@ -453,10 +453,18 @@ export interface DocumentMetadata {
   size: number;
   type: 'pdf';
   uploadedAt: string;
+  updatedAt?: string;
   pages: number;
   text?: string;
   category: DocumentCategory;
   tags: string[];
+  metadata?: {
+    classification?: 'public' | 'internal' | 'confidential' | 'restricted';
+    visibility?: 'only_me' | 'department' | 'all_users' | 'specific_users';
+    specificUsers?: string[];
+    owner_id?: string;
+    department?: string;
+  };
 }
 
 export interface UploadProgress {
@@ -857,4 +865,42 @@ export async function fetchUserStatistics(): Promise<{
     };
     timestamp: string;
   }>(`${env.API_URL}/api/admin/stats`);
+}
+
+// ============================================
+// Document Permission Management
+// ============================================
+
+/**
+ * Update document permissions
+ */
+export interface UpdatePermissionsRequest {
+  classification: 'public' | 'internal' | 'confidential' | 'restricted';
+  visibility: 'only_me' | 'department' | 'all_users' | 'specific_users';
+  specificUsers?: string[] | undefined;
+}
+
+export interface UpdatePermissionsResponse {
+  success: boolean;
+  message: string;
+  document: {
+    id: string;
+    classification: string;
+    visibility: string;
+    specificUsers?: string[];
+    updatedAt: string;
+  };
+}
+
+export async function updateDocumentPermissions(
+  documentId: string,
+  permissions: UpdatePermissionsRequest
+): Promise<UpdatePermissionsResponse> {
+  // Import httpClient dynamically to avoid circular dependencies
+  const { api } = await import('./httpClient');
+
+  return api.patch<UpdatePermissionsResponse>(
+    `${env.API_URL}/api/documents/${documentId}/permissions`,
+    permissions
+  );
 }

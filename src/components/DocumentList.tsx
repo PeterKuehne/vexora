@@ -11,22 +11,33 @@
  */
 
 import { useState, useMemo } from 'react';
-import { File, Trash2, Calendar, Hash, HardDrive, CheckSquare, Square, X, Search, Filter, Tag, FolderOpen, ChevronDown } from 'lucide-react';
+import { File, Trash2, Calendar, Hash, HardDrive, CheckSquare, Square, X, Search, Filter, Tag, FolderOpen, ChevronDown, Settings } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useDocuments, DOCUMENT_CATEGORIES, type DocumentCategory } from '../contexts/DocumentContext';
 import type { DocumentMetadata } from '../contexts/DocumentContext';
+import { PermissionEditDialog } from './PermissionEditDialog';
 
 interface DocumentItemProps {
   document: DocumentMetadata;
   onDelete: (id: string) => void;
+  onEditPermissions: (document: DocumentMetadata) => void;
   isSelectionMode: boolean;
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
 }
 
-function DocumentItem({ document, onDelete, isSelectionMode, isSelected, onToggleSelect }: DocumentItemProps) {
+function DocumentItem({ document, onDelete, onEditPermissions, isSelectionMode, isSelected, onToggleSelect }: DocumentItemProps) {
   const { isDark } = useTheme();
+  const { user } = useAuth();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Check if user can edit permissions (owner, admin, or manager as fallback for legacy documents)
+  const canEditPermissions = user && (
+    user.id === document.metadata?.owner_id ||
+    user.role === 'Admin' ||
+    (user.role === 'Manager' && !document.metadata?.owner_id) // Fallback for legacy documents without owner_id
+  );
 
   /**
    * Format file size
@@ -197,9 +208,31 @@ function DocumentItem({ document, onDelete, isSelectionMode, isSelected, onToggl
           )}
         </div>
 
-        {/* Delete Button (only in non-selection mode) */}
+        {/* Action Buttons (only in non-selection mode) */}
         {!isSelectionMode && (
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 flex items-center gap-1">
+            {/* Permission Edit Button (only if user can edit) */}
+            {canEditPermissions && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditPermissions(document);
+                }}
+                className={`
+                  p-2 rounded-lg opacity-0 group-hover:opacity-100
+                  transition-all duration-150
+                  ${isDark
+                    ? 'text-gray-500 hover:text-blue-400 hover:bg-blue-900/20'
+                    : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                  }
+                `}
+                title="Berechtigungen bearbeiten"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Delete Button */}
             {!showDeleteConfirm ? (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
@@ -216,7 +249,7 @@ function DocumentItem({ document, onDelete, isSelectionMode, isSelected, onToggl
                 <Trash2 className="w-4 h-4" />
               </button>
             ) : (
-              <div className="flex gap-1">
+              <div className="flex gap-1 ml-2">
                 <button
                   onClick={handleDelete}
                   className={`
@@ -338,6 +371,9 @@ export function DocumentList() {
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [showFilterPanel, setShowFilterPanel] = useState(false);
 
+  // Permission Edit Dialog state
+  const [permissionEditDocument, setPermissionEditDocument] = useState<DocumentMetadata | null>(null);
+
   /**
    * Get all unique tags from documents
    */
@@ -429,6 +465,44 @@ export function DocumentList() {
   const handleBulkDelete = async () => {
     await bulkDeleteDocuments(Array.from(selectedIds));
     setShowBulkDeleteDialog(false);
+  };
+
+  /**
+   * Handle permission edit dialog open
+   */
+  const handleEditPermissions = (document: DocumentMetadata) => {
+    setPermissionEditDocument(document);
+  };
+
+  /**
+   * Handle permission save
+   */
+  const handleSavePermissions = async (
+    documentId: string,
+    permissions: {
+      classification: 'public' | 'internal' | 'confidential' | 'restricted';
+      visibility: 'only_me' | 'department' | 'all_users' | 'specific_users';
+      specificUsers: string[];
+    }
+  ) => {
+    const { updateDocumentPermissions } = await import('../lib/api');
+
+    try {
+      await updateDocumentPermissions(documentId, {
+        classification: permissions.classification,
+        visibility: permissions.visibility,
+        specificUsers: permissions.specificUsers.length > 0 ? permissions.specificUsers : undefined
+      });
+
+      // Close dialog
+      setPermissionEditDocument(null);
+
+      // Refresh documents to show updated permissions
+      // The useDocuments hook should automatically refresh
+    } catch (error) {
+      console.error('Failed to update permissions:', error);
+      throw error; // Re-throw so dialog can handle error display
+    }
   };
 
   // Loading state
@@ -838,6 +912,7 @@ export function DocumentList() {
               key={document.id}
               document={document}
               onDelete={deleteDocument}
+              onEditPermissions={handleEditPermissions}
               isSelectionMode={isSelectionMode}
               isSelected={selectedIds.has(document.id)}
               onToggleSelect={toggleSelectDocument}
@@ -852,6 +927,16 @@ export function DocumentList() {
           count={selectedCount}
           onConfirm={handleBulkDelete}
           onCancel={() => setShowBulkDeleteDialog(false)}
+        />
+      )}
+
+      {/* Permission edit dialog */}
+      {permissionEditDocument && (
+        <PermissionEditDialog
+          document={permissionEditDocument}
+          isOpen={true}
+          onClose={() => setPermissionEditDocument(null)}
+          onSave={handleSavePermissions}
         />
       )}
     </div>
