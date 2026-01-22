@@ -294,6 +294,9 @@ export { RAGToggle } from './RAGToggle';
 export { RAGSources } from './RAGSources';
 export { SourceDetailModal } from './SourceDetailModal';
 
+// Authentication components
+export { ProtectedRoute } from './ProtectedRoute';
+
 // UI components will be exported here
 // export { Button } from './ui/Button';
 // export { Input } from './ui/Input';

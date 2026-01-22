@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
 import {
   AppShell,
   ChatContainer,
@@ -10,10 +9,8 @@ import {
   SettingsModal,
   StorageQuotaAlert,
   ToastContainer,
-  ProtectedRoute,
   type SidebarControls,
 } from './components';
-import { LoginPage } from './pages';
 import { checkHealth } from './lib/api';
 import {
   ConversationProvider,
@@ -25,12 +22,11 @@ import {
   ToastProvider,
   DocumentProvider,
   RAGProvider,
-  AuthProvider,
   useToast,
   useToasts,
 } from './contexts';
 
-function ChatApp() {
+function AppContent() {
   const [isOllamaConnected, setIsOllamaConnected] = useState<boolean | null>(null);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -180,71 +176,18 @@ function ChatApp() {
   );
 }
 
-function AppRoutes() {
-  return (
-    <Routes>
-      {/* Public Login Route */}
-      <Route path="/login" element={<LoginPage />} />
-
-      {/* Protected Chat Route */}
-      <Route
-        path="/chat"
-        element={
-          <ProtectedRoute>
-            <ConversationProvider>
-              <DocumentProvider>
-                <RAGProvider>
-                  <ChatApp />
-                </RAGProvider>
-              </DocumentProvider>
-            </ConversationProvider>
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Protected Documents Route (Future Feature) */}
-      <Route
-        path="/documents"
-        element={
-          <ProtectedRoute>
-            <div className="p-8 text-center">
-              <h1 className="text-2xl font-bold mb-4">Dokumente</h1>
-              <p className="text-gray-600">Dokumentenverwaltung wird in einem zukünftigen Feature verfügbar sein.</p>
-            </div>
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Protected Admin Route (Future Feature) */}
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute requiredRole="Admin">
-            <div className="p-8 text-center">
-              <h1 className="text-2xl font-bold mb-4">Administration</h1>
-              <p className="text-gray-600">Admin-Panel wird in einem zukünftigen Feature verfügbar sein.</p>
-            </div>
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Default redirect to chat */}
-      <Route path="/" element={<Navigate to="/chat" replace />} />
-
-      {/* Catch-all redirect */}
-      <Route path="*" element={<Navigate to="/chat" replace />} />
-    </Routes>
-  );
-}
-
 function App() {
   return (
     <SettingsProvider>
       <ThemeProvider defaultTheme="dark">
         <ToastProvider>
-          <AuthProvider>
-            <AppRoutes />
-          </AuthProvider>
+          <ConversationProvider>
+            <DocumentProvider>
+              <RAGProvider>
+                <AppContent />
+              </RAGProvider>
+            </DocumentProvider>
+          </ConversationProvider>
         </ToastProvider>
       </ThemeProvider>
     </SettingsProvider>

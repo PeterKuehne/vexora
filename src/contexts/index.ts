@@ -44,6 +44,11 @@ export {
   useRAG,
 } from './RAGContext';
 
+export {
+  AuthProvider,
+  useAuth,
+} from './AuthContext';
+
 export type { SettingsContextValue } from './SettingsContext';
 export type { ChatContextValue } from './ChatContext';
 export type { Toast, ToastType } from './ToastContext';

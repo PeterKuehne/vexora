@@ -353,7 +353,7 @@ apps:
   type: frontend
   default_port: 5173
 conventions:
-  version: 1
+  version: 2
   created_at: '2026-01-22T00:11:01.287858Z'
   source: anthropic-discovery
   state_management:
@@ -573,3 +573,27 @@ conventions:
     analyzed_at: '2026-01-22T00:09:29.041402Z'
     sample_size: 17
     available_components: null
+  authentication:
+    system: Microsoft OAuth2 + JWT
+    discovered_in_feature: 56
+    discovered_at: '2026-01-22T00:47:18.211843Z'
+    import_path: '@/contexts/AuthContext'
+    reference_files:
+    - src/contexts/AuthContext.tsx:1
+    - src/components/ProtectedRoute.tsx:1
+    - server/src/routes/auth.ts:1
+    - server/src/services/AuthService.ts:1
+    usage_pattern: '// Frontend: useAuth Hook\nconst { isAuthenticated, user, login, logout } = useAuth();\n\n// Protected
+      Routes\n<ProtectedRoute requiredRole=\"Manager\">\n  <AdminPanel />\n</ProtectedRoute>\n\n// Backend: Auth Endpoints\n/api/auth/microsoft/login
+      - Redirect to OAuth\n/api/auth/microsoft/callback - Handle OAuth callback\n/api/auth/me - Get current user\n/api/auth/logout
+      - Logout and revoke tokens'
+    guidelines:
+    - Use httpOnly cookies for JWT tokens (security)
+    - Implement refresh token rotation
+    - Check user permissions with ProtectedRoute component
+    - 'Use role hierarchy: Employee < Manager < Admin'
+    - Always use AuthProvider at app root level
+    - Handle 401 responses with automatic logout
+    - Verify tokens server-side before database queries
+  last_updated: '2026-01-22T00:47:18.212282Z'
+  updated_by_feature: 56

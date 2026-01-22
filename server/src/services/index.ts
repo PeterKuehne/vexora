@@ -48,3 +48,8 @@ export {
   embeddingService,
   type EmbeddingResponse,
 } from './EmbeddingService.js'
+
+export {
+  authService,
+  AuthService,
+} from './AuthService.js'

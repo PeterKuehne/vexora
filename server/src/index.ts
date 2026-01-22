@@ -17,6 +17,7 @@ import {
 } from './validation/index.js'
 import { ollamaService, documentService, ragService } from './services/index.js'
 import { processingJobService } from './services/ProcessingJobService.js'
+import authRoutes from './routes/auth.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -42,6 +43,12 @@ app.use(
 
 // JSON body parser
 app.use(express.json())
+
+// ============================================
+// Authentication Routes
+// ============================================
+
+app.use('/api/auth', authRoutes)
 
 // ============================================
 // File Upload Configuration
