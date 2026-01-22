@@ -478,6 +478,16 @@ export interface UploadJobResponse {
 }
 
 /**
+ * Document permission metadata for upload
+ */
+export interface DocumentPermissions {
+  classification: 'public' | 'internal' | 'confidential' | 'restricted';
+  visibility: 'only_me' | 'department' | 'all_users' | 'specific_users';
+  specificUsers?: string[];
+  department?: string;
+}
+
+/**
  * Upload a PDF document with job-based async processing
  */
 export async function uploadDocumentAsync(
@@ -486,6 +496,33 @@ export async function uploadDocumentAsync(
 ): Promise<UploadJobResponse> {
   const formData = new FormData();
   formData.append('document', file);
+
+  return uploadDocumentWithPermissions(file, {
+    classification: 'internal',
+    visibility: 'department'
+  }, onProgress);
+}
+
+/**
+ * Upload a PDF document with permissions and job-based async processing
+ */
+export async function uploadDocumentWithPermissions(
+  file: File,
+  permissions: DocumentPermissions,
+  onProgress?: (progress: UploadProgress) => void
+): Promise<UploadJobResponse> {
+  const formData = new FormData();
+  formData.append('document', file);
+  formData.append('classification', permissions.classification);
+  formData.append('visibility', permissions.visibility);
+
+  if (permissions.specificUsers) {
+    formData.append('specificUsers', JSON.stringify(permissions.specificUsers));
+  }
+
+  if (permissions.department) {
+    formData.append('department', permissions.department);
+  }
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -521,9 +558,18 @@ export async function uploadDocumentAsync(
       }
     };
 
-    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.onerror = () => {
+      reject(new Error('Network error occurred'));
+    };
 
-    xhr.open('POST', `${env.API_URL}/api/documents/upload`);
+    xhr.ontimeout = () => {
+      reject(new Error('Upload timed out'));
+    };
+
+    // Set timeout to 5 minutes
+    xhr.timeout = 5 * 60 * 1000;
+
+    xhr.open('POST', '/api/documents/upload');
     xhr.send(formData);
   });
 }

@@ -11,7 +11,7 @@
 import { useTheme } from '../contexts/ThemeContext';
 import { useDocuments } from '../contexts/DocumentContext';
 import { Sidebar, SidebarDivider } from './layout';
-import { DocumentUpload } from './DocumentUpload';
+import { DocumentUploadWithPermissions } from './DocumentUploadWithPermissions';
 import { DocumentList } from './DocumentList';
 
 /** Sidebar width in pixels - matches design spec */
@@ -58,7 +58,7 @@ export function DocumentSidebar({
     >
       {/* Upload Area */}
       <div className="px-3 pt-3 pb-4">
-        <DocumentUpload />
+        <DocumentUploadWithPermissions />
       </div>
 
       {/* Divider */}

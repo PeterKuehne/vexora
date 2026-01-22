@@ -14,7 +14,7 @@ class ProcessingJobService extends EventEmitter {
   /**
    * Create a new processing job
    */
-  createJob(documentId: string, filename: string, originalName: string): ProcessingJob {
+  createJob(documentId: string, filename: string, originalName: string, metadata?: any): ProcessingJob {
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     const job: ProcessingJob = {
@@ -25,6 +25,7 @@ class ProcessingJobService extends EventEmitter {
       status: 'pending',
       progress: 0,
       createdAt: new Date().toISOString(),
+      metadata, // Store permission metadata for processing
     };
 
     this.jobs.set(jobId, job);

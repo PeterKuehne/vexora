@@ -5,7 +5,7 @@
 
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 // Note: AuthorizationCode not needed for our implementation
 import type {
   User,
@@ -468,11 +468,11 @@ export class AuthService {
    * Utility methods
    */
   private generateUserId(): string {
-    return `user_${Date.now()}_${randomBytes(8).toString('hex')}`;
+    return randomUUID();
   }
 
   private generateTokenId(): string {
-    return `token_${Date.now()}_${randomBytes(8).toString('hex')}`;
+    return randomUUID();
   }
 
   private generateState(): string {

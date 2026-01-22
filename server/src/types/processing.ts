@@ -17,6 +17,7 @@ export interface ProcessingJob {
   createdAt: string;
   startedAt?: string;
   completedAt?: string;
+  metadata?: any; // Permission metadata and other processing context
 }
 
 export interface ProcessingUpdate {

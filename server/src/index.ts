@@ -478,8 +478,8 @@ app.get('/api/models/embedding', asyncHandler(async (_req: Request, res: Respons
 // Documents Endpoints
 // ============================================
 
-// Upload document endpoint
-app.post('/api/documents/upload', upload.single('document'), asyncHandler(async (req: Request, res: Response) => {
+// Upload document endpoint with permissions
+app.post('/api/documents/upload', optionalAuth, upload.single('document'), asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   if (!req.file) {
     throw new ValidationError('Keine Datei hochgeladen', {
       field: 'document',
@@ -496,18 +496,48 @@ app.post('/api/documents/upload', upload.single('document'), asyncHandler(async 
     })
   }
 
+  // Extract permission metadata from request body
+  const {
+    classification = 'internal',
+    visibility = 'department',
+    specificUsers = [],
+    department
+  } = req.body;
+
+  // Validate classification against user role
+  const userRole = req.user?.role || 'Employee';
+  const allowedClassifications: Record<string, string[]> = {
+    'Employee': ['public', 'internal'],
+    'Manager': ['public', 'internal', 'confidential'],
+    'Admin': ['public', 'internal', 'confidential', 'restricted']
+  };
+
+  if (!allowedClassifications[userRole]?.includes(classification)) {
+    throw new ValidationError(`Rolle "${userRole}" kann keine "${classification}" Dokumente erstellen`, {
+      field: 'classification',
+      details: [`Erlaubte Klassifizierungen für ${userRole}: ${allowedClassifications[userRole]?.join(', ')}`],
+    });
+  }
+
   // Generate document ID for async processing
   const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-  // Create processing job for async execution
+  // Create processing job for async execution with permission metadata
   const job = processingJobService.createJob(
     documentId,
     req.file.filename,
-    req.file.originalname
+    req.file.originalname,
+    {
+      // Permission metadata to be used during processing
+      ownerId: req.user?.user_id || null,
+      department: department || req.user?.department || null,
+      classification,
+      visibility,
+      specificUsers: Array.isArray(specificUsers) ? specificUsers : [],
+      allowedRoles: visibility === 'all_users' ? ['Employee', 'Manager', 'Admin'] : null,
+      allowedUsers: visibility === 'specific_users' ? specificUsers : null
+    }
   )
-
-  // TODO: In a production system, we would store the file reference and process it
-  // For now, we'll simulate the processing with the job system
 
   res.status(202).json({
     success: true,
@@ -515,6 +545,12 @@ app.post('/api/documents/upload', upload.single('document'), asyncHandler(async 
     documentId,
     status: 'pending',
     message: 'Dokument wird verarbeitet. Sie erhalten Updates über den Status.',
+    permissions: {
+      classification,
+      visibility,
+      owner: req.user?.name || 'Unbekannt',
+      department: department || req.user?.department || null
+    }
   })
 }))
 
