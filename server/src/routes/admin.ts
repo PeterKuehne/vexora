@@ -303,4 +303,89 @@ router.get('/audit-logs', authenticateToken, requireAdminRole, asyncHandler(asyn
   }
 }));
 
+/**
+ * GET /api/admin/audit-logs/user/:id
+ * Get audit logs for a specific user (Admin only)
+ */
+router.get('/audit-logs/user/:id', authenticateToken, requireAdminRole, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { id: userId } = req.params;
+    const limit = parseInt(req.query.limit as string) || 100;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const daysBack = parseInt(req.query.daysBack as string) || 90;
+
+    if (!userId) {
+      return res.status(400).json({
+        error: 'Bad request',
+        code: 'MISSING_USER_ID',
+        message: 'User ID is required'
+      });
+    }
+
+    // Validate parameters
+    if (limit > 1000) {
+      return res.status(400).json({
+        error: 'Bad request',
+        code: 'LIMIT_TOO_HIGH',
+        message: 'Limit cannot exceed 1000'
+      });
+    }
+
+    if (offset < 0 || limit < 1 || daysBack < 1 || daysBack > 365) {
+      return res.status(400).json({
+        error: 'Bad request',
+        code: 'INVALID_PARAMETERS',
+        message: 'Invalid pagination or date parameters'
+      });
+    }
+
+    const userAuditData = await authService.getUserAuditLogs(userId, limit, offset, daysBack);
+
+    // Get user info for context
+    const userInfo = await authService.getUserById(userId);
+
+    const userContext = req.user ? {
+      userId: req.user.user_id,
+      userRole: req.user.role,
+      userDepartment: req.user.department
+    } : undefined;
+
+    res.json({
+      success: true,
+      data: {
+        targetUser: userInfo,
+        auditLogs: userAuditData.logs,
+        statistics: userAuditData.statistics,
+        pagination: {
+          limit,
+          offset,
+          daysBack,
+          returned: userAuditData.logs.length
+        },
+        userContext
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error fetching user audit logs:', error);
+
+    if (error instanceof Error) {
+      if (error.message === 'User not found') {
+        return res.status(404).json({
+          error: 'Not found',
+          code: 'USER_NOT_FOUND',
+          message: 'User not found'
+        });
+      }
+    }
+
+    res.status(500).json({
+      error: 'Internal server error',
+      code: 'USER_AUDIT_LOGS_FETCH_FAILED',
+      message: 'Failed to fetch user audit logs'
+    });
+  }
+}));
+
 export default router;

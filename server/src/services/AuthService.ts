@@ -874,6 +874,141 @@ export class AuthService {
       throw new Error('Failed to fetch audit log statistics');
     }
   }
+
+  /**
+   * Get audit logs for a specific user (Admin only)
+   * @param userId User ID to filter logs for
+   * @param limit Maximum number of logs to return (default: 100)
+   * @param offset Number of logs to skip (default: 0)
+   * @param daysBack Number of days to look back (default: 90)
+   */
+  async getUserAuditLogs(userId: string, limit = 100, offset = 0, daysBack = 90): Promise<{
+    logs: AuditLog[];
+    statistics: {
+      totalLogs: number;
+      successCount: number;
+      failureCount: number;
+      deniedCount: number;
+      uploadCount: number;
+      queryCount: number;
+      loginCount: number;
+      dateRange: {
+        from: Date;
+        to: Date;
+      };
+    };
+  }> {
+    try {
+      // First verify user exists
+      const userExists = await databaseService.query(`
+        SELECT id FROM users WHERE id = $1
+      `, [userId]);
+
+      if (userExists.rows.length === 0) {
+        throw new Error('User not found');
+      }
+
+      // Get user-specific logs
+      const logsResult = await databaseService.query(`
+        SELECT
+          al.id,
+          al.user_id,
+          u.email as user_email,
+          u.name as user_name,
+          al.action,
+          al.resource_type,
+          al.resource_id,
+          al.result,
+          al.ip_address,
+          al.user_agent,
+          al.metadata,
+          al.created_at
+        FROM audit_logs al
+        LEFT JOIN users u ON al.user_id = u.id
+        WHERE al.user_id = $1
+        AND al.created_at >= NOW() - INTERVAL '${daysBack} days'
+        ORDER BY al.created_at DESC
+        LIMIT $2 OFFSET $3
+      `, [userId, limit, offset]);
+
+      // Get statistics for this user
+      const statsResult = await databaseService.query(`
+        SELECT
+          result,
+          action,
+          COUNT(*) as count
+        FROM audit_logs
+        WHERE user_id = $1
+        AND created_at >= NOW() - INTERVAL '${daysBack} days'
+        GROUP BY result, action
+      `, [userId]);
+
+      // Calculate statistics
+      const statistics = {
+        totalLogs: 0,
+        successCount: 0,
+        failureCount: 0,
+        deniedCount: 0,
+        uploadCount: 0,
+        queryCount: 0,
+        loginCount: 0,
+        dateRange: {
+          from: new Date(Date.now() - (daysBack * 24 * 60 * 60 * 1000)),
+          to: new Date()
+        }
+      };
+
+      for (const row of statsResult.rows) {
+        const count = parseInt(row.count);
+        statistics.totalLogs += count;
+
+        // Count by result
+        switch (row.result) {
+          case 'success':
+            statistics.successCount += count;
+            break;
+          case 'failure':
+            statistics.failureCount += count;
+            break;
+          case 'denied':
+            statistics.deniedCount += count;
+            break;
+        }
+
+        // Count by action type
+        const action = row.action.toLowerCase();
+        if (action.includes('upload') || action.includes('document')) {
+          statistics.uploadCount += count;
+        } else if (action.includes('query') || action.includes('rag') || action.includes('search')) {
+          statistics.queryCount += count;
+        } else if (action.includes('login') || action.includes('auth')) {
+          statistics.loginCount += count;
+        }
+      }
+
+      const logs: AuditLog[] = logsResult.rows.map(row => ({
+        id: row.id,
+        user_id: row.user_id,
+        user_email: row.user_email || 'Unknown User',
+        action: row.action,
+        resource_type: row.resource_type,
+        resource_id: row.resource_id,
+        result: row.result as AuditResult,
+        ip_address: row.ip_address,
+        user_agent: row.user_agent,
+        metadata: row.metadata,
+        created_at: row.created_at
+      }));
+
+      return {
+        logs,
+        statistics
+      };
+    } catch (error) {
+      console.error('Error fetching user audit logs:', error);
+      throw new Error('Failed to fetch user audit logs');
+    }
+  }
 }
 
 // Export singleton instance

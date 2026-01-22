@@ -172,7 +172,7 @@ export function AdminUsersPage() {
     <div className={`
       min-h-screen
       transition-colors duration-150
-      ${isDark ? 'bg-gray-900' : 'bg-gray-50'}
+      ${isDark ? 'bg-background' : 'bg-white'}
     `}>
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
 
@@ -298,7 +298,7 @@ export function AdminUsersPage() {
           rounded-lg border overflow-hidden
           transition-colors duration-150
           ${isDark
-            ? 'bg-gray-800 border-gray-700'
+            ? 'bg-surface border-white/10'
             : 'bg-white border-gray-200'
           }
         `}>
@@ -623,7 +623,7 @@ export function AdminUsersPage() {
           mt-8 p-6 rounded-lg border
           transition-colors duration-150
           ${isDark
-            ? 'bg-gray-800 border-gray-700'
+            ? 'bg-surface border-white/10'
             : 'bg-white border-gray-200'
           }
         `}>
@@ -640,7 +640,7 @@ export function AdminUsersPage() {
                 p-4 rounded border
                 transition-colors duration-150
                 ${isDark
-                  ? 'bg-gray-700/50 border-gray-600'
+                  ? 'bg-surface-secondary border-white/20'
                   : 'bg-gray-50 border-gray-200'
                 }
               `}>

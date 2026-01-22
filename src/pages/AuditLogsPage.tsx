@@ -7,8 +7,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
-import type { AuditLogEntry } from '../types/auth';
-import { fetchAuditLogs } from '../lib/api';
+import type { AuditLogEntry, User, UserRole, AuthProvider } from '../types/auth';
+import { fetchAuditLogs, fetchUserAuditLogs, fetchAllUsers } from '../lib/api';
 
 export function AuditLogsPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
@@ -17,13 +17,17 @@ export function AuditLogsPage() {
     successCount: 0,
     failureCount: 0,
     deniedCount: 0,
+    uploadCount: 0,
+    queryCount: 0,
+    loginCount: 0,
     topActions: [] as Array<{ action: string; count: number }>
   });
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState({
     result: 'all' as 'all' | 'success' | 'failure' | 'denied',
     action: 'all' as string,
-    daysBack: 90
+    daysBack: 90,
+    userId: 'all' as string  // New: user filter
   });
   const [pagination, setPagination] = useState({
     limit: 50,
@@ -31,15 +35,38 @@ export function AuditLogsPage() {
     hasMore: true
   });
 
+  // New: User management state
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
   const { } = useAuth(); // Auth context for potential future use
   const { theme } = useTheme();
   const { addToast } = useToast();
   const isDark = theme === 'dark';
 
+  // Load users on component mount
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
   // Load audit logs on component mount and when filters change
   useEffect(() => {
     loadAuditLogs();
   }, [filter, pagination.offset]);
+
+  const loadUsers = async () => {
+    try {
+      setIsLoadingUsers(true);
+      const response = await fetchAllUsers();
+      setUsers(response.data.users);
+    } catch (error) {
+      console.error('Error loading users:', error);
+      addToast('error', 'Failed to load users for filter');
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
 
   const loadAuditLogs = async (append = false) => {
     try {
@@ -47,7 +74,15 @@ export function AuditLogsPage() {
         setIsLoading(true);
       }
 
-      const response = await fetchAuditLogs(
+      // Use user-specific API if a user is selected
+      const response = filter.userId !== 'all'
+        ? await fetchUserAuditLogs(
+            filter.userId,
+            pagination.limit,
+            append ? pagination.offset : 0,
+            filter.daysBack
+          )
+        : await fetchAuditLogs(
         pagination.limit,
         append ? pagination.offset : 0,
         filter.daysBack
@@ -69,7 +104,51 @@ export function AuditLogsPage() {
         setAuditLogs(prevLogs => [...prevLogs, ...filteredLogs]);
       } else {
         setAuditLogs(filteredLogs);
-        setStatistics(response.data.statistics);
+
+        // Handle different statistics format for user-specific vs general logs
+        const stats = response.data.statistics;
+        if ('uploadCount' in stats) {
+          // User-specific statistics
+          setStatistics({
+            totalLogs: stats.totalLogs,
+            successCount: stats.successCount,
+            failureCount: stats.failureCount,
+            deniedCount: stats.deniedCount,
+            uploadCount: stats.uploadCount,
+            queryCount: stats.queryCount,
+            loginCount: stats.loginCount,
+            topActions: []
+          });
+        } else {
+          // General statistics
+          setStatistics({
+            totalLogs: stats.totalLogs,
+            successCount: stats.successCount,
+            failureCount: stats.failureCount,
+            deniedCount: stats.deniedCount,
+            uploadCount: 0,
+            queryCount: 0,
+            loginCount: 0,
+            topActions: stats.topActions
+          });
+        }
+
+        // Set selected user info if viewing user-specific logs
+        if (filter.userId !== 'all' && 'targetUser' in response.data) {
+          const targetUser = response.data.targetUser;
+          setSelectedUser({
+            id: targetUser.id,
+            email: targetUser.email,
+            name: targetUser.name,
+            role: targetUser.role as UserRole,
+            ...(targetUser.department && { department: targetUser.department }),
+            is_active: targetUser.is_active,
+            provider: 'microsoft' as AuthProvider,
+            created_at: new Date().toISOString()
+          });
+        } else {
+          setSelectedUser(null);
+        }
       }
 
       setPagination(prev => ({
@@ -154,6 +233,12 @@ export function AuditLogsPage() {
           </span>
         );
     }
+  };
+
+  const handleUserFilterChange = (userId: string) => {
+    setFilter(prev => ({ ...prev, userId }));
+    setPagination(prev => ({ ...prev, offset: 0 }));
+    setAuditLogs([]); // Clear current logs
   };
 
   const loadMore = () => {
@@ -327,7 +412,7 @@ export function AuditLogsPage() {
             : 'bg-white border-gray-200'
           }
         `}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Result Filter */}
             <div>
               <label className={`
@@ -413,8 +498,113 @@ export function AuditLogsPage() {
                 <option value={90}>Letzte 90 Tage</option>
               </select>
             </div>
+
+            {/* User Filter */}
+            <div>
+              <label className={`
+                block text-sm font-medium mb-2
+                transition-colors duration-150
+                ${isDark ? 'text-gray-300' : 'text-gray-700'}
+              `}>
+                Benutzer
+              </label>
+              <select
+                value={filter.userId}
+                onChange={(e) => handleUserFilterChange(e.target.value)}
+                disabled={isLoadingUsers}
+                className={`
+                  w-full px-3 py-2 text-sm rounded border
+                  transition-colors duration-150
+                  focus:outline-none focus:ring-2 focus:ring-blue-500
+                  ${isDark
+                    ? 'bg-gray-700 border-gray-600 text-white disabled:bg-gray-800'
+                    : 'bg-white border-gray-300 text-gray-900 disabled:bg-gray-100'
+                  }
+                  ${isLoadingUsers ? 'cursor-wait' : ''}
+                `}
+              >
+                <option value="all">Alle Benutzer</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.email}) - {user.role}
+                  </option>
+                ))}
+              </select>
+              {isLoadingUsers && (
+                <p className={`
+                  mt-1 text-xs
+                  transition-colors duration-150
+                  ${isDark ? 'text-gray-400' : 'text-gray-500'}
+                `}>
+                  Lade Benutzer...
+                </p>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Selected User Info */}
+        {selectedUser && (
+          <div className={`
+            mb-6 p-4 rounded-lg border-l-4
+            transition-colors duration-150
+            ${isDark
+              ? 'bg-blue-900/30 border-blue-500'
+              : 'bg-blue-50 border-blue-400'
+            }
+          `}>
+            <div className="flex items-center space-x-4">
+              <div className={`
+                w-10 h-10 rounded-full flex items-center justify-center
+                transition-colors duration-150
+                ${isDark
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-blue-100 text-blue-800'
+                }
+              `}>
+                {selectedUser.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h3 className={`
+                  font-medium
+                  transition-colors duration-150
+                  ${isDark ? 'text-blue-400' : 'text-blue-800'}
+                `}>
+                  Logs für: {selectedUser.name}
+                </h3>
+                <div className={`
+                  text-sm space-x-4
+                  transition-colors duration-150
+                  ${isDark ? 'text-blue-300' : 'text-blue-600'}
+                `}>
+                  <span>{selectedUser.email}</span>
+                  <span>•</span>
+                  <span>{selectedUser.role}</span>
+                  {selectedUser.department && (
+                    <>
+                      <span>•</span>
+                      <span>{selectedUser.department}</span>
+                    </>
+                  )}
+                  <span>•</span>
+                  <span>{selectedUser.is_active ? 'Aktiv' : 'Inaktiv'}</span>
+                </div>
+              </div>
+            </div>
+            {statistics.totalLogs > 0 && (
+              <div className={`
+                mt-3 text-sm space-x-6
+                transition-colors duration-150
+                ${isDark ? 'text-blue-300' : 'text-blue-600'}
+              `}>
+                <span>📊 {statistics.totalLogs} Logs gesamt</span>
+                <span>📁 {statistics.uploadCount || 0} Upload-Aktionen</span>
+                <span>🔍 {statistics.queryCount || 0} Suchanfragen</span>
+                <span>🔑 {statistics.loginCount || 0} Login-Ereignisse</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Audit Logs Table */}
         <div className={`

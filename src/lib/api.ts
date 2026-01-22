@@ -1016,6 +1016,103 @@ export async function fetchAuditLogs(
   }>(`${env.API_URL}/api/admin/audit-logs?${params}`);
 }
 
+/**
+ * Get audit logs for a specific user (Admin only)
+ */
+export async function fetchUserAuditLogs(
+  userId: string,
+  limit = 100,
+  offset = 0,
+  daysBack = 90
+): Promise<{
+  success: true;
+  data: {
+    targetUser: {
+      id: string;
+      email: string;
+      name: string;
+      role: string;
+      department?: string;
+      is_active: boolean;
+    };
+    auditLogs: AuditLogEntry[];
+    statistics: {
+      totalLogs: number;
+      successCount: number;
+      failureCount: number;
+      deniedCount: number;
+      uploadCount: number;
+      queryCount: number;
+      loginCount: number;
+      dateRange: {
+        from: Date;
+        to: Date;
+      };
+    };
+    pagination: {
+      limit: number;
+      offset: number;
+      daysBack: number;
+      returned: number;
+    };
+    userContext: {
+      userId: string;
+      userRole: string;
+      userDepartment?: string;
+    };
+  };
+  timestamp: string;
+}> {
+  const params = new URLSearchParams({
+    limit: limit.toString(),
+    offset: offset.toString(),
+    daysBack: daysBack.toString()
+  });
+
+  // Import httpClient dynamically to avoid circular dependencies
+  const { api } = await import('./httpClient');
+
+  return api.get<{
+    success: true;
+    data: {
+      targetUser: {
+        id: string;
+        email: string;
+        name: string;
+        role: string;
+        department?: string;
+        is_active: boolean;
+      };
+      auditLogs: AuditLogEntry[];
+      statistics: {
+        totalLogs: number;
+        successCount: number;
+        failureCount: number;
+        deniedCount: number;
+        uploadCount: number;
+        queryCount: number;
+        loginCount: number;
+        dateRange: {
+          from: Date;
+          to: Date;
+        };
+      };
+      pagination: {
+        limit: number;
+        offset: number;
+        daysBack: number;
+        returned: number;
+      };
+      userContext: {
+        userId: string;
+        userRole: string;
+        userDepartment?: string;
+      };
+    };
+    timestamp: string;
+  }>(`${env.API_URL}/api/admin/audit-logs/user/${userId}?${params}`);
+}
+
 // ============================================
 // Document Permission Management
 // ============================================

@@ -91,7 +91,7 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
         <div
           className={`
             max-w-md w-full mx-4 p-6 rounded-xl shadow-xl
-            ${isDark ? 'bg-gray-800' : 'bg-white'}
+            ${isDark ? 'bg-surface' : 'bg-white'}
           `}
         >
           <div className="flex items-center justify-between mb-4">
@@ -103,7 +103,7 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
               className={`
                 p-1 rounded-lg transition-colors
                 ${isDark
-                  ? 'hover:bg-gray-700 text-gray-400'
+                  ? 'hover:bg-white/10 text-gray-400'
                   : 'hover:bg-gray-100 text-gray-600'
                 }
               `}
@@ -122,7 +122,7 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
               className={`
                 px-4 py-2 rounded-lg font-medium transition-colors
                 ${isDark
-                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+                  ? 'bg-surface-secondary hover:bg-white/10 text-gray-200'
                   : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                 }
               `}
@@ -141,14 +141,14 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
         className={`
           max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto
           rounded-xl shadow-xl
-          ${isDark ? 'bg-gray-800' : 'bg-white'}
+          ${isDark ? 'bg-surface' : 'bg-white'}
         `}
       >
         {/* Header */}
         <div
           className={`
             flex items-center justify-between p-6 border-b
-            ${isDark ? 'border-gray-700' : 'border-gray-200'}
+            ${isDark ? 'border-white/10' : 'border-gray-200'}
           `}
         >
           <div className="flex items-center gap-3">
@@ -167,7 +167,7 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
             className={`
               p-2 rounded-lg transition-colors
               ${isDark
-                ? 'hover:bg-gray-700 text-gray-400'
+                ? 'hover:bg-white/10 text-gray-400'
                 : 'hover:bg-gray-100 text-gray-600'
               }
             `}
@@ -219,7 +219,7 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
         <div
           className={`
             flex justify-end gap-3 p-6 border-t
-            ${isDark ? 'border-gray-700' : 'border-gray-200'}
+            ${isDark ? 'border-white/10' : 'border-gray-200'}
           `}
         >
           <button
@@ -233,7 +233,7 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
                 : ''
               }
               ${isDark
-                ? 'text-gray-300 border border-gray-600 hover:bg-gray-700'
+                ? 'text-gray-300 border border-white/20 hover:bg-white/10'
                 : 'text-gray-700 border border-gray-300 hover:bg-gray-50'
               }
             `}

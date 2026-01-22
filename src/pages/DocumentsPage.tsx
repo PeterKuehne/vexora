@@ -301,7 +301,7 @@ export function DocumentsPage() {
           mb-6 p-4 rounded-lg border
           transition-colors duration-150
           ${isDark
-            ? 'bg-gray-800 border-gray-700'
+            ? 'bg-surface border-white/10'
             : 'bg-white border-gray-200'
           }
         `}>
@@ -326,7 +326,7 @@ export function DocumentsPage() {
                   transition-colors duration-150
                   focus:outline-none focus:ring-2 focus:ring-blue-500
                   ${isDark
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                    ? 'bg-surface-secondary border-white/20 text-white placeholder-gray-400'
                     : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                   }
                 `}
@@ -338,7 +338,7 @@ export function DocumentsPage() {
               transition-all duration-150
               focus:outline-none focus:ring-2 focus:ring-gray-500
               ${isDark
-                ? 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
+                ? 'bg-surface-secondary border-white/20 text-gray-300 hover:bg-white/10'
                 : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
               }
             `}>
@@ -353,14 +353,14 @@ export function DocumentsPage() {
           rounded-lg border overflow-hidden
           transition-colors duration-150
           ${isDark
-            ? 'bg-gray-800 border-gray-700'
+            ? 'bg-surface border-white/10'
             : 'bg-white border-gray-200'
           }
         `}>
           <div className={`
             px-6 py-4 border-b
             transition-colors duration-150
-            ${isDark ? 'border-gray-700' : 'border-gray-200'}
+            ${isDark ? 'border-white/10' : 'border-gray-200'}
           `}>
             <div className="flex items-center justify-between">
               <h2 className={`
