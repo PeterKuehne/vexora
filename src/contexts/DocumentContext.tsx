@@ -28,6 +28,7 @@ import {
 import { useToast } from './ToastContext';
 import { useProcessing } from '../hooks/useProcessing';
 import { useSocket } from '../hooks/useSocket';
+import { processError, validateFile, retryWithBackoff } from '../lib/errors';
 import type {
   ProcessingJob,
   DocumentUploadedEvent,
@@ -241,19 +242,11 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
    * Upload a PDF file with progress tracking
    */
   const uploadPDF = useCallback(async (file: File): Promise<DocumentMetadata | null> => {
-    // Validate file type
-    if (file.type !== 'application/pdf') {
-      addToast('error', 'Nur PDF-Dateien sind erlaubt', {
-        title: 'Ungültiger Dateityp',
-      });
-      return null;
-    }
-
-    // Validate file size (50MB)
-    const maxSize = 50 * 1024 * 1024;
-    if (file.size > maxSize) {
-      addToast('error', 'Maximum 50MB Dateigröße erlaubt', {
-        title: 'Datei zu groß',
+    // Enhanced file validation with user-friendly messages
+    const validationResult = validateFile(file);
+    if (!validationResult.valid && validationResult.error) {
+      addToast('error', validationResult.error.message, {
+        title: validationResult.error.title,
       });
       return null;
     }
@@ -262,10 +255,23 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     setUploadProgress(null);
 
     try {
-      // Use new async upload system with job-based processing
-      const uploadResponse = await uploadDocumentAsync(file, (progress) => {
-        setUploadProgress(progress);
-      });
+      // Use retry mechanism for upload with exponential backoff
+      const uploadResponse = await retryWithBackoff(
+        () => uploadDocumentAsync(file, (progress) => {
+          setUploadProgress(progress);
+        }),
+        {
+          maxAttempts: 3,
+          baseDelay: 2000,
+          onRetry: (attempt, error) => {
+            console.log(`Upload attempt ${attempt} failed:`, error);
+            addToast('warning', `Upload-Versuch ${attempt} fehlgeschlagen. Erneuter Versuch...`, {
+              title: 'Upload wird wiederholt',
+              duration: 3000,
+            });
+          }
+        }
+      );
 
       // Add job to processing list BEFORE Socket.io events arrive
       const initialJob: ProcessingJob = {
@@ -298,10 +304,17 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
 
       return placeholder;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Upload failed';
-      addToast('error', errorMessage, {
-        title: 'Upload fehlgeschlagen',
+      // Process error with user-friendly messages
+      const userError = processError(err);
+
+      addToast('error', userError.message, {
+        title: userError.title,
+        onRetry: userError.retryable ? () => {
+          // Retry the upload
+          uploadPDF(file);
+        } : undefined,
       });
+
       return null;
     } finally {
       setIsUploading(false);

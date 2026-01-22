@@ -69,6 +69,7 @@ export {
 
 // Error components
 export { OllamaConnectionError } from './OllamaConnectionError';
+export { ErrorBoundary } from './ErrorBoundary';
 
 // Status components
 export { SaveIndicator } from './SaveIndicator';

@@ -377,7 +377,7 @@ apps:
   test_command: npm run test
   port_env: PORT
 conventions:
-  version: 13
+  version: 14
   created_at: '2026-01-22T00:11:01.287858Z'
   source: anthropic-discovery
   state_management:
@@ -619,8 +619,8 @@ conventions:
     - Always use AuthProvider at app root level
     - Handle 401 responses with automatic logout
     - Verify tokens server-side before database queries
-  last_updated: '2026-01-22T15:00:39.140694Z'
-  updated_by_feature: 79
+  last_updated: '2026-01-22T15:39:00.329346Z'
+  updated_by_feature: 83
   permission_filtering:
     system: PostgreSQL RLS + Weaviate Vector Filter
     discovered_in_feature: 67
@@ -842,3 +842,26 @@ conventions:
     - Show warnings at 80% usage, critical at 95%
     - Admin users have unlimited quota (10GB technical limit)
     - Integrate quota display prominently on document management pages
+  error_handling:
+    system: Custom Error Processing
+    discovered_in_feature: 83
+    discovered_at: '2026-01-22T15:39:00.329104Z'
+    import_path: '@/lib/errors'
+    reference_files:
+    - src/lib/errors.ts:1
+    - src/contexts/DocumentContext.tsx:31
+    - src/lib/api.ts:11
+    - src/components/ErrorBoundary.tsx:1
+    usage_pattern: '// Error Processing\nconst userError = processError(error);\naddToast(''error'', userError.message, {\n  title:
+      userError.title,\n  onRetry: userError.retryable ? retryCallback : undefined\n});\n\n// File Validation\nconst validation
+      = validateFile(file);\nif (!validation.valid) {\n  showError(validation.error);\n}\n\n// Retry with Backoff\nawait retryWithBackoff(()
+      => apiCall(), {\n  maxAttempts: 3,\n  onRetry: (attempt) => showRetryMessage(attempt)\n});'
+    guidelines:
+    - Process all errors through processError() for user-friendly messages
+    - Use validateFile() for file uploads to show specific validation errors
+    - Implement retryWithBackoff() for network operations with exponential backoff
+    - Wrap route components in ErrorBoundary for React crash recovery
+    - Show retry buttons for retryable errors using Toast onRetry callback
+    - Use German error messages for better user experience
+    - Include technical details only in development mode
+    - 'Categorize errors: network, auth, validation, server, timeout, file, permission, unknown'

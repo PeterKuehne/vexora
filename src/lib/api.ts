@@ -8,6 +8,7 @@
 import { env } from './env';
 import type { Message, MessageRole } from '../types/message';
 import type { AuditLogEntry } from '../types/auth';
+import { processError } from './errors';
 
 // ============================================
 // Types
@@ -348,9 +349,14 @@ export async function streamChat(
         return;
       }
 
+      // Process error with user-friendly messages
+      const userError = processError(error);
+      const enhancedError = new Error(userError.message);
+      enhancedError.name = userError.category;
+
       // Check if we have partial response to include with error
       const partialResponse = fullResponse && fullResponse.trim() ? fullResponse : undefined;
-      onError(error, partialResponse);
+      onError(enhancedError, partialResponse);
     } else {
       // Check if we have partial response to include with error
       const partialResponse = fullResponse && fullResponse.trim() ? fullResponse : undefined;

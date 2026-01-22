@@ -11,6 +11,7 @@ import {
   StorageQuotaAlert,
   ToastContainer,
   ProtectedRoute,
+  ErrorBoundary,
   type SidebarControls,
 } from './components';
 import { LoginPage, AdminUsersPage, AuditLogsPage, DocumentsPage, ProfilePage } from './pages';
@@ -198,15 +199,17 @@ function AppRoutes() {
       <Route
         path="/chat"
         element={
-          <ProtectedRoute>
-            <ConversationProvider>
-              <DocumentProvider>
-                <RAGProvider>
-                  <ChatApp />
-                </RAGProvider>
-              </DocumentProvider>
-            </ConversationProvider>
-          </ProtectedRoute>
+          <ErrorBoundary>
+            <ProtectedRoute>
+              <ConversationProvider>
+                <DocumentProvider>
+                  <RAGProvider>
+                    <ChatApp />
+                  </RAGProvider>
+                </DocumentProvider>
+              </ConversationProvider>
+            </ProtectedRoute>
+          </ErrorBoundary>
         }
       />
 
@@ -214,11 +217,13 @@ function AppRoutes() {
       <Route
         path="/documents"
         element={
-          <ProtectedRoute>
-            <DocumentProvider>
-              <DocumentsPage />
-            </DocumentProvider>
-          </ProtectedRoute>
+          <ErrorBoundary>
+            <ProtectedRoute>
+              <DocumentProvider>
+                <DocumentsPage />
+              </DocumentProvider>
+            </ProtectedRoute>
+          </ErrorBoundary>
         }
       />
 
