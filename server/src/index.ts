@@ -38,6 +38,9 @@ import adminRoutes from './routes/admin.js'
 import quotaRoutes from './routes/quota.js'
 import settingsRoutes from './routes/settings.js'
 import evaluationRoutes from './routes/evaluation.js'
+import { createMonitoringRouter } from './routes/monitoring.js'
+import { createRedisCacheFromEnv } from './services/cache/index.js'
+import { databaseService } from './services/index.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -97,6 +100,22 @@ app.use('/api/admin', adminRateLimiter, adminRoutes)
 app.use('/api/quota', generalRateLimiter, quotaRoutes) // Higher limit for frequently accessed endpoints
 app.use('/api/admin/settings', adminRateLimiter, settingsRoutes)
 app.use('/api/evaluation', adminRateLimiter, evaluationRoutes) // RAG Evaluation Framework (Admin only)
+
+// ============================================
+// Monitoring Routes (Phase 6 - Production Hardening)
+// ============================================
+const redisCache = createRedisCacheFromEnv();
+const monitoringRouter = createMonitoringRouter(
+  databaseService,
+  redisCache,
+  ragService.getTracingService()
+);
+app.use('/api/monitoring', adminRateLimiter, monitoringRouter);
+
+// Initialize Redis cache (non-blocking)
+redisCache.initialize().catch((err: Error) => {
+  console.warn('[Server] Redis cache initialization failed:', err.message);
+});
 
 // ============================================
 // File Upload Configuration

@@ -5,7 +5,9 @@
  * Aggregates metrics from all services for dashboard display
  */
 
-import { DatabaseService } from '../DatabaseService.js';
+import { databaseService } from '../DatabaseService.js';
+
+type DatabaseServiceType = typeof databaseService;
 import { TracingService } from '../observability/TracingService.js';
 import { RedisCache } from '../cache/RedisCache.js';
 
@@ -67,7 +69,7 @@ export class MonitoringService {
   private alertConfig: AlertConfig;
 
   constructor(
-    private db: DatabaseService,
+    private db: DatabaseServiceType,
     private tracingService?: TracingService,
     private cache?: RedisCache,
     alertConfig: Partial<AlertConfig> = {}
@@ -231,15 +233,16 @@ export class MonitoringService {
 
       const spanTotals: Record<string, { sum: number; count: number }> = {};
 
-      for (const row of result.rows) {
+      for (const row of result.rows as Array<{ spans: Array<{ name: string; durationMs?: number }> }>) {
         const spans = row.spans || [];
         for (const span of spans) {
           if (!spanTotals[span.name]) {
             spanTotals[span.name] = { sum: 0, count: 0 };
           }
-          if (span.durationMs) {
-            spanTotals[span.name].sum += span.durationMs;
-            spanTotals[span.name].count++;
+          const entry = spanTotals[span.name];
+          if (span.durationMs && entry) {
+            entry.sum += span.durationMs;
+            entry.count++;
           }
         }
       }
@@ -330,7 +333,13 @@ export class MonitoringService {
         ORDER BY hour DESC
       `);
 
-      return result.rows.map(row => ({
+      return (result.rows as Array<{
+        hour: Date;
+        total_traces: string;
+        success_rate: string;
+        avg_latency_ms: string;
+        p95_latency_ms: string;
+      }>).map(row => ({
         hour: row.hour,
         totalTraces: parseInt(row.total_traces),
         successRate: parseFloat(row.success_rate) || 0,
@@ -431,7 +440,15 @@ export class MonitoringService {
         LIMIT 100
       `);
 
-      return result.rows.map(row => ({
+      return (result.rows as Array<{
+        id: number;
+        alert_type: string;
+        severity: 'info' | 'warning' | 'error' | 'critical';
+        message: string;
+        metadata: Record<string, unknown>;
+        acknowledged: boolean;
+        created_at: Date;
+      }>).map(row => ({
         id: row.id,
         type: row.alert_type,
         severity: row.severity,

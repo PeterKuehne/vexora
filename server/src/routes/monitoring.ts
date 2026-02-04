@@ -13,10 +13,12 @@ import { Router, Request, Response } from 'express';
 import { MonitoringService, type DashboardMetrics } from '../services/monitoring/index.js';
 import { RedisCache } from '../services/cache/index.js';
 import { TracingService } from '../services/observability/index.js';
-import { DatabaseService } from '../services/DatabaseService.js';
+import { databaseService } from '../services/DatabaseService.js';
+
+type DatabaseServiceType = typeof databaseService;
 
 export function createMonitoringRouter(
-  db: DatabaseService,
+  db: DatabaseServiceType,
   cache?: RedisCache,
   tracingService?: TracingService
 ): Router {
@@ -119,7 +121,7 @@ export function createMonitoringRouter(
    */
   router.post('/alerts/:id/acknowledge', async (req: Request, res: Response) => {
     try {
-      const alertId = parseInt(req.params.id);
+      const alertId = parseInt(req.params.id || '0');
       const userId = (req as unknown as { user?: { id: string } }).user?.id || 'anonymous';
 
       await monitoringService.acknowledgeAlert(alertId, userId);
