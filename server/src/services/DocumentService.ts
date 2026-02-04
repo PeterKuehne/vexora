@@ -9,6 +9,10 @@ import { LoggerService } from './LoggerService.js';
 import { parserClientService } from './parsing/ParserClientService.js';
 import { chunkingPipeline } from './chunking/ChunkingPipeline.js';
 import { getSupportedFormat, type SupportedFormat } from '../types/parsing.js';
+import { createGraphServiceFromEnv } from './graph/index.js';
+
+// Graph Service instance for entity extraction (Phase 4)
+const graphService = createGraphServiceFromEnv(databaseService);
 
 /**
  * DocumentService - Handles multi-format document processing with V2 chunking
@@ -329,6 +333,19 @@ class DocumentService {
       );
     }
 
+    // Step 7: Extract entities for Knowledge Graph (Phase 4)
+    try {
+      await graphService.initialize();
+      if (graphService.isReady()) {
+        console.log(`🔗 Extracting entities for document ${documentId}...`);
+        const graphResult = await graphService.processDocument(documentId, parsedDoc.blocks);
+        console.log(`✅ Graph: ${graphResult.stats.entitiesExtracted} entities, ${graphResult.stats.relationshipsExtracted} relationships`);
+      }
+    } catch (graphError) {
+      // Don't fail document processing if graph extraction fails
+      console.warn(`⚠️  Entity extraction failed (non-critical): ${graphError}`);
+    }
+
     LoggerService.logDocument('upload', {
       documentId,
       userId: permissionMetadata?.ownerId,
@@ -425,6 +442,20 @@ class DocumentService {
         'v1',
       ]
     );
+
+    // Extract entities for Knowledge Graph (Phase 4) - V1 processing
+    try {
+      await graphService.initialize();
+      if (graphService.isReady()) {
+        console.log(`🔗 Extracting entities for document ${documentId} (V1)...`);
+        // Convert V1 text to block format for entity extraction
+        const textBlocks = [{ id: `${documentId}_full`, content: text }];
+        const graphResult = await graphService.processDocument(documentId, textBlocks);
+        console.log(`✅ Graph: ${graphResult.stats.entitiesExtracted} entities, ${graphResult.stats.relationshipsExtracted} relationships`);
+      }
+    } catch (graphError) {
+      console.warn(`⚠️  Entity extraction failed (non-critical): ${graphError}`);
+    }
 
     LoggerService.logDocument('upload', {
       documentId,
@@ -656,6 +687,16 @@ class DocumentService {
       await vectorServiceV2.deleteDocument(id);
     } catch (vectorError) {
       console.warn(`⚠️  Failed to remove from V2 vector database: ${vectorError}`);
+    }
+
+    // Remove entities from Neo4j Knowledge Graph (Phase 4)
+    try {
+      if (graphService.isReady()) {
+        const deletedCount = await graphService.deleteDocumentEntities(id);
+        console.log(`🗑️  Removed ${deletedCount} entities from Neo4j for document ${id}`);
+      }
+    } catch (graphError) {
+      console.warn(`⚠️  Failed to remove entities from Neo4j: ${graphError}`);
     }
 
     // Clean up file (attempt, but don't fail if it doesn't exist)

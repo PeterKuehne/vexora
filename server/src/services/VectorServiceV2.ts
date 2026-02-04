@@ -8,7 +8,7 @@
  * - Backward compatible with V1 queries
  */
 
-import weaviate, { WeaviateClient, vectorizer, dataType } from 'weaviate-client';
+import weaviate, { WeaviateClient, vectorizer, dataType, Filters } from 'weaviate-client';
 import { type DocumentMetadata } from './DocumentService.js';
 import { embeddingService } from './EmbeddingService.js';
 import { randomUUID } from 'crypto';
@@ -408,7 +408,7 @@ class VectorServiceV2 {
       if (filters.length === 1) {
         queryOptions.where = filters[0];
       } else if (filters.length > 1) {
-        queryOptions.where = collection.filter.and(...filters);
+        queryOptions.where = Filters.and(...filters);
       }
 
       // Execute search
