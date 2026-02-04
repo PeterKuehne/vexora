@@ -243,8 +243,10 @@ class DocumentService {
     console.log(`✅ Chunked: ${chunkingResult.stats.totalChunks} chunks`);
 
     // Step 3: Store in V2 Weaviate collection
+    // IMPORTANT: Pass the PostgreSQL documentId to ensure consistency for permission filtering
     try {
       await vectorServiceV2.storeChunks(chunkingResult.chunks, {
+        documentId, // Use the PostgreSQL document ID, not the parser-generated ID
         filename: metadata.filename,
         originalName: metadata.originalName,
         pageCount: parsedDoc.metadata.pageCount,
