@@ -53,3 +53,38 @@ export {
   authService,
   AuthService,
 } from './AuthService.js'
+
+export {
+  rerankerService,
+  RerankerService,
+  type RerankerConfig,
+  type RerankedChunk,
+  type RerankerResult,
+} from './rag/RerankerService.js'
+
+// V2 Services (RAG V2 Phase 2)
+export {
+  vectorServiceV2,
+  type DocumentChunkV2,
+  type SearchResultV2,
+  type VectorSearchRequestV2,
+  type VectorSearchResponseV2,
+} from './VectorServiceV2.js'
+
+export {
+  parserClientService,
+  ParserClientService,
+  type ParserClientConfig,
+} from './parsing/index.js'
+
+export {
+  chunkingPipeline,
+  ChunkingPipeline,
+  createChunkingPipeline,
+  semanticChunker,
+  SemanticChunker,
+  tableChunker,
+  TableChunker,
+  hierarchicalIndexer,
+  HierarchicalIndexer,
+} from './chunking/index.js'

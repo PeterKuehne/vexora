@@ -294,8 +294,10 @@ export { NavigationLinks, NavigationDivider } from './NavigationLinks';
 export { DocumentUpload } from './DocumentUpload';
 export { DocumentList } from './DocumentList';
 export { DocumentSidebar } from './DocumentSidebar';
+export { RAGSidebar } from './RAGSidebar';
 export { MainSidebar } from './MainSidebar';
 export { SidebarTabs, type SidebarTab } from './SidebarTabs';
+export { UploadModal } from './UploadModal';
 
 // RAG components
 export { RAGToggle } from './RAGToggle';
@@ -306,6 +308,9 @@ export { SourceDetailModal } from './SourceDetailModal';
 // Authentication components
 export { ProtectedRoute } from './ProtectedRoute';
 export { UserMenu, UserMenuSkeleton, type UserMenuProps } from './UserMenu';
+
+// Admin components
+export { AdminPageHeader, type AdminPageHeaderProps } from './AdminPageHeader';
 
 // UI components will be exported here
 // export { Button } from './ui/Button';

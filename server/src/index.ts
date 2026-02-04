@@ -28,7 +28,8 @@ import {
   type ModelQuery,
 } from './validation/index.js'
 import { type AuthenticatedRequest } from './types/auth.js'
-import { ollamaService, documentService, ragService } from './services/index.js'
+import { ollamaService, documentService, ragService, rerankerService } from './services/index.js'
+import { authService } from './services/AuthService.js'
 import { processingJobService } from './services/ProcessingJobService.js'
 import { quotaService } from './services/QuotaService.js'
 import { documentEventService } from './services/DocumentEventService.js'
@@ -36,6 +37,7 @@ import authRoutes from './routes/auth.js'
 import adminRoutes from './routes/admin.js'
 import quotaRoutes from './routes/quota.js'
 import settingsRoutes from './routes/settings.js'
+import evaluationRoutes from './routes/evaluation.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -55,9 +57,6 @@ app.use(inputSanitization)
 
 // Secure cookie configuration
 app.use(secureCookies)
-
-// Rate limiting for authentication endpoints
-const rateLimiter = createRateLimiter()
 
 // Socket.io setup with CORS
 const io = new Server(httpServer, {
@@ -89,10 +88,15 @@ app.use(express.json())
 // ============================================
 
 // Apply rate limiting to auth routes to prevent brute force attacks
-app.use('/api/auth', rateLimiter, authRoutes)
-app.use('/api/admin', rateLimiter, adminRoutes)
-app.use('/api/quota', rateLimiter, quotaRoutes)
-app.use('/api/admin/settings', rateLimiter, settingsRoutes)
+const authRateLimiter = createRateLimiter({ maxAttempts: 10, windowMs: 15 * 60 * 1000 }) // 10 requests per 15 min
+const adminRateLimiter = createRateLimiter({ maxAttempts: 100, windowMs: 15 * 60 * 1000 }) // 100 requests per 15 min
+const generalRateLimiter = createRateLimiter({ maxAttempts: 200, windowMs: 15 * 60 * 1000 }) // 200 requests per 15 min
+
+app.use('/api/auth', authRateLimiter, authRoutes)
+app.use('/api/admin', adminRateLimiter, adminRoutes)
+app.use('/api/quota', generalRateLimiter, quotaRoutes) // Higher limit for frequently accessed endpoints
+app.use('/api/admin/settings', adminRateLimiter, settingsRoutes)
+app.use('/api/evaluation', adminRateLimiter, evaluationRoutes) // RAG Evaluation Framework (Admin only)
 
 // ============================================
 // File Upload Configuration
@@ -111,7 +115,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB
+    fileSize: 150 * 1024 * 1024, // 150MB
     files: 1,
   },
   fileFilter: (_req, file, cb) => {
@@ -541,7 +545,7 @@ app.post('/api/documents/upload', authenticateToken, upload.single('document'), 
 
   // Validate against user quota
   const user = req.user!;
-  const quotaValidation = await quotaService.validateUpload(user.id, user.role, req.file.size);
+  const quotaValidation = await quotaService.validateUpload(user.user_id, user.role, req.file.size);
   if (!quotaValidation.allowed) {
     throw new ValidationError(quotaValidation.reason || 'Quota-Limit erreicht', {
       field: 'quota',
@@ -594,6 +598,25 @@ app.post('/api/documents/upload', authenticateToken, upload.single('document'), 
       allowedUsers: visibility === 'specific_users' ? specificUsers : null
     }
   )
+
+  // Create audit log for document upload
+  await authService.createAuditLog({
+    userId: req.user?.user_id,
+    userEmail: req.user?.email || 'unknown',
+    action: 'document_upload',
+    result: 'success',
+    resourceType: 'document',
+    resourceId: documentId,
+    ipAddress: req.ip || req.socket.remoteAddress,
+    userAgent: req.headers['user-agent'],
+    metadata: {
+      filename: req.file.originalname,
+      size: req.file.size,
+      classification,
+      visibility,
+      department: department || req.user?.department
+    }
+  });
 
   res.status(202).json({
     success: true,
@@ -706,6 +729,19 @@ app.delete('/api/documents/:id', authenticateToken, asyncHandler(async (req: Aut
   const hasAccess = allAccessibleDocuments.some(doc => doc.id === id)
 
   if (!hasAccess) {
+    // Create audit log for denied access
+    await authService.createAuditLog({
+      userId: req.user?.user_id,
+      userEmail: req.user?.email || 'unknown',
+      action: 'document_delete',
+      result: 'denied',
+      resourceType: 'document',
+      resourceId: id,
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+      metadata: { reason: 'Access denied or document not found' }
+    });
+
     // Cleanup user context
     await documentService.clearUserContext()
 
@@ -728,12 +764,28 @@ app.delete('/api/documents/:id', authenticateToken, asyncHandler(async (req: Aut
       document: {
         id: documentToDelete.id,
         filename: documentToDelete.filename,
-        originalName: documentToDelete.original_name || documentToDelete.filename
+        originalName: documentToDelete.originalName || documentToDelete.filename
       },
       deletedBy: req.user?.user_id || 'unknown',
       deletedByEmail: req.user?.email || 'unknown@example.com',
       affectedUsers: [req.user?.user_id || 'unknown'] // For now, just the deleting user
     })
+
+    // Create audit log for document deletion
+    await authService.createAuditLog({
+      userId: req.user?.user_id,
+      userEmail: req.user?.email || 'unknown',
+      action: 'document_delete',
+      result: 'success',
+      resourceType: 'document',
+      resourceId: documentToDelete.id,
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+      metadata: {
+        filename: documentToDelete.originalName || documentToDelete.filename,
+        classification: documentToDelete.metadata?.classification
+      }
+    });
   }
 
   // Cleanup user context
@@ -1076,6 +1128,23 @@ app.post('/api/rag/chat', authenticateToken, asyncHandler(async (req: Authentica
       userContext,
     })
 
+    // Create audit log for RAG query
+    await authService.createAuditLog({
+      userId: req.user?.user_id,
+      userEmail: req.user?.email || 'unknown',
+      action: 'rag_query',
+      result: 'success',
+      resourceType: 'query',
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+      metadata: {
+        query: query.substring(0, 200), // Truncate for privacy
+        model,
+        hasRelevantSources: ragResponse.hasRelevantSources,
+        sourcesCount: ragResponse.sources?.length || 0
+      }
+    });
+
     res.json({
       success: true,
       message: ragResponse.message,
@@ -1089,6 +1158,23 @@ app.post('/api/rag/chat', authenticateToken, asyncHandler(async (req: Authentica
     })
   } catch (error) {
     console.error('RAG chat failed:', error)
+
+    // Create audit log for failed RAG query
+    await authService.createAuditLog({
+      userId: req.user?.user_id,
+      userEmail: req.user?.email || 'unknown',
+      action: 'rag_query',
+      result: 'failure',
+      resourceType: 'query',
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+      metadata: {
+        query: query.substring(0, 200),
+        model,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    });
+
     res.status(500).json({
       error: 'RAG chat failed',
       code: 'RAG_CHAT_ERROR',
@@ -1291,8 +1377,15 @@ app.use(notFoundHandler)
 app.use(errorHandler)
 
 // Start server with HTTP server (for both Express and Socket.io)
-httpServer.listen(env.PORT, () => {
-  // Server started
+httpServer.listen(env.PORT, async () => {
+  console.log(`🚀 Server running on port ${env.PORT}`)
+
+  // Initialize reranker service (Phase 1 - RAG V2)
+  try {
+    await rerankerService.initialize()
+  } catch (error) {
+    console.warn('⚠️  Reranker service initialization failed:', error)
+  }
 })
 
 export { io }

@@ -12,7 +12,6 @@
  */
 
 import { useConversations } from '../contexts';
-import { useTheme } from '../contexts';
 import { Sidebar } from './layout';
 import { SkeletonConversationList } from './Skeleton';
 import { ConversationList } from './ConversationList';
@@ -41,29 +40,15 @@ export function ConversationSidebar({
     isLoading,
     isSearchActive,
   } = useConversations();
-  const { isDark } = useTheme();
 
   // Use filtered conversations when search is active, otherwise all conversations
   const displayConversations = isSearchActive ? filteredConversations : conversations;
 
-  // Sidebar header content
-  const headerContent = (
-    <h2
-      className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}
-    >
-      Unterhaltungen
-    </h2>
-  );
+  // Sidebar header content - removed, now in MainSidebar
+  const headerContent = null;
 
-  // Sidebar footer content
-  const footerContent = (
-    <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-      {isSearchActive && displayConversations.length !== conversations.length
-        ? `${displayConversations.length} von ${conversations.length} Unterhaltung${conversations.length !== 1 ? 'en' : ''}`
-        : `${conversations.length} Unterhaltung${conversations.length !== 1 ? 'en' : ''}`
-      }
-    </span>
-  );
+  // Sidebar footer content - removed, now in MainSidebar
+  const footerContent = null;
 
   return (
     <Sidebar
@@ -75,7 +60,7 @@ export function ConversationSidebar({
       ariaLabel="Unterhaltungen Sidebar"
     >
       {/* Search Bar */}
-      <div className="px-3 pb-3 border-b border-white/10">
+      <div className="px-3 pb-3">
         <ConversationSearchBar
           showResultCount={false}
           showClearAll={true}

@@ -13,8 +13,9 @@ import {
   ProtectedRoute,
   ErrorBoundary,
   type SidebarControls,
+  type SidebarTab,
 } from './components';
-import { LoginPage, AdminUsersPage, AdminSystemSettingsPage, AuditLogsPage, DocumentsPage, ProfilePage } from './pages';
+import { LoginPage, AdminUsersPage, AdminSystemSettingsPage, AuditLogsPage, DocumentsPage, DocumentsPageEmbedded, ProfilePage } from './pages';
 import { checkHealth } from './lib/api';
 import {
   ConversationProvider,
@@ -38,6 +39,9 @@ function ChatApp() {
   const [isRetrying, setIsRetrying] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string>('qwen3:8b');
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
+  // Sidebar tab state - controls what is shown in main content
+  const [activeTab, setActiveTab] = useState<SidebarTab>('conversations');
 
   // Auth Context
   const { user, isLoading: isAuthLoading, logout } = useAuth();
@@ -112,7 +116,6 @@ function ChatApp() {
   // Render header with sidebar controls from AppShell
   const renderHeader = (sidebarControls: SidebarControls) => (
     <Header
-      onNewConversation={handleNewConversation}
       theme={theme}
       onThemeChange={setTheme}
       isOllamaConnected={isOllamaConnected}
@@ -127,10 +130,6 @@ function ChatApp() {
       showModelSelector={true}
       onSettingsClick={handleSettingsClick}
       showSettingsButton={true}
-      user={user}
-      isAuthLoading={isAuthLoading}
-      onLogout={logout}
-      showUserMenu={true}
     />
   );
 
@@ -139,11 +138,20 @@ function ChatApp() {
     <MainSidebar
       isCollapsed={sidebarControls.isCollapsed}
       onToggleCollapse={sidebarControls.toggle}
+      onNewConversation={handleNewConversation}
+      user={user}
+      isAuthLoading={isAuthLoading}
+      onLogout={logout}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
     />
   );
 
-  // Main Content
-  const mainContent = isOllamaConnected === false ? (
+  // Main Content - switches between Chat and Documents based on active tab
+  const mainContent = activeTab === 'rag' ? (
+    // RAG Tab: Show Documents Page
+    <DocumentsPageEmbedded />
+  ) : isOllamaConnected === false ? (
     <OllamaConnectionError
       onRetry={handleRetry}
       isRetrying={isRetrying}

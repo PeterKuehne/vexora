@@ -1,11 +1,12 @@
 /**
- * DocumentUploadWithPermissions - Enhanced PDF Upload Component with Permission System
+ * DocumentUploadWithPermissions - Enhanced Multi-Format Upload Component with Permission System
+ * RAG V2 Phase 2 - Supports PDF, DOCX, PPTX, XLSX, HTML, MD, TXT
  *
  * Features:
  * - Drag & drop area
  * - File picker button
  * - Upload progress indicator
- * - File validation (PDF only, 50MB max)
+ * - Multi-format file validation (150MB max)
  * - Permission classification dropdown
  * - Visibility selection
  * - Permission preview
@@ -13,7 +14,43 @@
  */
 
 import { useCallback, useState, useRef } from 'react';
-import { Upload, File, Settings, ChevronRight } from 'lucide-react';
+import { Upload, File, FileText, FileSpreadsheet, Presentation, FileCode, Settings, ChevronRight } from 'lucide-react';
+
+// Supported file types (V2)
+const SUPPORTED_TYPES: Record<string, { ext: string; name: string }> = {
+  'application/pdf': { ext: 'pdf', name: 'PDF' },
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { ext: 'docx', name: 'Word' },
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': { ext: 'pptx', name: 'PowerPoint' },
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { ext: 'xlsx', name: 'Excel' },
+  'text/html': { ext: 'html', name: 'HTML' },
+  'text/markdown': { ext: 'md', name: 'Markdown' },
+  'text/plain': { ext: 'txt', name: 'Text' },
+};
+
+const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.pptx', '.xlsx', '.html', '.htm', '.md', '.markdown', '.txt'];
+const ACCEPT_STRING = '.pdf,.docx,.pptx,.xlsx,.html,.htm,.md,.markdown,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/html,text/markdown,text/plain';
+
+/**
+ * Check if file is supported
+ */
+function isFileSupported(file: File): boolean {
+  if (file.type && file.type in SUPPORTED_TYPES) {
+    return true;
+  }
+  const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+  return SUPPORTED_EXTENSIONS.includes(ext);
+}
+
+/**
+ * Get file type display name
+ */
+function getFileTypeName(file: File): string {
+  if (file.type && SUPPORTED_TYPES[file.type]) {
+    return SUPPORTED_TYPES[file.type].name;
+  }
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  return ext.toUpperCase() + '-Dokument';
+}
 import { useTheme } from '../contexts/ThemeContext';
 import { useProcessing } from '../hooks/useProcessing';
 import { ProcessingProgress } from './ProcessingProgress';
@@ -28,7 +65,11 @@ interface DocumentPermissionState {
   specificUsers: string[];
 }
 
-export function DocumentUploadWithPermissions() {
+interface DocumentUploadWithPermissionsProps {
+  onUploadComplete?: () => void;
+}
+
+export function DocumentUploadWithPermissions({ onUploadComplete }: DocumentUploadWithPermissionsProps = {}) {
   const { isDark } = useTheme();
   const [isUploading, setIsUploading] = useState(false);
   const { jobs } = useProcessing();
@@ -56,17 +97,17 @@ export function DocumentUploadWithPermissions() {
     .slice(0, 5);
 
   /**
-   * Handle file selection (drag & drop or file picker)
+   * Handle file selection (drag & drop or file picker) - V2 multi-format
    */
   const handleFileSelection = useCallback(async (file: File) => {
-    // Basic validation
-    if (file.type !== 'application/pdf') {
-      alert('Nur PDF-Dateien sind erlaubt');
+    // V2: Multi-format validation
+    if (!isFileSupported(file)) {
+      alert('Nicht unterstütztes Dateiformat. Erlaubt: PDF, Word, PowerPoint, Excel, HTML, Markdown, Text');
       return;
     }
 
-    if (file.size > 50 * 1024 * 1024) {
-      alert('Maximum 50MB Dateigröße erlaubt');
+    if (file.size > 150 * 1024 * 1024) {
+      alert('Maximum 150MB Dateigröße erlaubt');
       return;
     }
 
@@ -101,17 +142,17 @@ export function DocumentUploadWithPermissions() {
   }, []);
 
   /**
-   * Handle file drop
+   * Handle file drop - V2 multi-format
    */
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
 
     const files = Array.from(e.dataTransfer.files);
-    const pdfFile = files.find(file => file.type === 'application/pdf');
+    const supportedFile = files.find(file => isFileSupported(file));
 
-    if (pdfFile) {
-      handleFileSelection(pdfFile);
+    if (supportedFile) {
+      handleFileSelection(supportedFile);
     }
   }, [handleFileSelection]);
 
@@ -158,7 +199,12 @@ export function DocumentUploadWithPermissions() {
   const handleUploadWithPermissions = useCallback(async () => {
     if (!selectedFile) return;
 
-    setIsUploading(true);
+    // If in modal, close it immediately - toast will show progress
+    if (onUploadComplete) {
+      onUploadComplete();
+    } else {
+      setIsUploading(true);
+    }
 
     try {
       // Use the new API with permissions
@@ -172,28 +218,31 @@ export function DocumentUploadWithPermissions() {
         selectedFile,
         apiPermissions,
         (progress) => {
-          // Handle upload progress here if needed
           console.log('Upload progress:', progress);
         }
       );
 
       console.log('Upload initiated:', response);
 
-      // Reset state
-      setSelectedFile(null);
-      setShowPermissions(false);
-      setPermissions({
-        classification: 'internal',
-        visibility: 'department',
-        specificUsers: []
-      });
+      // Reset state only when not in modal
+      if (!onUploadComplete) {
+        setIsUploading(false);
+        setSelectedFile(null);
+        setShowPermissions(false);
+        setPermissions({
+          classification: 'internal',
+          visibility: 'department',
+          specificUsers: []
+        });
+      }
     } catch (error) {
       console.error('Upload failed:', error);
       alert(`Upload fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
-    } finally {
-      setIsUploading(false);
+      if (!onUploadComplete) {
+        setIsUploading(false);
+      }
     }
-  }, [selectedFile, permissions]);
+  }, [selectedFile, permissions, onUploadComplete]);
 
   /**
    * Handle cancel
@@ -307,7 +356,7 @@ export function DocumentUploadWithPermissions() {
                     ${isDark ? 'text-gray-400' : 'text-gray-600'}
                   `}
                 >
-                  {formatFileSize(selectedFile.size)} • PDF-Dokument
+                  {formatFileSize(selectedFile.size)} • {getFileTypeName(selectedFile)}
                 </div>
               </div>
             </div>
@@ -402,11 +451,11 @@ export function DocumentUploadWithPermissions() {
   // Default upload zone
   return (
     <div>
-      {/* Hidden file input */}
+      {/* Hidden file input - V2 multi-format */}
       <input
         ref={fileInputRef}
         type="file"
-        accept="application/pdf,.pdf"
+        accept={ACCEPT_STRING}
         onChange={handleFileChange}
         className="hidden"
       />
@@ -448,7 +497,7 @@ export function DocumentUploadWithPermissions() {
               isDark ? 'text-gray-200' : 'text-gray-800'
             }`}
           >
-            PDF-Dokument mit Berechtigungen hochladen
+            Dokument mit Berechtigungen hochladen
           </h3>
 
           <p
@@ -456,7 +505,7 @@ export function DocumentUploadWithPermissions() {
               isDark ? 'text-gray-400' : 'text-gray-600'
             }`}
           >
-            Ziehen Sie eine PDF-Datei hierher oder klicken Sie zum Auswählen
+            Ziehen Sie eine Datei hierher oder klicken Sie zum Auswählen
           </p>
 
           <div className="flex items-center justify-center gap-2 mb-4">
@@ -503,7 +552,7 @@ export function DocumentUploadWithPermissions() {
               isDark ? 'text-gray-500' : 'text-gray-400'
             }`}
           >
-            Maximal 50MB • Nur PDF-Dateien
+            Max 150MB • PDF, Word, PowerPoint, Excel, HTML, Markdown, Text
           </p>
         </div>
 

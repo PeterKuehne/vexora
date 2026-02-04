@@ -31,7 +31,7 @@ export interface RefreshTokenResponse {
  */
 class HttpClient {
   private isRefreshing = false;
-  private refreshPromise: Promise<boolean> | null = null;
+  private refreshPromise: Promise<boolean | 'rate_limited'> | null = null;
 
   /**
    * Make an authenticated HTTP request with automatic token management
@@ -57,17 +57,21 @@ class HttpClient {
 
     // Handle 401 Unauthorized responses
     if (response.status === 401 && !skipAuth && retryOnUnauthorized) {
-      const refreshed = await this.handleUnauthorized();
+      const refreshResult = await this.handleUnauthorized();
 
-      if (refreshed) {
+      if (refreshResult === true) {
         // Retry original request after successful refresh
         return fetch(url, {
           ...fetchOptions,
           credentials: 'include',
           headers: requestHeaders,
         });
+      } else if (refreshResult === 'rate_limited') {
+        // Rate limited - don't logout, just return the 401 response
+        console.warn('⚠️ Cannot refresh token due to rate limit - returning 401');
+        return response;
       } else {
-        // Refresh failed - logout and throw
+        // Genuine refresh failure - logout and throw
         await this.handleLogout();
         throw new Error('Session expired. Please log in again.');
       }
@@ -113,9 +117,9 @@ class HttpClient {
 
   /**
    * Handle 401 unauthorized response
-   * Attempts token refresh and returns success/failure
+   * Attempts token refresh and returns success/failure/'rate_limited'
    */
-  private async handleUnauthorized(): Promise<boolean> {
+  private async handleUnauthorized(): Promise<boolean | 'rate_limited'> {
     // Prevent multiple simultaneous refresh attempts
     if (this.isRefreshing) {
       return this.refreshPromise || Promise.resolve(false);
@@ -125,8 +129,8 @@ class HttpClient {
     this.refreshPromise = this.attemptTokenRefresh();
 
     try {
-      const success = await this.refreshPromise;
-      return success;
+      const result = await this.refreshPromise;
+      return result;
     } finally {
       this.isRefreshing = false;
       this.refreshPromise = null;
@@ -135,8 +139,9 @@ class HttpClient {
 
   /**
    * Attempt to refresh access token using refresh token
+   * Returns: true = success, false = auth failure, 'rate_limited' = temporary rate limit
    */
-  private async attemptTokenRefresh(): Promise<boolean> {
+  private async attemptTokenRefresh(): Promise<boolean | 'rate_limited'> {
     try {
       console.log('🔄 Attempting token refresh...');
 
@@ -158,7 +163,14 @@ class HttpClient {
         }));
 
         return true;
+      } else if (response.status === 429) {
+        // Rate limit - don't logout, return special value
+        console.warn('⚠️ Token refresh rate limited - will NOT logout user');
+        const errorData = await response.json().catch(() => ({}));
+        console.log('Rate limit info:', errorData);
+        return 'rate_limited'; // Special return value - don't logout
       } else {
+        // Other errors (401, 403, etc.) - genuine auth failure
         console.log('❌ Token refresh failed:', response.status);
         return false;
       }
@@ -215,26 +227,51 @@ export async function apiCall<T = any>(
 export const api = {
   get: async <T = any>(url: string, options: HttpClientOptions = {}): Promise<T> => {
     const response = await httpClient.get(url, options);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+      throw new Error(errorMessage);
+    }
     return response.json();
   },
 
   post: async <T = any>(url: string, data?: any, options: HttpClientOptions = {}): Promise<T> => {
     const response = await httpClient.post(url, data, options);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+      throw new Error(errorMessage);
+    }
     return response.json();
   },
 
   put: async <T = any>(url: string, data?: any, options: HttpClientOptions = {}): Promise<T> => {
     const response = await httpClient.put(url, data, options);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+      throw new Error(errorMessage);
+    }
     return response.json();
   },
 
   patch: async <T = any>(url: string, data?: any, options: HttpClientOptions = {}): Promise<T> => {
     const response = await httpClient.patch(url, data, options);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+      throw new Error(errorMessage);
+    }
     return response.json();
   },
 
   delete: async <T = any>(url: string, options: HttpClientOptions = {}): Promise<T> => {
     const response = await httpClient.delete(url, options);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+      throw new Error(errorMessage);
+    }
     return response.json();
   },
 };

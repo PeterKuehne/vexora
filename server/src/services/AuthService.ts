@@ -5,7 +5,19 @@
 
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import { randomBytes, randomUUID } from 'crypto';
+import { randomBytes, randomUUID, createHash } from 'crypto';
+
+/**
+ * Base64URL encoding (RFC 4648)
+ * Used for PKCE code_verifier and code_challenge
+ */
+function base64url(buffer: Buffer): string {
+  return buffer
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+}
 // Note: AuthorizationCode not needed for our implementation
 import type {
   User,
@@ -38,9 +50,9 @@ export class AuthService {
   }
 
   /**
-   * Create Microsoft OAuth2 authorization URL
+   * Create Microsoft OAuth2 authorization URL with CSRF protection + PKCE
    */
-  createMicrosoftAuthUrl(): string {
+  async createMicrosoftAuthUrl(ipAddress?: string): Promise<string> {
     const clientId = process.env.MICROSOFT_CLIENT_ID;
     const redirectUri = process.env.MICROSOFT_REDIRECT_URI || 'http://localhost:3001/api/auth/microsoft/callback';
 
@@ -48,12 +60,19 @@ export class AuthService {
       throw new Error('Microsoft OAuth not configured: MICROSOFT_CLIENT_ID missing');
     }
 
+    // Generate and store state parameter + PKCE for security
+    const { state, codeChallenge } = await this.generateAndStoreState('microsoft', ipAddress);
+
     const authUrl = new URL('https://login.microsoftonline.com/common/oauth2/v2.0/authorize');
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('scope', 'openid profile email User.Read');
-    authUrl.searchParams.set('state', this.generateState());
+    authUrl.searchParams.set('state', state);
+
+    // PKCE parameters (OAuth 2.1)
+    authUrl.searchParams.set('code_challenge', codeChallenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
 
     return authUrl.toString();
   }
@@ -70,7 +89,13 @@ export class AuthService {
       throw new Error('Microsoft OAuth not configured');
     }
 
-    // Exchange code for access token
+    // CSRF Protection + PKCE: Validate state and get code_verifier
+    const stateValidation = await this.validateAndConsumeState(state, 'microsoft');
+    if (!stateValidation.valid) {
+      throw new Error('CSRF attack detected: Invalid or expired state parameter');
+    }
+
+    // Exchange code for access token with PKCE
     const tokenUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
     const tokenParams = new URLSearchParams({
       client_id: clientId,
@@ -79,6 +104,11 @@ export class AuthService {
       grant_type: 'authorization_code',
       redirect_uri: redirectUri,
     });
+
+    // Add PKCE code_verifier (OAuth 2.1)
+    if (stateValidation.codeVerifier) {
+      tokenParams.set('code_verifier', stateValidation.codeVerifier);
+    }
 
     const tokenResponse = await fetch(tokenUrl, {
       method: 'POST',
@@ -123,9 +153,9 @@ export class AuthService {
   }
 
   /**
-   * Create Google OAuth2 authorization URL
+   * Create Google OAuth2 authorization URL with CSRF protection + PKCE
    */
-  createGoogleAuthUrl(): string {
+  async createGoogleAuthUrl(ipAddress?: string): Promise<string> {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/auth/google/callback';
 
@@ -133,12 +163,19 @@ export class AuthService {
       throw new Error('Google OAuth not configured: GOOGLE_CLIENT_ID missing');
     }
 
+    // Generate and store state parameter + PKCE for security
+    const { state, codeChallenge } = await this.generateAndStoreState('google', ipAddress);
+
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('scope', 'openid profile email');
-    authUrl.searchParams.set('state', this.generateState());
+    authUrl.searchParams.set('state', state);
+
+    // PKCE parameters (OAuth 2.1)
+    authUrl.searchParams.set('code_challenge', codeChallenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
 
     return authUrl.toString();
   }
@@ -155,7 +192,13 @@ export class AuthService {
       throw new Error('Google OAuth not configured');
     }
 
-    // Exchange code for access token
+    // CSRF Protection + PKCE: Validate state and get code_verifier
+    const stateValidation = await this.validateAndConsumeState(state, 'google');
+    if (!stateValidation.valid) {
+      throw new Error('CSRF attack detected: Invalid or expired state parameter');
+    }
+
+    // Exchange code for access token with PKCE
     const tokenUrl = 'https://oauth2.googleapis.com/token';
     const tokenParams = new URLSearchParams({
       client_id: clientId,
@@ -164,6 +207,11 @@ export class AuthService {
       grant_type: 'authorization_code',
       redirect_uri: redirectUri,
     });
+
+    // Add PKCE code_verifier (OAuth 2.1)
+    if (stateValidation.codeVerifier) {
+      tokenParams.set('code_verifier', stateValidation.codeVerifier);
+    }
 
     const tokenResponse = await fetch(tokenUrl, {
       method: 'POST',
@@ -270,7 +318,7 @@ export class AuthService {
       LoggerService.logAuth('login', {
         userId: user.id,
         email: user.email,
-        ip: userInfo.ip
+        provider
       });
       LoggerService.logInfo('User created/updated successfully', {
         userId: user.id,
@@ -281,7 +329,7 @@ export class AuthService {
     } catch (error) {
       LoggerService.logError(error instanceof Error ? error : new Error('Failed to create or update user'), {
         email,
-        provider: userInfo.provider
+        provider
       });
       throw new Error('Failed to create or update user');
     }
@@ -310,12 +358,14 @@ export class AuthService {
   async generateRefreshToken(userId: string): Promise<RefreshToken> {
     const token = randomBytes(32).toString('hex');
     const tokenHash = await bcrypt.hash(token, 10);
+    const tokenLookup = createHash('sha256').update(token).digest('hex');
     const expiresAt = new Date(Date.now() + this.refreshExpiresIn);
 
     const refreshTokenPayload: CreateRefreshTokenPayload = {
       user_id: userId,
       token_hash: tokenHash,
       expires_at: expiresAt,
+      token_lookup: tokenLookup,
     };
 
     const refreshToken = await this.createRefreshToken(refreshTokenPayload);
@@ -339,25 +389,41 @@ export class AuthService {
   }
 
   /**
-   * Verify refresh token
+   * Verify refresh token (optimized with token_lookup)
    */
   async verifyRefreshToken(token: string): Promise<User | null> {
     try {
+      // Generate lookup key for fast query
+      const tokenLookup = createHash('sha256').update(token).digest('hex');
+
+      // Optimized query: lookup by SHA-256 hash first, then verify bcrypt
       const refreshTokensResult = await databaseService.query(
-        'SELECT * FROM refresh_tokens WHERE expires_at > NOW() ORDER BY created_at DESC'
+        `SELECT * FROM refresh_tokens
+         WHERE token_lookup = $1
+           AND expires_at > NOW()
+           AND revoked = FALSE
+         LIMIT 1`,
+        [tokenLookup]
       );
 
       const refreshTokens = Array.isArray(refreshTokensResult) ? refreshTokensResult : refreshTokensResult.rows || [];
 
-      for (const storedToken of refreshTokens) {
-        const isValid = await bcrypt.compare(token, storedToken.token_hash);
-        if (isValid) {
-          const user = await this.getUserById(storedToken.user_id);
-          return user;
-        }
+      if (refreshTokens.length === 0) {
+        return null;
       }
 
-      return null;
+      const storedToken = refreshTokens[0];
+
+      // Verify bcrypt hash (only one comparison now instead of N)
+      const isValid = await bcrypt.compare(token, storedToken.token_hash);
+      if (!isValid) {
+        return null;
+      }
+
+      // Get user
+      const user = await this.getUserById(storedToken.user_id);
+      return user;
+
     } catch (error) {
       LoggerService.logError(error instanceof Error ? error : new Error('Refresh token verification failed'), {
         tokenId: 'REDACTED'
@@ -367,28 +433,83 @@ export class AuthService {
   }
 
   /**
-   * Revoke refresh token
+   * Revoke refresh token (optimized with token_lookup)
    */
   async revokeRefreshToken(token: string): Promise<void> {
     try {
-      const refreshTokensResult = await databaseService.query(
-        'SELECT id, token_hash FROM refresh_tokens'
+      const tokenLookup = createHash('sha256').update(token).digest('hex');
+
+      await databaseService.query(
+        `UPDATE refresh_tokens
+         SET revoked = TRUE,
+             revoked_at = NOW(),
+             revoked_reason = 'Manual revocation'
+         WHERE token_lookup = $1`,
+        [tokenLookup]
       );
-
-      const refreshTokens = Array.isArray(refreshTokensResult) ? refreshTokensResult : refreshTokensResult.rows || [];
-
-      for (const storedToken of refreshTokens) {
-        const isValid = await bcrypt.compare(token, storedToken.token_hash);
-        if (isValid) {
-          await databaseService.query(
-            'DELETE FROM refresh_tokens WHERE id = $1',
-            [storedToken.id]
-          );
-          break;
-        }
-      }
     } catch (error) {
       console.error('Error revoking refresh token:', error);
+    }
+  }
+
+  /**
+   * Rotate refresh token (revoke old, generate new)
+   * Best Practice: Rotate tokens on every use to detect compromise
+   */
+  async rotateRefreshToken(oldToken: string, userId: string): Promise<RefreshToken | null> {
+    try {
+      const tokenLookup = createHash('sha256').update(oldToken).digest('hex');
+
+      // Find and revoke old token
+      const oldTokenResult = await databaseService.query(
+        `UPDATE refresh_tokens
+         SET revoked = TRUE,
+             revoked_at = NOW(),
+             revoked_reason = 'Token rotation'
+         WHERE token_lookup = $1
+           AND expires_at > NOW()
+           AND revoked = FALSE
+         RETURNING id`,
+        [tokenLookup]
+      );
+
+      const oldTokenRecords = Array.isArray(oldTokenResult) ? oldTokenResult : oldTokenResult.rows || [];
+
+      if (oldTokenRecords.length === 0) {
+        // Token not found or already revoked - possible breach
+        LoggerService.logWarning('Attempted rotation of invalid/revoked token', {
+          userId,
+          tokenLookup: tokenLookup.substring(0, 8) + '...' // Log partial for debugging
+        });
+        return null;
+      }
+
+      const oldTokenId = oldTokenRecords[0].id;
+
+      // Generate new token
+      const newToken = await this.generateRefreshToken(userId);
+
+      // Link old token to new token (audit trail)
+      await databaseService.query(
+        `UPDATE refresh_tokens
+         SET rotated_to = $1
+         WHERE id = $2`,
+        [newToken.id, oldTokenId]
+      );
+
+      LoggerService.logAuth('token_rotated', {
+        userId,
+        oldTokenId,
+        newTokenId: newToken.id
+      });
+
+      return newToken;
+
+    } catch (error) {
+      LoggerService.logError(error instanceof Error ? error : new Error('Token rotation failed'), {
+        userId
+      });
+      return null;
     }
   }
 
@@ -468,13 +589,14 @@ export class AuthService {
   private async createRefreshToken(payload: CreateRefreshTokenPayload): Promise<RefreshToken> {
     const id = this.generateTokenId();
     const result = await databaseService.query(`
-      INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at)
-      VALUES ($1, $2, $3, $4, NOW())
+      INSERT INTO refresh_tokens (id, user_id, token_hash, token_lookup, expires_at, created_at)
+      VALUES ($1, $2, $3, $4, $5, NOW())
       RETURNING *
     `, [
       id,
       payload.user_id,
       payload.token_hash,
+      payload.token_lookup,
       payload.expires_at,
     ]);
 
@@ -498,6 +620,89 @@ export class AuthService {
 
   private generateTokenId(): string {
     return randomUUID();
+  }
+
+  /**
+   * Generate PKCE code_verifier and code_challenge
+   */
+  private generatePKCE(): { codeVerifier: string; codeChallenge: string } {
+    // Generate code_verifier (43-128 characters)
+    const codeVerifier = base64url(randomBytes(32)); // 43 characters
+
+    // Generate code_challenge = BASE64URL(SHA256(code_verifier))
+    const hash = createHash('sha256').update(codeVerifier).digest();
+    const codeChallenge = base64url(hash);
+
+    return { codeVerifier, codeChallenge };
+  }
+
+  /**
+   * Generate and store OAuth state parameter with PKCE (CSRF protection + OAuth 2.1)
+   */
+  async generateAndStoreState(provider: 'microsoft' | 'google', ipAddress?: string): Promise<{ state: string; codeChallenge: string }> {
+    const state = randomBytes(32).toString('hex'); // 64 characters
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Generate PKCE parameters
+    const { codeVerifier, codeChallenge } = this.generatePKCE();
+
+    await databaseService.query(
+      `INSERT INTO oauth_states (state, provider, expires_at, ip_address, code_verifier)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [state, provider, expiresAt, ipAddress || null, codeVerifier]
+    );
+
+    LoggerService.logAuth('oauth_state_generated', {
+      provider,
+      ip: ipAddress,
+    });
+
+    return { state, codeChallenge };
+  }
+
+  /**
+   * Validate and consume OAuth state parameter, return code_verifier for PKCE
+   */
+  async validateAndConsumeState(state: string, provider: 'microsoft' | 'google'): Promise<{ valid: boolean; codeVerifier?: string }> {
+    if (!state || state.length !== 64) {
+      LoggerService.logWarning('Invalid state format', { provider, stateLength: state?.length });
+      return { valid: false };
+    }
+
+    try {
+      // Find unused, non-expired state and return code_verifier
+      const result = await databaseService.query(
+        `UPDATE oauth_states
+         SET used_at = NOW()
+         WHERE state = $1
+           AND provider = $2
+           AND used_at IS NULL
+           AND expires_at > NOW()
+         RETURNING id, created_at, code_verifier`,
+        [state, provider]
+      );
+
+      const rows = Array.isArray(result) ? result : result.rows || [];
+
+      if (rows.length === 0) {
+        // State not found, expired, or already used
+        LoggerService.logWarning('OAuth state validation failed', {
+          provider,
+          reason: 'State not found, expired, or already used',
+        });
+        return { valid: false };
+      }
+
+      LoggerService.logAuth('oauth_state_validated', {
+        provider,
+        stateId: rows[0].id,
+      });
+
+      return { valid: true, codeVerifier: rows[0].code_verifier };
+    } catch (error) {
+      LoggerService.logError(error instanceof Error ? error : new Error('State validation error'), { provider });
+      return { valid: false };
+    }
   }
 
   private generateState(): string {
@@ -755,6 +960,54 @@ export class AuthService {
       ]);
     } catch (error) {
       console.error('Failed to log audit entry:', error);
+      // Don't throw here to avoid breaking the main operation
+    }
+  }
+
+  /**
+   * Create audit log entry (public method for use in routes)
+   * @param userId - User ID performing the action
+   * @param userEmail - User email performing the action
+   * @param action - Action being performed (e.g., 'login', 'logout', 'document_upload')
+   * @param result - Result of the action ('success', 'failure', 'denied')
+   * @param resourceType - Optional resource type (e.g., 'document', 'user')
+   * @param resourceId - Optional resource ID
+   * @param ipAddress - Optional IP address
+   * @param userAgent - Optional user agent string
+   * @param metadata - Optional additional metadata
+   */
+  async createAuditLog(params: {
+    userId?: string;
+    userEmail: string;
+    action: string;
+    result: 'success' | 'failure' | 'denied';
+    resourceType?: string;
+    resourceId?: string;
+    ipAddress?: string;
+    userAgent?: string;
+    metadata?: Record<string, any>;
+  }): Promise<void> {
+    try {
+      await databaseService.query(`
+        INSERT INTO audit_logs (
+          id, user_id, user_email, action, resource_type, resource_id,
+          result, ip_address, user_agent, metadata, created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+      `, [
+        randomUUID(),
+        params.userId || null,
+        params.userEmail,
+        params.action,
+        params.resourceType || null,
+        params.resourceId || null,
+        params.result,
+        params.ipAddress || null,
+        params.userAgent || null,
+        params.metadata ? JSON.stringify(params.metadata) : '{}'
+      ]);
+    } catch (error) {
+      console.error('Failed to create audit log:', error);
       // Don't throw here to avoid breaking the main operation
     }
   }

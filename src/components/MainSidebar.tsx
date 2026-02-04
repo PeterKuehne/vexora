@@ -2,17 +2,19 @@
  * MainSidebar - Combined sidebar with tab navigation
  *
  * Features:
- * - Tab navigation between Conversations and Documents
- * - Persistent tab state
+ * - Tab navigation between Conversations and RAG/Documents
+ * - Controlled or uncontrolled tab state
  * - Consistent layout and sizing
  */
 
 import { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-// import { Sidebar } from './layout'; // Not needed as we use custom layout
+import { Plus } from 'lucide-react';
+import type { User } from '../../server/src/types/auth';
 import { SidebarTabs, type SidebarTab } from './SidebarTabs';
 import { ConversationSidebar } from './ConversationSidebar';
-import { DocumentSidebar } from './DocumentSidebar';
+import { RAGSidebar } from './RAGSidebar';
+import { UserMenu, UserMenuSkeleton } from './UserMenu';
 
 /** Sidebar width in pixels - consistent with both sub-sidebars */
 const SIDEBAR_WIDTH = 280;
@@ -22,14 +24,42 @@ interface MainSidebarProps {
   isCollapsed?: boolean;
   /** Callback when collapse state changes */
   onToggleCollapse?: () => void;
+  /** Callback to create a new conversation */
+  onNewConversation?: () => void;
+  /** Current authenticated user */
+  user?: User | null;
+  /** Whether auth is loading */
+  isAuthLoading?: boolean;
+  /** Callback when user logs out */
+  onLogout?: () => void;
+  /** Controlled active tab (optional - becomes controlled if provided) */
+  activeTab?: SidebarTab;
+  /** Callback when tab changes (required if activeTab is controlled) */
+  onTabChange?: (tab: SidebarTab) => void;
 }
 
 export function MainSidebar({
   isCollapsed = false,
   onToggleCollapse,
+  onNewConversation,
+  user,
+  isAuthLoading = false,
+  onLogout,
+  activeTab: controlledActiveTab,
+  onTabChange,
 }: MainSidebarProps) {
   const { isDark } = useTheme();
-  const [activeTab, setActiveTab] = useState<SidebarTab>('conversations');
+
+  // Support both controlled and uncontrolled usage
+  const [internalActiveTab, setInternalActiveTab] = useState<SidebarTab>('conversations');
+  const activeTab = controlledActiveTab ?? internalActiveTab;
+  const handleTabChange = (tab: SidebarTab) => {
+    if (onTabChange) {
+      onTabChange(tab);
+    } else {
+      setInternalActiveTab(tab);
+    }
+  };
 
   // If collapsed, show minimal sidebar
   if (isCollapsed) {
@@ -68,7 +98,7 @@ export function MainSidebar({
     <div className="w-full">
       <SidebarTabs
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
       />
     </div>
   );
@@ -115,6 +145,49 @@ export function MainSidebar({
         )}
       </div>
 
+      {/* New Conversation Button - only for conversations tab */}
+      {activeTab === 'conversations' && onNewConversation && (
+        <div className="px-3 py-2.5 shrink-0">
+          <button
+            onClick={onNewConversation}
+            className={`
+              group
+              w-full
+              flex items-center justify-center gap-2
+              px-3 py-2
+              rounded-lg
+              transition-all duration-200
+              ${
+                isDark
+                  ? 'text-gray-400 hover:text-white hover:bg-white/10'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
+              }
+            `.trim()}
+            title="Neue Unterhaltung"
+            aria-label="Neue Unterhaltung erstellen"
+          >
+            {/* Animated Plus Icon */}
+            <span
+              className="
+                relative inline-flex items-center justify-center
+                transition-transform duration-300 ease-out
+                group-hover:scale-110
+                group-active:scale-95
+              "
+            >
+              <Plus
+                size={18}
+                className="
+                  transition-all duration-300 ease-out
+                  group-hover:rotate-90
+                "
+              />
+            </span>
+            <span className="text-sm font-medium">Neue Unterhaltung</span>
+          </button>
+        </div>
+      )}
+
       {/* Content area - different content based on active tab */}
       <div className="flex-1 overflow-hidden">
         {activeTab === 'conversations' && (
@@ -126,14 +199,41 @@ export function MainSidebar({
           </div>
         )}
 
-        {activeTab === 'documents' && (
+        {activeTab === 'rag' && (
           <div className="h-full">
-            {/* Use the existing DocumentSidebar content without its own header/footer */}
-            <DocumentSidebar
+            {/* RAG mode selection */}
+            <RAGSidebar
               isCollapsed={false}
             />
           </div>
         )}
+      </div>
+
+      {/* Footer with User Menu - entire area is clickable */}
+      <div
+        className={`
+          px-3 py-3
+          border-t shrink-0
+          transition-colors duration-150
+          ${isDark ? 'border-white/10' : 'border-gray-200'}
+          ${isDark
+            ? 'hover:bg-white/5 active:bg-white/10'
+            : 'hover:bg-black/5 active:bg-black/10'
+          }
+        `.trim()}
+      >
+        {isAuthLoading ? (
+          <UserMenuSkeleton size="md" />
+        ) : user && onLogout ? (
+          <UserMenu
+            user={user}
+            onLogout={onLogout}
+            showRole={true}
+            size="md"
+            dropdownDirection="up"
+            fullWidth={true}
+          />
+        ) : null}
       </div>
     </aside>
   );

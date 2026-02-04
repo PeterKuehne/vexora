@@ -8,10 +8,10 @@
  * - Theme-aware styling
  */
 
-import { MessageCircle, File } from 'lucide-react';
+import { MessageCircle, Brain } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
-export type SidebarTab = 'conversations' | 'documents';
+export type SidebarTab = 'conversations' | 'rag';
 
 interface SidebarTabsProps {
   activeTab: SidebarTab;
@@ -23,14 +23,14 @@ export function SidebarTabs({ activeTab, onTabChange }: SidebarTabsProps) {
 
   const tabs: Array<{ id: SidebarTab; label: string; icon: typeof MessageCircle }> = [
     { id: 'conversations', label: 'Chat', icon: MessageCircle },
-    { id: 'documents', label: 'Dokumente', icon: File },
+    { id: 'rag', label: 'RAG', icon: Brain },
   ];
 
   return (
     <div
       className={`
         flex p-1 rounded-lg
-        ${isDark ? 'bg-gray-800/50' : 'bg-gray-100'}
+        ${isDark ? 'bg-surface-secondary/50' : 'bg-gray-100'}
       `}
     >
       {tabs.map((tab) => {
@@ -48,10 +48,10 @@ export function SidebarTabs({ activeTab, onTabChange }: SidebarTabsProps) {
               ${
                 isActive
                   ? isDark
-                    ? 'bg-gray-700 text-white shadow-sm'
+                    ? 'bg-surface-secondary text-white shadow-sm'
                     : 'bg-white text-gray-900 shadow-sm'
                   : isDark
-                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
+                    ? 'text-gray-400 hover:text-gray-200 hover:bg-white/10'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
               }
             `}

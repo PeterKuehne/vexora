@@ -103,7 +103,6 @@ function AppContent() {
   // Render header with sidebar controls from AppShell
   const renderHeader = (sidebarControls: SidebarControls) => (
     <Header
-      onNewConversation={handleNewConversation}
       theme={theme}
       onThemeChange={setTheme}
       isOllamaConnected={isOllamaConnected}
@@ -126,6 +125,7 @@ function AppContent() {
     <MainSidebar
       isCollapsed={sidebarControls.isCollapsed}
       onToggleCollapse={sidebarControls.toggle}
+      onNewConversation={handleNewConversation}
     />
   );
 

@@ -166,6 +166,28 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
 
       setError(null);
 
+      // PATTERN 2: Consistency Check - Cleanup hanging streaming messages
+      const hangingMessages = messages.filter(msg =>
+        msg.role === 'assistant' &&
+        (msg.status === 'streaming' || msg.isStreaming === true)
+      );
+
+      if (hangingMessages.length > 0) {
+        console.warn('🧹 Cleaning up hanging messages before new send:', hangingMessages.length);
+
+        hangingMessages.forEach(msg => {
+          updateMessageInActive(msg.id, {
+            status: 'error',
+            isStreaming: false,
+            error: 'Response interrupted by new message',
+          });
+        });
+
+        toast.warning('Previous response was interrupted', {
+          duration: 3000,
+        });
+      }
+
       // Create user message
       const userMessage: Message = {
         id: generateId(),
@@ -347,8 +369,29 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
           }
         );
       } catch (err) {
-        // Handle unexpected errors (like abort)
-        if (err instanceof Error && err.name !== 'AbortError') {
+        // PATTERN 3: Abort Error Handling
+        // AbortError is NOT an error - user consciously cancelled
+        if (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted'))) {
+          console.log('✅ Stream aborted by user - this is normal, no error');
+
+          // Mark message as complete with partial content (NOT error)
+          if (currentAssistantIdRef.current) {
+            updateMessageInActive(currentAssistantIdRef.current, {
+              status: 'complete',
+              isStreaming: false,
+            });
+            currentAssistantIdRef.current = null;
+          }
+
+          setIsStreaming(false);
+          setStreamProgress(null);
+
+          // NO error toast - user cancelled intentionally
+          return;
+        }
+
+        // Real errors - show to user
+        if (err instanceof Error) {
           setError(err);
           showErrorToast(err);
         }
@@ -378,7 +421,52 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
 
     setIsStreaming(false);
     setStreamProgress(null);
+
+    console.log('🛑 Stream stopped - isStreaming reset to false');
   }, [updateMessageInActive]);
+
+  // PATTERN 1: Safety Timeout - Auto-reset streaming state after 5 minutes
+  useEffect(() => {
+    if (!isStreaming) return;
+
+    console.log('⏱️ Starting 5-minute safety timeout for stream');
+
+    const timeoutId = setTimeout(() => {
+      console.warn('⚠️ Stream timeout detected after 5 minutes - forcing cleanup');
+
+      // Abort any pending request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+
+      // Mark hanging message as error
+      if (currentAssistantIdRef.current) {
+        updateMessageInActive(currentAssistantIdRef.current, {
+          status: 'error',
+          isStreaming: false,
+          error: 'Response timeout after 5 minutes. Please try again.',
+        });
+        currentAssistantIdRef.current = null;
+      }
+
+      // Reset streaming state
+      setIsStreaming(false);
+      setStreamProgress(null);
+
+      // Show error toast
+      toast.error('Response timeout after 5 minutes. Please try again.', {
+        title: 'Timeout',
+        duration: 8000,
+      });
+    }, 5 * 60 * 1000); // 5 minutes
+
+    // Cleanup on unmount or when streaming stops
+    return () => {
+      console.log('⏹️ Clearing safety timeout');
+      clearTimeout(timeoutId);
+    };
+  }, [isStreaming, updateMessageInActive, toast]);
 
   /**
    * Check if regeneration is possible

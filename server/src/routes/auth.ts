@@ -14,11 +14,15 @@ const router = express.Router();
 
 /**
  * GET /api/auth/microsoft/login
- * Redirect to Microsoft OAuth2 authorization
+ * Redirect to Microsoft OAuth2 authorization with CSRF protection
  */
-router.get('/microsoft/login', asyncHandler(async (_req: Request, res: Response) => {
+router.get('/microsoft/login', asyncHandler(async (req: Request, res: Response) => {
   try {
-    const authUrl = authService.createMicrosoftAuthUrl();
+    // Extract IP address for audit logging
+    const ipAddress = req.ip || req.socket.remoteAddress;
+
+    // Generate auth URL with CSRF-protected state parameter
+    const authUrl = await authService.createMicrosoftAuthUrl(ipAddress);
 
     // Redirect to Microsoft OAuth
     res.redirect(authUrl);
@@ -52,8 +56,13 @@ router.get('/microsoft/callback', asyncHandler(async (req: Request, res: Respons
     return res.redirect(`${frontendUrl}/login?error=missing_code`);
   }
 
+  if (!state || typeof state !== 'string') {
+    console.error('Missing state parameter - possible CSRF attack');
+    return res.redirect(`${frontendUrl}/login?error=security_error`);
+  }
+
   try {
-    // Exchange code for user info
+    // Exchange code for user info (includes state validation)
     const microsoftUser = await authService.exchangeMicrosoftCode(code, state as string);
 
     // Create or update user
@@ -85,6 +94,17 @@ router.get('/microsoft/callback', asyncHandler(async (req: Request, res: Respons
     // Log successful login
     console.log(`✅ User logged in: ${user.email} (${user.role})`);
 
+    // Create audit log
+    await authService.createAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      action: 'login',
+      result: 'success',
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+      metadata: { provider: 'microsoft', method: 'oauth2' }
+    });
+
     // Redirect to app
     res.redirect(`${frontendUrl}/chat`);
   } catch (error) {
@@ -96,11 +116,15 @@ router.get('/microsoft/callback', asyncHandler(async (req: Request, res: Respons
 
 /**
  * GET /api/auth/google/login
- * Redirect to Google OAuth2 authorization
+ * Redirect to Google OAuth2 authorization with CSRF protection
  */
-router.get('/google/login', asyncHandler(async (_req: Request, res: Response) => {
+router.get('/google/login', asyncHandler(async (req: Request, res: Response) => {
   try {
-    const authUrl = authService.createGoogleAuthUrl();
+    // Extract IP address for audit logging
+    const ipAddress = req.ip || req.socket.remoteAddress;
+
+    // Generate auth URL with CSRF-protected state parameter
+    const authUrl = await authService.createGoogleAuthUrl(ipAddress);
 
     // Redirect to Google OAuth
     res.redirect(authUrl);
@@ -134,8 +158,13 @@ router.get('/google/callback', asyncHandler(async (req: Request, res: Response) 
     return res.redirect(`${frontendUrl}/login?error=missing_code`);
   }
 
+  if (!state || typeof state !== 'string') {
+    console.error('Missing state parameter - possible CSRF attack');
+    return res.redirect(`${frontendUrl}/login?error=security_error`);
+  }
+
   try {
-    // Exchange code for user info
+    // Exchange code for user info (includes state validation)
     const googleUser = await authService.exchangeGoogleCode(code, state as string);
 
     // Create or update user
@@ -166,6 +195,17 @@ router.get('/google/callback', asyncHandler(async (req: Request, res: Response) 
 
     // Log successful login
     console.log(`✅ User logged in via Google: ${user.email} (${user.role})`);
+
+    // Create audit log
+    await authService.createAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      action: 'login',
+      result: 'success',
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+      metadata: { provider: 'google', method: 'oauth2' }
+    });
 
     // Redirect to app
     res.redirect(`${frontendUrl}/chat`);
@@ -219,6 +259,7 @@ router.get('/me', asyncHandler(async (req: Request, res: Response) => {
 /**
  * POST /api/auth/refresh
  * Refresh access token using refresh token
+ * Implements token rotation for enhanced security
  */
 router.post('/refresh', asyncHandler(async (req: Request, res: Response) => {
   try {
@@ -238,14 +279,41 @@ router.post('/refresh', asyncHandler(async (req: Request, res: Response) => {
     // Generate new access token
     const newAccessToken = authService.generateAccessToken(user);
 
-    // Update access token cookie with enhanced security
+    // Rotate refresh token (best practice: issue new token on every use)
+    const newRefreshTokenRecord = await authService.rotateRefreshToken(refreshToken, user.id);
+
+    if (!newRefreshTokenRecord) {
+      return res.status(401).json({ error: 'Token rotation failed' });
+    }
+
+    // Create audit log for token refresh
+    await authService.createAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      action: 'token_refresh',
+      result: 'success',
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent']
+    });
+
+    // Update access token cookie
     res.cookie('auth_token', newAccessToken, {
       httpOnly: true,
       secure: env.isProduction,
       sameSite: env.isProduction ? 'strict' : 'lax',
       maxAge: 15 * 60 * 1000, // 15 minutes
       path: '/',
-      domain: env.isProduction ? undefined : undefined // Let browser handle domain
+      domain: env.isProduction ? undefined : undefined
+    });
+
+    // Update refresh token cookie with NEW token
+    res.cookie('refresh_token', newRefreshTokenRecord.token_hash, {
+      httpOnly: true,
+      secure: env.isProduction,
+      sameSite: env.isProduction ? 'strict' : 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      path: '/',
+      domain: env.isProduction ? undefined : undefined
     });
 
     return res.json({
@@ -271,11 +339,35 @@ router.post('/refresh', asyncHandler(async (req: Request, res: Response) => {
 router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
   try {
     const refreshToken = req.body.refresh_token || (req as any).cookies?.refresh_token;
+    const authToken = req.headers['authorization']?.replace('Bearer ', '') || (req as any).cookies?.auth_token;
+
+    // Get user info for audit log before revoking tokens
+    let userEmail = 'unknown';
+    let userId = undefined;
+    try {
+      if (authToken) {
+        const payload = authService.verifyAccessToken(authToken);
+        userEmail = payload.email;
+        userId = payload.user_id;
+      }
+    } catch (error) {
+      // Token might be expired, continue with logout anyway
+    }
 
     // Revoke refresh token if provided
     if (refreshToken) {
       await authService.revokeRefreshToken(refreshToken);
     }
+
+    // Create audit log
+    await authService.createAuditLog({
+      userId,
+      userEmail,
+      action: 'logout',
+      result: 'success',
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent']
+    });
 
     // Clear cookies
     res.clearCookie('auth_token', { path: '/' });

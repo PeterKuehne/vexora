@@ -6,7 +6,8 @@
 
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { User, Mail, Shield, Building, Clock, ExternalLink } from 'lucide-react';
+import { AdminPageHeader } from '../components';
+import { User, Mail, Shield, Building, Clock, ExternalLink, UserCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function ProfilePage() {
@@ -54,54 +55,15 @@ export function ProfilePage() {
         ${isDark ? 'bg-background' : 'bg-white'}
       `.trim()}
     >
-      {/* Navigation Header */}
-      <div
-        className={`
-          border-b
-          ${isDark ? 'border-white/10 bg-surface' : 'border-gray-200 bg-white'}
-        `.trim()}
-      >
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate(-1)}
-              className={`
-                flex items-center gap-2 px-3 py-2 rounded-lg
-                transition-colors duration-150 text-sm font-medium
-                ${isDark
-                  ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-black/5'
-                }
-                focus:outline-none focus:ring-2
-                ${isDark ? 'focus:ring-white/20' : 'focus:ring-black/20'}
-              `.trim()}
-            >
-              ← Zurück
-            </button>
-            <div>
-              <h1
-                className={`
-                  text-xl font-semibold
-                  ${isDark ? 'text-white' : 'text-gray-900'}
-                `.trim()}
-              >
-                Mein Profil
-              </h1>
-              <p
-                className={`
-                  text-sm
-                  ${isDark ? 'text-gray-400' : 'text-gray-500'}
-                `.trim()}
-              >
-                Persönliche Informationen anzeigen
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div className="max-w-4xl mx-auto py-6 px-4 sm:px-6">
+        {/* Header with Back Button */}
+        <AdminPageHeader
+          title="Mein Profil"
+          subtitle="Persönliche Informationen anzeigen"
+          icon={<UserCircle size={20} className={isDark ? 'text-blue-400' : 'text-blue-600'} />}
+        />
 
-      {/* Profile Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Profile Content */}
         <div
           className={`
             rounded-xl border shadow-sm

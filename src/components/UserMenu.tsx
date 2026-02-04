@@ -1,11 +1,12 @@
 /**
  * UserMenu Component - User profile dropdown menu with logout functionality
  * Displays user name, role and provides logout option
+ * Includes flyout Admin submenu for Admin users (Claude.ai style)
  * Uses MANDATORY TailwindCSS styling with theme support
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { User, LogOut, ChevronDown, UserCircle } from 'lucide-react';
+import { User, LogOut, ChevronsUpDown, ChevronRight, UserCircle, Users, Shield, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts';
 import type { User as UserType } from '../../server/src/types/auth';
@@ -19,24 +20,36 @@ export interface UserMenuProps {
   showRole?: boolean;
   /** Menu size */
   size?: 'sm' | 'md' | 'lg';
+  /** Dropdown direction - 'down' opens below, 'up' opens above */
+  dropdownDirection?: 'up' | 'down';
+  /** Whether trigger should fill full width */
+  fullWidth?: boolean;
 }
 
 export function UserMenu({
   user,
   onLogout,
   showRole = true,
-  size = 'md'
+  size = 'md',
+  dropdownDirection = 'down',
+  fullWidth = false
 }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isAdminHovered, setIsAdminHovered] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const adminTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
   const { isDark } = useTheme();
+
+  // Check if user is admin
+  const isAdmin = user.role === 'Admin';
 
   // Close menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsOpen(false);
+        setIsAdminHovered(false);
       }
     }
 
@@ -45,8 +58,17 @@ export function UserMenu({
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
 
-    return; // Explicit return for TypeScript
+    return;
   }, [isOpen]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (adminTimeoutRef.current) {
+        clearTimeout(adminTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Handle logout click
   const handleLogout = () => {
@@ -58,6 +80,27 @@ export function UserMenu({
   const handleProfileClick = () => {
     setIsOpen(false);
     navigate('/profile');
+  };
+
+  // Handle admin navigation
+  const handleAdminNavigate = (path: string) => {
+    setIsOpen(false);
+    setIsAdminHovered(false);
+    navigate(path);
+  };
+
+  // Handle admin hover with delay for better UX
+  const handleAdminMouseEnter = () => {
+    if (adminTimeoutRef.current) {
+      clearTimeout(adminTimeoutRef.current);
+    }
+    setIsAdminHovered(true);
+  };
+
+  const handleAdminMouseLeave = () => {
+    adminTimeoutRef.current = setTimeout(() => {
+      setIsAdminHovered(false);
+    }, 150);
   };
 
   // Size variants following TailwindCSS conventions
@@ -74,21 +117,33 @@ export function UserMenu({
     Employee: isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700',
   };
 
+  // Menu item base classes
+  const menuItemClasses = `
+    w-full flex items-center gap-3 px-4 py-2.5
+    text-left transition-colors duration-150
+    ${isDark
+      ? 'text-gray-300 hover:text-white hover:bg-white/10'
+      : 'text-gray-700 hover:text-gray-900 hover:bg-black/5'
+    }
+    focus:outline-none focus:ring-2 focus:ring-inset
+    ${isDark ? 'focus:ring-white/20' : 'focus:ring-black/20'}
+  `.trim();
+
   return (
-    <div className="relative" ref={menuRef}>
+    <div className={`relative ${fullWidth ? 'w-full' : ''}`} ref={menuRef}>
       {/* Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`
-          flex items-center gap-2 rounded-lg
+          flex items-center gap-2
           transition-colors duration-150
-          ${sizeClasses[size]}
+          focus:outline-none
+          ${fullWidth ? 'w-full justify-between' : 'rounded-lg'}
+          ${fullWidth ? 'px-0 py-0' : sizeClasses[size]}
           ${isDark
-            ? 'text-gray-300 hover:text-white hover:bg-white/10 focus:bg-white/10'
-            : 'text-gray-700 hover:text-gray-900 hover:bg-black/10 focus:bg-black/10'
+            ? `text-gray-300 hover:text-white ${isOpen ? 'text-white' : ''}`
+            : `text-gray-700 hover:text-gray-900 ${isOpen ? 'text-gray-900' : ''}`
           }
-          focus:outline-none focus:ring-2
-          ${isDark ? 'focus:ring-white/20' : 'focus:ring-black/20'}
         `.trim()}
         aria-expanded={isOpen}
         aria-haspopup="true"
@@ -109,7 +164,7 @@ export function UserMenu({
         </div>
 
         {/* User Info */}
-        <div className="flex flex-col items-start text-left">
+        <div className={`flex flex-col items-start text-left ${fullWidth ? 'flex-1' : ''}`}>
           <span className="font-medium truncate max-w-32">
             {user.name}
           </span>
@@ -126,13 +181,9 @@ export function UserMenu({
         </div>
 
         {/* Dropdown Arrow */}
-        <ChevronDown
+        <ChevronsUpDown
           size={16}
-          className={`
-            transition-transform duration-150
-            ${isOpen ? 'rotate-180' : 'rotate-0'}
-            ${isDark ? 'text-gray-400' : 'text-gray-500'}
-          `.trim()}
+          className={isDark ? 'text-gray-400' : 'text-gray-500'}
         />
       </button>
 
@@ -140,73 +191,123 @@ export function UserMenu({
       {isOpen && (
         <div
           className={`
-            absolute right-0 mt-2 w-64 rounded-lg shadow-lg
-            border backdrop-blur-sm z-50
+            absolute left-0 w-56 rounded-xl shadow-xl
+            border z-50
+            ${dropdownDirection === 'up' ? 'bottom-full mb-2' : 'mt-2'}
             ${isDark
-              ? 'bg-gray-800/95 border-white/10'
-              : 'bg-white/95 border-gray-200'
+              ? 'bg-surface border-white/10'
+              : 'bg-white border-gray-200'
             }
           `.trim()}
         >
-          {/* User Info Section */}
+          {/* Email Header */}
           <div
             className={`
               px-4 py-3 border-b
-              ${isDark ? 'border-white/10' : 'border-gray-200'}
+              ${isDark ? 'border-white/10' : 'border-gray-100'}
             `.trim()}
           >
-            <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {user.name}
-            </p>
             <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               {user.email}
             </p>
-            {user.department && (
-              <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                {user.department}
-              </p>
-            )}
           </div>
 
           {/* Menu Items */}
-          <div className="py-2">
+          <div className="py-1">
             {/* Profile Menu Item */}
-            <button
-              onClick={handleProfileClick}
-              className={`
-                w-full flex items-center gap-3 px-4 py-2
-                text-left transition-colors duration-150
-                ${isDark
-                  ? 'text-gray-300 hover:text-white hover:bg-white/10'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-black/5'
-                }
-                focus:outline-none focus:ring-2 focus:ring-inset
-                ${isDark ? 'focus:ring-white/20' : 'focus:ring-black/20'}
-              `.trim()}
-            >
+            <button onClick={handleProfileClick} className={menuItemClasses}>
               <UserCircle
-                size={16}
+                size={18}
                 className={isDark ? 'text-gray-400' : 'text-gray-500'}
               />
               <span>Mein Profil</span>
             </button>
 
-            {/* Logout Menu Item */}
-            <button
-              onClick={handleLogout}
-              className={`
-                w-full flex items-center gap-3 px-4 py-2
-                text-left transition-colors duration-150
-                ${isDark
-                  ? 'text-gray-300 hover:text-white hover:bg-white/10'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-black/5'
-                }
-                focus:outline-none focus:ring-2 focus:ring-inset
-                ${isDark ? 'focus:ring-white/20' : 'focus:ring-black/20'}
-              `.trim()}
-            >
+            {/* Admin Section - Only visible for Admins */}
+            {isAdmin && (
+              <div
+                className="relative"
+                onMouseEnter={handleAdminMouseEnter}
+                onMouseLeave={handleAdminMouseLeave}
+              >
+                {/* Admin Trigger */}
+                <button
+                  className={`
+                    ${menuItemClasses}
+                    justify-between
+                    ${isAdminHovered
+                      ? isDark
+                        ? 'bg-white/10 text-white'
+                        : 'bg-black/5 text-gray-900'
+                      : ''
+                    }
+                  `}
+                  onClick={() => setIsAdminHovered(!isAdminHovered)}
+                >
+                  <div className="flex items-center gap-3">
+                    <Settings
+                      size={18}
+                      className={isDark ? 'text-gray-400' : 'text-gray-500'}
+                    />
+                    <span>Administration</span>
+                  </div>
+                  <ChevronRight
+                    size={16}
+                    className={isDark ? 'text-gray-400' : 'text-gray-500'}
+                  />
+                </button>
+
+                {/* Flyout Submenu - appears to the right */}
+                {isAdminHovered && (
+                  <div
+                    className={`
+                      absolute left-full top-0 ml-1 w-52 rounded-xl shadow-xl
+                      border z-50
+                      ${isDark
+                        ? 'bg-surface border-white/10'
+                        : 'bg-white border-gray-200'
+                      }
+                    `.trim()}
+                    onMouseEnter={handleAdminMouseEnter}
+                    onMouseLeave={handleAdminMouseLeave}
+                  >
+                    <div className="py-1">
+                      <button
+                        onClick={() => handleAdminNavigate('/admin')}
+                        className={menuItemClasses}
+                      >
+                        <Users size={18} className={isDark ? 'text-gray-400' : 'text-gray-500'} />
+                        <span>Benutzer</span>
+                      </button>
+                      <button
+                        onClick={() => handleAdminNavigate('/admin/audit-logs')}
+                        className={menuItemClasses}
+                      >
+                        <Shield size={18} className={isDark ? 'text-gray-400' : 'text-gray-500'} />
+                        <span>Audit-Logs</span>
+                      </button>
+                      <button
+                        onClick={() => handleAdminNavigate('/admin/settings')}
+                        className={menuItemClasses}
+                      >
+                        <Settings size={18} className={isDark ? 'text-gray-400' : 'text-gray-500'} />
+                        <span>Einstellungen</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Logout Section */}
+          <div className={`
+            py-1 border-t
+            ${isDark ? 'border-white/10' : 'border-gray-100'}
+          `}>
+            <button onClick={handleLogout} className={menuItemClasses}>
               <LogOut
-                size={16}
+                size={18}
                 className={isDark ? 'text-gray-400' : 'text-gray-500'}
               />
               <span>Abmelden</span>

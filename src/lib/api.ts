@@ -674,7 +674,9 @@ export async function fetchDocuments(): Promise<{
  * Fetch single document by ID
  */
 export async function fetchDocument(id: string): Promise<DocumentMetadata> {
-  const response = await fetch(`${env.API_URL}/api/documents/${id}`);
+  const response = await fetch(`${env.API_URL}/api/documents/${id}`, {
+    credentials: 'include', // Send auth cookies
+  });
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -693,6 +695,7 @@ export async function fetchDocument(id: string): Promise<DocumentMetadata> {
 export async function deleteDocument(id: string): Promise<void> {
   const response = await fetch(`${env.API_URL}/api/documents/${id}`, {
     method: 'DELETE',
+    credentials: 'include', // Send auth cookies
   });
 
   if (!response.ok) {
@@ -726,6 +729,7 @@ export interface BulkDeleteResponse {
 export async function bulkDeleteDocuments(ids: string[]): Promise<BulkDeleteResponse> {
   const response = await fetch(`${env.API_URL}/api/documents/bulk-delete`, {
     method: 'POST',
+    credentials: 'include', // Send auth cookies
     headers: {
       'Content-Type': 'application/json',
     },

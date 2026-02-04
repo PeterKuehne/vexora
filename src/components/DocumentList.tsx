@@ -11,10 +11,11 @@
  */
 
 import { useState, useMemo } from 'react';
-import { File, Trash2, Calendar, Hash, HardDrive, CheckSquare, Square, X, Search, Filter, Tag, FolderOpen, ChevronDown, Settings } from 'lucide-react';
+import { File, Trash2, CheckSquare, Square, X, Tag, Settings } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useDocuments, DOCUMENT_CATEGORIES, type DocumentCategory } from '../contexts/DocumentContext';
+import { useToast } from '../contexts/ToastContext';
+import { useDocuments } from '../contexts/DocumentContext';
 import type { DocumentMetadata } from '../contexts/DocumentContext';
 import { PermissionEditDialog } from './PermissionEditDialog';
 
@@ -27,7 +28,7 @@ interface DocumentItemProps {
   onToggleSelect: (id: string) => void;
 }
 
-function DocumentItem({ document, onDelete, onEditPermissions, isSelectionMode, isSelected, onToggleSelect }: DocumentItemProps) {
+function DocumentRow({ document, onDelete, onEditPermissions, isSelectionMode, isSelected, onToggleSelect }: DocumentItemProps) {
   const { isDark } = useTheme();
   const { user } = useAuth();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -36,12 +37,9 @@ function DocumentItem({ document, onDelete, onEditPermissions, isSelectionMode, 
   const canEditPermissions = user && (
     user.id === document.metadata?.owner_id ||
     user.role === 'Admin' ||
-    (user.role === 'Manager' && !document.metadata?.owner_id) // Fallback for legacy documents without owner_id
+    (user.role === 'Manager' && !document.metadata?.owner_id)
   );
 
-  /**
-   * Format file size
-   */
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -50,9 +48,6 @@ function DocumentItem({ document, onDelete, onEditPermissions, isSelectionMode, 
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  /**
-   * Format upload date
-   */
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     const now = new Date();
@@ -61,157 +56,162 @@ function DocumentItem({ document, onDelete, onEditPermissions, isSelectionMode, 
     if (diffInHours < 1) {
       return 'Gerade eben';
     } else if (diffInHours < 24) {
-      return `Vor ${Math.floor(diffInHours)} Stunden`;
+      return `Vor ${Math.floor(diffInHours)}h`;
     } else if (diffInHours < 48) {
       return 'Gestern';
     } else {
       return date.toLocaleDateString('de-DE', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit',
       });
     }
   };
 
-  /**
-   * Handle delete confirmation
-   */
   const handleDelete = () => {
     onDelete(document.id);
     setShowDeleteConfirm(false);
   };
 
-  /**
-   * Handle click on item in selection mode
-   */
-  const handleItemClick = () => {
+  const handleRowClick = () => {
     if (isSelectionMode) {
       onToggleSelect(document.id);
     }
   };
 
+  // Classification badge color
+  const getClassificationColor = (classification?: string) => {
+    switch (classification) {
+      case 'public':
+        return isDark ? 'bg-green-900/40 text-green-300' : 'bg-green-100 text-green-700';
+      case 'confidential':
+        return isDark ? 'bg-orange-900/40 text-orange-300' : 'bg-orange-100 text-orange-700';
+      case 'restricted':
+        return isDark ? 'bg-red-900/40 text-red-300' : 'bg-red-100 text-red-700';
+      default: // internal
+        return isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-100 text-blue-700';
+    }
+  };
+
+  const getClassificationLabel = (classification?: string) => {
+    switch (classification) {
+      case 'public': return 'Öffentlich';
+      case 'confidential': return 'Vertraulich';
+      case 'restricted': return 'Streng vertraulich';
+      default: return 'Intern';
+    }
+  };
+
   return (
-    <div
-      onClick={handleItemClick}
+    <tr
+      onClick={handleRowClick}
       className={`
-        group p-4 rounded-lg border transition-all duration-150
+        group transition-colors duration-150
         ${isSelectionMode ? 'cursor-pointer' : ''}
         ${isSelected
-          ? isDark
-            ? 'bg-blue-900/30 border-blue-600'
-            : 'bg-blue-50 border-blue-400'
-          : isDark
-            ? 'bg-gray-800/50 border-gray-700 hover:bg-gray-800/80'
-            : 'bg-white border-gray-200 hover:bg-gray-50'
+          ? isDark ? 'bg-blue-900/30' : 'bg-blue-50'
+          : isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'
         }
       `}
     >
-      <div className="flex items-start gap-3">
-        {/* Checkbox in selection mode, File Icon otherwise */}
+      {/* Checkbox / Icon Column */}
+      <td className={`
+        px-4 py-3 w-12
+        ${isDark ? 'border-white/10' : 'border-gray-200'}
+      `}>
         {isSelectionMode ? (
           <button
             onClick={(e) => {
               e.stopPropagation();
               onToggleSelect(document.id);
             }}
-            className={`mt-1 flex-shrink-0 ${
-              isSelected
-                ? isDark ? 'text-blue-400' : 'text-blue-600'
-                : isDark ? 'text-gray-500' : 'text-gray-400'
-            }`}
+            className={isSelected
+              ? isDark ? 'text-blue-400' : 'text-blue-600'
+              : isDark ? 'text-gray-500' : 'text-gray-400'
+            }
           >
-            {isSelected ? (
-              <CheckSquare className="w-6 h-6" />
-            ) : (
-              <Square className="w-6 h-6" />
-            )}
+            {isSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
           </button>
         ) : (
-          <File
-            className={`w-8 h-8 mt-1 flex-shrink-0 ${
-              isDark ? 'text-red-400' : 'text-red-500'
-            }`}
-          />
+          <File className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
         )}
+      </td>
 
-        {/* Document Info */}
-        <div className="flex-1 min-w-0">
-          <h3
-            className={`font-medium truncate mb-1 ${
-              isDark ? 'text-gray-200' : 'text-gray-800'
-            }`}
+      {/* Name Column */}
+      <td className={`px-4 py-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+        <div className="flex flex-col">
+          <span
+            className={`font-medium truncate max-w-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}
             title={document.originalName}
           >
             {document.originalName}
-          </h3>
-
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-            <span
-              className={`flex items-center gap-1 ${
-                isDark ? 'text-gray-400' : 'text-gray-500'
-              }`}
-            >
-              <HardDrive className="w-3 h-3" />
-              {formatFileSize(document.size)}
-            </span>
-
-            <span
-              className={`flex items-center gap-1 ${
-                isDark ? 'text-gray-400' : 'text-gray-500'
-              }`}
-            >
-              <Hash className="w-3 h-3" />
-              {document.pages} Seite{document.pages !== 1 ? 'n' : ''}
-            </span>
-
-            <span
-              className={`flex items-center gap-1 ${
-                isDark ? 'text-gray-400' : 'text-gray-500'
-              }`}
-            >
-              <Calendar className="w-3 h-3" />
-              {formatDate(document.uploadedAt)}
-            </span>
-
-            {/* Category Badge */}
-            {document.category && document.category !== 'Allgemein' && (
-              <span
-                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                  isDark
-                    ? 'bg-blue-900/40 text-blue-300'
-                    : 'bg-blue-100 text-blue-700'
-                }`}
-              >
-                <FolderOpen className="w-2.5 h-2.5" />
-                {document.category}
-              </span>
-            )}
-          </div>
-
-          {/* Tags */}
+          </span>
+          {/* Tags inline */}
           {document.tags && document.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {document.tags.map((tag) => (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {document.tags.slice(0, 3).map((tag) => (
                 <span
                   key={tag}
-                  className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] ${
-                    isDark
-                      ? 'bg-gray-700 text-gray-300'
-                      : 'bg-gray-100 text-gray-600'
+                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] ${
+                    isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'
                   }`}
                 >
                   <Tag className="w-2 h-2" />
                   {tag}
                 </span>
               ))}
+              {document.tags.length > 3 && (
+                <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  +{document.tags.length - 3}
+                </span>
+              )}
             </div>
           )}
         </div>
+      </td>
 
-        {/* Action Buttons (only in non-selection mode) */}
+      {/* Category Column */}
+      <td className={`px-4 py-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+        <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+          {document.category || 'Allgemein'}
+        </span>
+      </td>
+
+      {/* Classification Column */}
+      <td className={`px-4 py-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+        <span className={`
+          inline-flex px-2 py-0.5 rounded text-xs font-medium
+          ${getClassificationColor(document.metadata?.classification)}
+        `}>
+          {getClassificationLabel(document.metadata?.classification)}
+        </span>
+      </td>
+
+      {/* Size Column */}
+      <td className={`px-4 py-3 text-right ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+        <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+          {formatFileSize(document.size)}
+        </span>
+      </td>
+
+      {/* Pages Column */}
+      <td className={`px-4 py-3 text-center ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+        <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+          {document.pages}
+        </span>
+      </td>
+
+      {/* Date Column */}
+      <td className={`px-4 py-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+        <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+          {formatDate(document.uploadedAt)}
+        </span>
+      </td>
+
+      {/* Actions Column */}
+      <td className={`px-4 py-3 w-24 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
         {!isSelectionMode && (
-          <div className="flex-shrink-0 flex items-center gap-1">
-            {/* Permission Edit Button (only if user can edit) */}
+          <div className="flex items-center justify-end gap-1">
             {canEditPermissions && (
               <button
                 onClick={(e) => {
@@ -219,67 +219,63 @@ function DocumentItem({ document, onDelete, onEditPermissions, isSelectionMode, 
                   onEditPermissions(document);
                 }}
                 className={`
-                  p-2 rounded-lg opacity-0 group-hover:opacity-100
-                  transition-all duration-150
+                  p-1.5 rounded opacity-0 group-hover:opacity-100 transition-all
                   ${isDark
                     ? 'text-gray-500 hover:text-blue-400 hover:bg-blue-900/20'
                     : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
                   }
                 `}
-                title="Berechtigungen bearbeiten"
+                title="Berechtigungen"
               >
                 <Settings className="w-4 h-4" />
               </button>
             )}
 
-            {/* Delete Button */}
             {!showDeleteConfirm ? (
               <button
-                onClick={() => setShowDeleteConfirm(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDeleteConfirm(true);
+                }}
                 className={`
-                  p-2 rounded-lg opacity-0 group-hover:opacity-100
-                  transition-all duration-150
+                  p-1.5 rounded opacity-0 group-hover:opacity-100 transition-all
                   ${isDark
                     ? 'text-gray-500 hover:text-red-400 hover:bg-red-900/20'
                     : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
                   }
                 `}
-                title="Dokument löschen"
+                title="Löschen"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
             ) : (
-              <div className="flex gap-1 ml-2">
+              <div className="flex gap-1">
                 <button
-                  onClick={handleDelete}
-                  className={`
-                    px-2 py-1 text-xs rounded-md font-medium transition-colors
-                    ${isDark
-                      ? 'bg-red-600 hover:bg-red-700 text-white'
-                      : 'bg-red-500 hover:bg-red-600 text-white'
-                    }
-                  `}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete();
+                  }}
+                  className="px-2 py-1 text-xs rounded bg-red-600 hover:bg-red-700 text-white"
                 >
-                  Löschen
+                  Ja
                 </button>
                 <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className={`
-                    px-2 py-1 text-xs rounded-md font-medium transition-colors
-                    ${isDark
-                      ? 'bg-gray-600 hover:bg-gray-700 text-gray-200'
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                    }
-                  `}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowDeleteConfirm(false);
+                  }}
+                  className={`px-2 py-1 text-xs rounded ${
+                    isDark ? 'bg-gray-600 text-gray-200' : 'bg-gray-200 text-gray-700'
+                  }`}
                 >
-                  Abbrechen
+                  Nein
                 </button>
               </div>
             )}
           </div>
         )}
-      </div>
-    </div>
+      </td>
+    </tr>
   );
 }
 
@@ -347,13 +343,20 @@ function BulkDeleteDialog({ count, onConfirm, onCancel }: BulkDeleteDialogProps)
   );
 }
 
-export function DocumentList() {
+interface DocumentListProps {
+  /** Search query to filter documents by name */
+  searchQuery?: string;
+}
+
+export function DocumentList({ searchQuery = '' }: DocumentListProps) {
   const { isDark } = useTheme();
+  const { success: showSuccessToast } = useToast();
   const {
     documents,
     isLoading,
     deleteDocument,
     bulkDeleteDocuments,
+    refreshDocuments,
     totalDocuments,
     totalSize,
     isSelectionMode,
@@ -366,87 +369,45 @@ export function DocumentList() {
   } = useDocuments();
 
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<DocumentCategory | 'all'>('all');
-  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
-  const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   // Permission Edit Dialog state
   const [permissionEditDocument, setPermissionEditDocument] = useState<DocumentMetadata | null>(null);
 
   /**
-   * Get all unique tags from documents
+   * Get German label for classification
    */
-  const allTags = useMemo(() => {
-    const tagSet = new Set<string>();
-    documents.forEach(doc => {
-      doc.tags?.forEach(tag => tagSet.add(tag));
-    });
-    return Array.from(tagSet).sort();
-  }, [documents]);
-
-  /**
-   * Toggle a tag in the filter selection
-   */
-  const toggleTagFilter = (tag: string) => {
-    setSelectedTags(prev => {
-      const next = new Set(prev);
-      if (next.has(tag)) {
-        next.delete(tag);
-      } else {
-        next.add(tag);
-      }
-      return next;
-    });
+  const getClassificationLabel = (classification?: string): string => {
+    switch (classification) {
+      case 'public': return 'öffentlich';
+      case 'confidential': return 'vertraulich';
+      case 'restricted': return 'streng vertraulich';
+      default: return 'intern';
+    }
   };
 
   /**
-   * Clear all filters
-   */
-  const clearFilters = () => {
-    setCategoryFilter('all');
-    setSelectedTags(new Set());
-    setSearchQuery('');
-  };
-
-  /**
-   * Check if any filters are active
-   */
-  const hasActiveFilters = categoryFilter !== 'all' || selectedTags.size > 0 || searchQuery.trim() !== '';
-
-  /**
-   * Filter documents by search query, category, and tags (AND combination)
+   * Filter documents by search query
    */
   const filteredDocuments = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return documents;
+    }
+    const query = searchQuery.toLowerCase().trim();
     return documents.filter(doc => {
-      // Search filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        if (!doc.originalName.toLowerCase().includes(query)) {
-          return false;
-        }
-      }
-
-      // Category filter
-      if (categoryFilter !== 'all') {
-        if (doc.category !== categoryFilter) {
-          return false;
-        }
-      }
-
-      // Tag filter (AND - all selected tags must be present)
-      if (selectedTags.size > 0) {
-        const docTags = new Set(doc.tags || []);
-        for (const tag of selectedTags) {
-          if (!docTags.has(tag)) {
-            return false;
-          }
-        }
-      }
-
-      return true;
+      // Search in name
+      if (doc.originalName.toLowerCase().includes(query)) return true;
+      // Search in category
+      if (doc.category?.toLowerCase().includes(query)) return true;
+      // Search in tags
+      if (doc.tags?.some(tag => tag.toLowerCase().includes(query))) return true;
+      // Search in classification (German label)
+      const classificationLabel = getClassificationLabel(doc.metadata?.classification);
+      if (classificationLabel.includes(query)) return true;
+      // Search in classification (English value)
+      if (doc.metadata?.classification?.toLowerCase().includes(query)) return true;
+      return false;
     });
-  }, [documents, searchQuery, categoryFilter, selectedTags]);
+  }, [documents, searchQuery]);
 
   /**
    * Format total size
@@ -494,11 +455,14 @@ export function DocumentList() {
         specificUsers: permissions.specificUsers.length > 0 ? permissions.specificUsers : undefined
       });
 
+      // Refresh documents to show updated permissions
+      await refreshDocuments();
+
       // Close dialog
       setPermissionEditDocument(null);
 
-      // Refresh documents to show updated permissions
-      // The useDocuments hook should automatically refresh
+      // Show success toast
+      showSuccessToast('Berechtigungen erfolgreich aktualisiert');
     } catch (error) {
       console.error('Failed to update permissions:', error);
       throw error; // Re-throw so dialog can handle error display
@@ -571,187 +535,8 @@ export function DocumentList() {
     );
   }
 
-  // No search results state
-  // No results when filters are active but no documents match
-  const showNoResults = hasActiveFilters && filteredDocuments.length === 0;
-
   return (
     <div>
-      {/* Search field */}
-      <div className="mb-3">
-        <div
-          className={`
-            flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors
-            ${isDark
-              ? 'bg-gray-800/50 border-gray-700 focus-within:border-blue-500'
-              : 'bg-white border-gray-200 focus-within:border-blue-400'
-            }
-          `}
-        >
-          <Search
-            className={`w-4 h-4 flex-shrink-0 ${
-              isDark ? 'text-gray-500' : 'text-gray-400'
-            }`}
-          />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Dokumente durchsuchen..."
-            className={`
-              flex-1 bg-transparent text-sm outline-none
-              ${isDark
-                ? 'text-gray-200 placeholder-gray-500'
-                : 'text-gray-800 placeholder-gray-400'
-              }
-            `}
-            aria-label="Dokumente nach Namen durchsuchen"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className={`
-                p-0.5 rounded transition-colors
-                ${isDark
-                  ? 'text-gray-500 hover:text-gray-300 hover:bg-gray-700'
-                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                }
-              `}
-              title="Suche zurücksetzen"
-              aria-label="Suchfeld leeren"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Filter Toggle Button */}
-        <div className="flex items-center gap-2 mt-2">
-          <button
-            onClick={() => setShowFilterPanel(!showFilterPanel)}
-            className={`
-              flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors
-              ${showFilterPanel || hasActiveFilters
-                ? isDark
-                  ? 'bg-blue-900/40 text-blue-300 border border-blue-700'
-                  : 'bg-blue-50 text-blue-700 border border-blue-200'
-                : isDark
-                  ? 'bg-gray-800 text-gray-400 border border-gray-700 hover:bg-gray-700'
-                  : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
-              }
-            `}
-          >
-            <Filter className="w-3.5 h-3.5" />
-            Filter
-            {hasActiveFilters && (
-              <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                isDark ? 'bg-blue-700' : 'bg-blue-200'
-              }`}>
-                {(categoryFilter !== 'all' ? 1 : 0) + selectedTags.size}
-              </span>
-            )}
-            <ChevronDown className={`w-3 h-3 transition-transform ${showFilterPanel ? 'rotate-180' : ''}`} />
-          </button>
-
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className={`
-                flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-colors
-                ${isDark
-                  ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-                }
-              `}
-            >
-              <X className="w-3 h-3" />
-              Filter zurücksetzen
-            </button>
-          )}
-        </div>
-
-        {/* Filter Panel */}
-        {showFilterPanel && (
-          <div
-            className={`
-              mt-3 p-3 rounded-lg border
-              ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}
-            `}
-          >
-            {/* Category Filter */}
-            <div className="mb-3">
-              <label
-                className={`flex items-center gap-1.5 text-xs font-medium mb-2 ${
-                  isDark ? 'text-gray-300' : 'text-gray-700'
-                }`}
-              >
-                <FolderOpen className="w-3.5 h-3.5" />
-                Kategorie
-              </label>
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value as DocumentCategory | 'all')}
-                className={`
-                  w-full px-3 py-2 rounded-lg text-sm border transition-colors
-                  ${isDark
-                    ? 'bg-gray-700 border-gray-600 text-gray-200'
-                    : 'bg-white border-gray-300 text-gray-800'
-                  }
-                `}
-                aria-label="Kategorie-Filter"
-              >
-                <option value="all">Alle Kategorien</option>
-                {DOCUMENT_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Tag Filter */}
-            {allTags.length > 0 && (
-              <div>
-                <label
-                  className={`flex items-center gap-1.5 text-xs font-medium mb-2 ${
-                    isDark ? 'text-gray-300' : 'text-gray-700'
-                  }`}
-                >
-                  <Tag className="w-3.5 h-3.5" />
-                  Tags {selectedTags.size > 0 && `(${selectedTags.size} ausgewählt)`}
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {allTags.map((tag) => (
-                    <button
-                      key={tag}
-                      onClick={() => toggleTagFilter(tag)}
-                      className={`
-                        flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors
-                        ${selectedTags.has(tag)
-                          ? isDark
-                            ? 'bg-blue-900/50 text-blue-300 border border-blue-700'
-                            : 'bg-blue-100 text-blue-700 border border-blue-300'
-                          : isDark
-                            ? 'bg-gray-700 text-gray-300 border border-gray-600 hover:bg-gray-600'
-                            : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-100'
-                        }
-                      `}
-                    >
-                      <Tag className="w-2.5 h-2.5" />
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {allTags.length === 0 && (
-              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                Keine Tags vorhanden. Tags können beim Upload oder später hinzugefügt werden.
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
       {/* Header with stats and selection controls */}
       <div className="mb-4">
         <div className="flex justify-between items-center">
@@ -760,10 +545,7 @@ export function DocumentList() {
               isDark ? 'text-gray-300' : 'text-gray-700'
             }`}
           >
-            {hasActiveFilters
-              ? `${filteredDocuments.length} von ${totalDocuments} Dokumente${filteredDocuments.length !== 1 ? 'n' : ''}`
-              : 'Dokumente'
-            }
+            Dokumente
           </h3>
 
           {/* Selection mode controls */}
@@ -863,63 +645,66 @@ export function DocumentList() {
         )}
       </div>
 
-      {/* Document list or no results message */}
-      {showNoResults ? (
-        <div className="text-center py-6">
-          <Filter
-            className={`w-12 h-12 mx-auto mb-3 ${
-              isDark ? 'text-gray-600' : 'text-gray-300'
-            }`}
-          />
-          <h3
-            className={`text-sm font-medium mb-1 ${
-              isDark ? 'text-gray-400' : 'text-gray-500'
-            }`}
-          >
-            Keine Ergebnisse
-          </h3>
-          <p
-            className={`text-xs ${
-              isDark ? 'text-gray-500' : 'text-gray-400'
-            }`}
-          >
-            {searchQuery.trim()
-              ? `Keine Dokumente für "${searchQuery}" gefunden`
-              : categoryFilter !== 'all'
-                ? `Keine Dokumente in Kategorie "${categoryFilter}"`
-                : selectedTags.size > 0
-                  ? `Keine Dokumente mit den ausgewählten Tags`
-                  : 'Keine passenden Dokumente gefunden'
-            }
-          </p>
-          <button
-            onClick={clearFilters}
-            className={`
-              mt-3 text-xs px-3 py-1.5 rounded-lg transition-colors
+      {/* Document table */}
+      <div className={`
+        rounded-lg border overflow-hidden
+        ${isDark ? 'border-white/10' : 'border-gray-200'}
+      `}>
+        <table className="w-full">
+          <thead>
+            <tr className={`
+              text-xs font-medium
               ${isDark
-                ? 'text-blue-400 hover:bg-blue-900/30'
-                : 'text-blue-600 hover:bg-blue-50'
+                ? 'bg-white/5 text-gray-400 border-b border-white/10'
+                : 'bg-gray-50 text-gray-500 border-b border-gray-200'
               }
-            `}
-          >
-            Filter zurücksetzen
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filteredDocuments.map((document) => (
-            <DocumentItem
-              key={document.id}
-              document={document}
-              onDelete={deleteDocument}
-              onEditPermissions={handleEditPermissions}
-              isSelectionMode={isSelectionMode}
-              isSelected={selectedIds.has(document.id)}
-              onToggleSelect={toggleSelectDocument}
-            />
-          ))}
-        </div>
-      )}
+            `}>
+              <th className="px-4 py-3 text-left w-12">
+                {/* Checkbox/Icon column */}
+              </th>
+              <th className="px-4 py-3 text-left">Name</th>
+              <th className="px-4 py-3 text-left">Kategorie</th>
+              <th className="px-4 py-3 text-left">Klassifizierung</th>
+              <th className="px-4 py-3 text-right">Größe</th>
+              <th className="px-4 py-3 text-center">Seiten</th>
+              <th className="px-4 py-3 text-left">Datum</th>
+              <th className="px-4 py-3 w-24">
+                {/* Actions column */}
+              </th>
+            </tr>
+          </thead>
+          <tbody className={`
+            divide-y
+            ${isDark ? 'divide-white/5' : 'divide-gray-100'}
+          `}>
+            {filteredDocuments.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="px-4 py-8 text-center">
+                  <File className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {searchQuery.trim()
+                      ? `Keine Dokumente für "${searchQuery}" gefunden`
+                      : 'Keine Dokumente vorhanden'
+                    }
+                  </p>
+                </td>
+              </tr>
+            ) : (
+              filteredDocuments.map((document) => (
+                <DocumentRow
+                  key={document.id}
+                  document={document}
+                  onDelete={deleteDocument}
+                  onEditPermissions={handleEditPermissions}
+                  isSelectionMode={isSelectionMode}
+                  isSelected={selectedIds.has(document.id)}
+                  onToggleSelect={toggleSelectDocument}
+                />
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {/* Bulk delete confirmation dialog */}
       {showBulkDeleteDialog && (

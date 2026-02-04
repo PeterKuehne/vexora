@@ -132,7 +132,7 @@ export const securityHeaders = (req: Request, res: Response, next: NextFunction)
  * Rate Limiting Configuration
  * Prevents brute force attacks on authentication endpoints
  */
-export const createRateLimiter = () => {
+export const createRateLimiter = (options?: { maxAttempts?: number; windowMs?: number }) => {
   // In a production environment, you would use redis-based rate limiting
   // For now, we'll use a simple in-memory store
   const attempts = new Map<string, { count: number; resetTime: number }>()
@@ -140,8 +140,8 @@ export const createRateLimiter = () => {
   return (req: Request, res: Response, next: NextFunction): void => {
     const clientIP = req.ip || req.connection.remoteAddress || 'unknown'
     const now = Date.now()
-    const windowMs = 15 * 60 * 1000 // 15 minutes
-    const maxAttempts = 10 // Max attempts per window
+    const windowMs = options?.windowMs || 15 * 60 * 1000 // 15 minutes
+    const maxAttempts = options?.maxAttempts || 10 // Max attempts per window
 
     // Clean up expired entries
     for (const [ip, data] of attempts.entries()) {

@@ -13,8 +13,21 @@ const router = express.Router();
 /**
  * Check if user has Admin role
  */
-const requireAdminRole = (req: AuthenticatedRequest, res: Response, next: any) => {
+const requireAdminRole = async (req: AuthenticatedRequest, res: Response, next: any) => {
   if (!req.user || req.user.role !== 'Admin') {
+    // Log access denied attempt
+    if (req.user) {
+      await authService.createAuditLog({
+        userId: req.user.user_id,
+        userEmail: req.user.email,
+        action: 'admin_access_denied',
+        result: 'denied',
+        ipAddress: req.ip || req.socket.remoteAddress,
+        userAgent: req.headers['user-agent'],
+        metadata: { attemptedPath: req.path }
+      });
+    }
+
     return res.status(403).json({
       error: 'Access denied',
       code: 'INSUFFICIENT_PERMISSIONS',
@@ -170,6 +183,22 @@ router.put('/users/:id', authenticateToken, requireAdminRole, asyncHandler(async
 
     const adminUserId = req.user!.user_id;
     const updatedUser = await authService.updateUser(id, updatePayload, adminUserId);
+
+    // Create audit log for user update
+    await authService.createAuditLog({
+      userId: adminUserId,
+      userEmail: req.user!.email,
+      action: 'user_update',
+      result: 'success',
+      resourceType: 'user',
+      resourceId: id,
+      ipAddress: req.ip || req.socket.remoteAddress,
+      userAgent: req.headers['user-agent'],
+      metadata: {
+        changes: updatePayload,
+        targetUser: updatedUser.email
+      }
+    });
 
     const userContext = req.user ? {
       userId: req.user.user_id,

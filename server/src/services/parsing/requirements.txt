@@ -1,0 +1,26 @@
+# Document Parser Service Dependencies
+# RAG V2 Phase 2
+
+# Web Framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.0
+
+# Document Parsing - Docling
+docling>=1.0.0
+
+# HTML Parsing
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+
+# Markdown processing
+markdown>=3.5.0
+
+# PDF Backend (for Docling)
+pypdfium2>=4.0.0
+
+# Data handling for tables
+pandas>=2.0.0
+
+# Type hints
+python-multipart>=0.0.6

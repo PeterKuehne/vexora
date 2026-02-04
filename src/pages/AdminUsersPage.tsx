@@ -4,9 +4,11 @@
  */
 
 import { useState, useEffect } from 'react';
+import { Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
+import { AdminPageHeader } from '../components';
 import type { User, UserRole } from '../types/auth';
 import type { UserManagementResponse } from '../lib/api';
 import { fetchAllUsers, updateUser } from '../lib/api';
@@ -176,23 +178,12 @@ export function AdminUsersPage() {
     `}>
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className={`
-            text-3xl font-bold
-            transition-colors duration-150
-            ${isDark ? 'text-white' : 'text-gray-900'}
-          `}>
-            Benutzerverwaltung
-          </h1>
-          <p className={`
-            mt-2 text-sm
-            transition-colors duration-150
-            ${isDark ? 'text-gray-400' : 'text-gray-600'}
-          `}>
-            Verwalten Sie Benutzerkonten, Rollen und Berechtigungen
-          </p>
-        </div>
+        {/* Header with Back Button */}
+        <AdminPageHeader
+          title="Benutzerverwaltung"
+          subtitle="Verwalten Sie Benutzerkonten, Rollen und Berechtigungen"
+          icon={<Users size={20} className={isDark ? 'text-blue-400' : 'text-blue-600'} />}
+        />
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

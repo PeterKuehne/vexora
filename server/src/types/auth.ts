@@ -72,6 +72,7 @@ export interface JWTPayload {
 export interface CreateRefreshTokenPayload {
   user_id: string;
   token_hash: string;
+  token_lookup?: string; // SHA-256 for fast lookup
   expires_at: Date;
 }
 

@@ -3,10 +3,12 @@
  * Allows administrators to view system audit logs and user activity
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
+import { AdminPageHeader } from '../components';
 import type { AuditLogEntry, User, UserRole, AuthProvider } from '../types/auth';
 import { fetchAuditLogs, fetchUserAuditLogs, fetchAllUsers } from '../lib/api';
 
@@ -45,17 +47,7 @@ export function AuditLogsPage() {
   const { addToast } = useToast();
   const isDark = theme === 'dark';
 
-  // Load users on component mount
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  // Load audit logs on component mount and when filters change
-  useEffect(() => {
-    loadAuditLogs();
-  }, [filter, pagination.offset]);
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setIsLoadingUsers(true);
       const response = await fetchAllUsers();
@@ -66,9 +58,9 @@ export function AuditLogsPage() {
     } finally {
       setIsLoadingUsers(false);
     }
-  };
+  }, [addToast]);
 
-  const loadAuditLogs = async (append = false) => {
+  const loadAuditLogs = useCallback(async (append = false) => {
     try {
       if (!append) {
         setIsLoading(true);
@@ -164,7 +156,17 @@ export function AuditLogsPage() {
         setIsLoading(false);
       }
     }
-  };
+  }, [filter.userId, filter.result, filter.action, filter.daysBack, pagination.limit, pagination.offset, addToast]);
+
+  // Load users on component mount
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  // Load audit logs when filters or pagination changes
+  useEffect(() => {
+    loadAuditLogs(false);
+  }, [loadAuditLogs]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('de-DE', {
@@ -286,23 +288,12 @@ export function AuditLogsPage() {
     `}>
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className={`
-            text-3xl font-bold
-            transition-colors duration-150
-            ${isDark ? 'text-white' : 'text-gray-900'}
-          `}>
-            Audit-Logs
-          </h1>
-          <p className={`
-            mt-2 text-sm
-            transition-colors duration-150
-            ${isDark ? 'text-gray-400' : 'text-gray-600'}
-          `}>
-            Systemaktivitäten und Benutzeraktionen der letzten {filter.daysBack} Tage
-          </p>
-        </div>
+        {/* Header with Back Button */}
+        <AdminPageHeader
+          title="Audit-Logs"
+          subtitle={`Systemaktivitäten und Benutzeraktionen der letzten ${filter.daysBack} Tage`}
+          icon={<Shield size={20} className={isDark ? 'text-blue-400' : 'text-blue-600'} />}
+        />
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

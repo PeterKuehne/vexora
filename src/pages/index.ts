@@ -8,4 +8,5 @@ export { AdminUsersPage } from './AdminUsersPage';
 export { AdminSystemSettingsPage } from './AdminSystemSettingsPage';
 export { AuditLogsPage } from './AuditLogsPage';
 export { DocumentsPage } from './DocumentsPage';
+export { DocumentsPageEmbedded } from './DocumentsPageEmbedded';
 export { ProfilePage } from './ProfilePage';

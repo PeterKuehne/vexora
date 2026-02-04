@@ -51,10 +51,11 @@ export function StorageQuotaDisplay({
     }
   }, [onQuotaLoaded]);
 
-  // Load quota on mount
+  // Load quota on mount (only once)
   useEffect(() => {
     loadQuotaUsage();
-  }, [loadQuotaUsage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only run on mount
 
   /**
    * Get status indicator based on usage
@@ -117,8 +118,8 @@ export function StorageQuotaDisplay({
       <div className={`
         w-full p-4 rounded-lg border transition-colors duration-150
         ${isDark
-          ? 'bg-gray-800/50 border-gray-700'
-          : 'bg-gray-50 border-gray-200'
+          ? 'bg-surface border-white/10'
+          : 'bg-white border-gray-200'
         }
         ${className}
       `}>
@@ -130,7 +131,7 @@ export function StorageQuotaDisplay({
           <div className="flex-1">
             <div className={`
               h-4 rounded animate-pulse
-              ${isDark ? 'bg-gray-700' : 'bg-gray-300'}
+              ${isDark ? 'bg-white/10' : 'bg-gray-300'}
             `} />
           </div>
         </div>
@@ -178,8 +179,8 @@ export function StorageQuotaDisplay({
     <div className={`
       w-full p-4 rounded-lg border transition-colors duration-150
       ${isDark
-        ? 'bg-gray-800/50 border-gray-700'
-        : 'bg-gray-50 border-gray-200'
+        ? 'bg-surface border-white/10'
+        : 'bg-white border-gray-200'
       }
       ${className}
     `}>
@@ -217,7 +218,7 @@ export function StorageQuotaDisplay({
       <div className="mb-3">
         <div className={`
           w-full h-3 rounded-full overflow-hidden
-          ${isDark ? 'bg-gray-700' : 'bg-gray-200'}
+          ${isDark ? 'bg-white/10' : 'bg-gray-200'}
         `}>
           <div
             className={`
@@ -252,7 +253,7 @@ export function StorageQuotaDisplay({
         <div className={`
           grid grid-cols-2 gap-4 pt-3 border-t text-sm
           ${isDark
-            ? 'border-gray-700 text-gray-300'
+            ? 'border-white/10 text-gray-300'
             : 'border-gray-200 text-gray-600'
           }
         `}>
@@ -320,7 +321,7 @@ export function StorageQuotaDisplay({
           className={`
             text-xs px-3 py-1 rounded transition-colors duration-150
             ${isDark
-              ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
+              ? 'text-gray-400 hover:text-gray-300 hover:bg-white/10'
               : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
             }
             disabled:opacity-50 disabled:cursor-not-allowed

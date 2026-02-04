@@ -5,7 +5,7 @@
  */
 
 import { NavLink, useLocation } from 'react-router-dom';
-import { MessageSquare, FileText, Users, Shield, Settings } from 'lucide-react';
+import { MessageSquare, Users, Shield, Settings } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -75,21 +75,9 @@ export function NavigationLinks({
     }
   `.trim();
 
-  // Navigation items
-  const baseNavItems = [
-    {
-      to: '/chat',
-      label: 'Chat',
-      icon: MessageSquare,
-      description: 'Chat-Unterhaltungen',
-    },
-    {
-      to: '/documents',
-      label: 'Dokumente',
-      icon: FileText,
-      description: 'Dokumentenverwaltung',
-    },
-  ];
+  // Navigation items - Chat und Dokumente werden über die Sidebar-Tabs gesteuert
+  // baseNavItems ist leer, da die Hauptnavigation jetzt in der Sidebar ist
+  const baseNavItems: Array<{ to: string; label: string; icon: typeof MessageSquare; description: string }> = [];
 
   // Admin navigation items (only visible to Admins)
   const adminNavItems = user?.role === 'Admin' ? [

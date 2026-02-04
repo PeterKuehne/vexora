@@ -6,20 +6,15 @@
 
 import { type ReactNode } from 'react';
 import { Menu } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts';
 import type { Theme } from '../../types/settings';
-import type { User } from '../../../server/src/types/auth';
 import { Logo } from '../Logo';
 import { ModelSelector } from '../ModelSelector';
-import { NavigationLinks, NavigationDivider } from '../NavigationLinks';
-import { NewChatButton } from '../NewChatButton';
 import { SettingsButton } from '../SettingsButton';
 import { ThemeToggle } from '../ThemeToggle';
-import { UserMenu, UserMenuSkeleton } from '../UserMenu';
 
 export interface HeaderProps {
-  /** Callback to create a new conversation */
-  onNewConversation?: () => void;
   /** Current theme */
   theme: Theme;
   /** Callback to change theme */
@@ -48,20 +43,11 @@ export interface HeaderProps {
   onSettingsClick?: () => void;
   /** Whether to show settings button */
   showSettingsButton?: boolean;
-  /** Current authenticated user (null if not authenticated) */
-  user?: User | null;
-  /** Whether auth is loading */
-  isAuthLoading?: boolean;
-  /** Callback when user clicks logout */
-  onLogout?: () => void;
-  /** Whether to show user menu */
-  showUserMenu?: boolean;
 }
 
 // Theme toggle logic is now in ThemeToggle component
 
 export function Header({
-  onNewConversation,
   theme,
   onThemeChange,
   isOllamaConnected,
@@ -76,12 +62,14 @@ export function Header({
   showModelSelector = true,
   onSettingsClick,
   showSettingsButton = true,
-  user,
-  isAuthLoading = false,
-  onLogout,
-  showUserMenu = true,
 }: HeaderProps) {
   const { isDark } = useTheme();
+  const navigate = useNavigate();
+
+  // Handle logo click - navigate to chat
+  const handleLogoClick = () => {
+    navigate('/chat');
+  };
 
   // Connection status styling
   const connectionStatusColor =
@@ -131,28 +119,8 @@ export function Header({
           </button>
         )}
 
-        {/* Logo/Title */}
-        <Logo size="md" />
-
-        {/* Navigation Links - Chat | Dokumente */}
-        <NavigationDivider />
-        <NavigationLinks
-          showIcons={false}
-          size="sm"
-          direction="horizontal"
-          className="hidden sm:flex"
-        />
-
-        {/* New Conversation Button - only show on chat page */}
-        {onNewConversation && (
-          <NewChatButton
-            onClick={onNewConversation}
-            size="sm"
-            variant="secondary"
-            showLabel={true}
-            label="Neu"
-          />
-        )}
+        {/* Logo/Title - Click to go to Chat */}
+        <Logo size="md" onClick={handleLogoClick} className="cursor-pointer" />
       </div>
 
       {/* Right Section: Model Selector, Save Indicator, Theme Toggle, Connection Status */}
@@ -178,22 +146,6 @@ export function Header({
             size="md"
             showLabel={true}
           />
-        )}
-
-        {/* User Menu - Show when authenticated */}
-        {showUserMenu && (
-          <div className="flex items-center">
-            {isAuthLoading ? (
-              <UserMenuSkeleton size="md" />
-            ) : user && onLogout ? (
-              <UserMenu
-                user={user}
-                onLogout={onLogout}
-                showRole={true}
-                size="md"
-              />
-            ) : null}
-          </div>
         )}
 
         {/* Theme Toggle */}

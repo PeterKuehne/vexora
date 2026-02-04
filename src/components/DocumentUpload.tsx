@@ -1,16 +1,45 @@
 /**
- * DocumentUpload - PDF Upload Component
+ * DocumentUpload - Multi-Format Document Upload Component
+ * RAG V2 Phase 2 - Supports PDF, DOCX, PPTX, XLSX, HTML, MD, TXT
  *
  * Features:
  * - Drag & drop area
  * - File picker button
  * - Upload progress indicator
- * - File validation (PDF only, 50MB max)
+ * - Multi-format file validation (150MB max)
  * - Visual feedback during upload
  */
 
 import { useCallback, useState, useRef } from 'react';
-import { Upload, File } from 'lucide-react';
+import { Upload, File, FileText, FileSpreadsheet, Presentation, FileCode } from 'lucide-react';
+
+// Supported file types (V2)
+const SUPPORTED_TYPES = {
+  'application/pdf': { ext: 'pdf', name: 'PDF', icon: File },
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { ext: 'docx', name: 'Word', icon: FileText },
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': { ext: 'pptx', name: 'PowerPoint', icon: Presentation },
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { ext: 'xlsx', name: 'Excel', icon: FileSpreadsheet },
+  'text/html': { ext: 'html', name: 'HTML', icon: FileCode },
+  'text/markdown': { ext: 'md', name: 'Markdown', icon: FileText },
+  'text/plain': { ext: 'txt', name: 'Text', icon: FileText },
+};
+
+const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.pptx', '.xlsx', '.html', '.htm', '.md', '.markdown', '.txt'];
+const ACCEPT_STRING = '.pdf,.docx,.pptx,.xlsx,.html,.htm,.md,.markdown,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/html,text/markdown,text/plain';
+
+/**
+ * Check if file is supported
+ */
+function isFileSupported(file: File): boolean {
+  // Check MIME type
+  if (file.type && file.type in SUPPORTED_TYPES) {
+    return true;
+  }
+
+  // Check extension
+  const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+  return SUPPORTED_EXTENSIONS.includes(ext);
+}
 import { useTheme } from '../contexts/ThemeContext';
 import { useDocuments } from '../contexts/DocumentContext';
 import { useProcessing } from '../hooks/useProcessing';
@@ -35,17 +64,17 @@ export function DocumentUpload() {
     .slice(0, 5);
 
   /**
-   * Handle file drop
+   * Handle file drop (V2 - multi-format)
    */
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
 
     const files = Array.from(e.dataTransfer.files);
-    const pdfFile = files.find(file => file.type === 'application/pdf');
+    const supportedFile = files.find(file => isFileSupported(file));
 
-    if (pdfFile) {
-      uploadPDF(pdfFile);
+    if (supportedFile) {
+      uploadPDF(supportedFile);
     }
   }, [uploadPDF]);
 
@@ -163,11 +192,11 @@ export function DocumentUpload() {
 
   return (
     <div>
-      {/* Hidden file input */}
+      {/* Hidden file input (V2 - multi-format) */}
       <input
         ref={fileInputRef}
         type="file"
-        accept="application/pdf,.pdf"
+        accept={ACCEPT_STRING}
         onChange={handleFileChange}
         className="hidden"
       />
@@ -209,7 +238,7 @@ export function DocumentUpload() {
               isDark ? 'text-gray-200' : 'text-gray-800'
             }`}
           >
-            PDF-Dokument hochladen
+            Dokument hochladen
           </h3>
 
           <p
@@ -217,7 +246,7 @@ export function DocumentUpload() {
               isDark ? 'text-gray-400' : 'text-gray-600'
             }`}
           >
-            Ziehen Sie eine PDF-Datei hierher oder klicken Sie zum Auswählen
+            Ziehen Sie eine Datei hierher oder klicken Sie zum Auswählen
           </p>
 
           <button
@@ -241,7 +270,7 @@ export function DocumentUpload() {
               isDark ? 'text-gray-500' : 'text-gray-400'
             }`}
           >
-            Maximal 50MB • Nur PDF-Dateien
+            Maximal 150MB • PDF, Word, PowerPoint, Excel, HTML, Markdown, Text
           </p>
         </div>
 

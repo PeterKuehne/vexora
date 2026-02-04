@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useToast } from '../contexts/ToastContext';
+import { AdminPageHeader } from '../components';
 import {
   fetchSystemSettings,
   updateSystemSettings,
@@ -211,28 +212,12 @@ export function AdminSystemSettingsPage() {
     `}>
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
 
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className={`
-                text-3xl font-bold flex items-center gap-3
-                transition-colors duration-150
-                ${isDark ? 'text-white' : 'text-gray-900'}
-              `}>
-                <Settings className="text-blue-500" size={32} />
-                System-Einstellungen
-              </h1>
-              <p className={`
-                mt-2 text-sm
-                transition-colors duration-150
-                ${isDark ? 'text-gray-400' : 'text-gray-600'}
-              `}>
-                Konfiguration systemweiter Parameter und Sicherheitseinstellungen
-              </p>
-            </div>
-
-            {/* Action Buttons */}
+        {/* Header with Back Button */}
+        <AdminPageHeader
+          title="System-Einstellungen"
+          subtitle="Konfiguration systemweiter Parameter und Sicherheitseinstellungen"
+          icon={<Settings size={20} className={isDark ? 'text-blue-400' : 'text-blue-600'} />}
+          actions={
             <div className="flex items-center gap-3">
               {hasUnsavedChanges && (
                 <div className={`
@@ -290,8 +275,8 @@ export function AdminSystemSettingsPage() {
                 {isSaving ? 'Speichert...' : 'Speichern'}
               </button>
             </div>
-          </div>
-        </div>
+          }
+        />
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

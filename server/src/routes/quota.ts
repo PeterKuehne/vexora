@@ -7,26 +7,27 @@
  * - GET /api/quota/statistics - Get system-wide quota statistics (Admin only)
  */
 
-import express from 'express';
+import express, { type Response } from 'express';
 import { quotaService, type QuotaValidationResult } from '../services/QuotaService.js';
-import { requireAuth, requireRole } from '../middleware/index.js';
+import { authenticateToken, requireRole } from '../middleware/index.js';
+import type { AuthenticatedRequest } from '../types/auth.js';
 import { z } from 'zod';
 
 const router = express.Router();
 
 // Validation schemas
 const validateUploadSchema = z.object({
-  fileSize: z.number().positive().max(50 * 1024 * 1024), // 50MB max
+  fileSize: z.number().positive().max(150 * 1024 * 1024), // 150MB max
 });
 
 /**
  * GET /api/quota/me
  * Get current user's quota usage
  */
-router.get('/me', requireAuth, async (req, res) => {
+router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const user = req.user!;
-    const usage = await quotaService.getUserQuotaUsage(user.id, user.role);
+    const usage = await quotaService.getUserQuotaUsage(user.user_id, user.role);
 
     res.json({
       success: true,
@@ -45,13 +46,13 @@ router.get('/me', requireAuth, async (req, res) => {
  * POST /api/quota/validate
  * Validate if a file upload would exceed quota
  */
-router.post('/validate', requireAuth, async (req, res) => {
+router.post('/validate', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     // Validate request body
     const { fileSize } = validateUploadSchema.parse(req.body);
 
     const user = req.user!;
-    const validation = await quotaService.validateUpload(user.id, user.role, fileSize);
+    const validation = await quotaService.validateUpload(user.user_id, user.role, fileSize);
 
     res.json({
       success: true,
@@ -59,11 +60,12 @@ router.post('/validate', requireAuth, async (req, res) => {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Invalid request data',
-        details: error.errors
+        details: error.issues
       });
+      return;
     }
 
     console.error('Error validating upload:', error);
@@ -78,7 +80,7 @@ router.post('/validate', requireAuth, async (req, res) => {
  * GET /api/quota/statistics
  * Get system-wide quota statistics (Admin only)
  */
-router.get('/statistics', requireAuth, requireRole('admin'), async (req, res) => {
+router.get('/statistics', authenticateToken, requireRole('Admin'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const statistics = await quotaService.getQuotaStatistics();
 
