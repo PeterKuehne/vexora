@@ -51,6 +51,11 @@ export interface RAGRequest {
   useGraph?: boolean
   graphMaxDepth?: number
   graphMaxNodes?: number
+  // NEW: Document Expansion options (Research Improvement 2026)
+  enableDocumentExpansion?: boolean
+  maxDocumentsToExpand?: number
+  maxChunksPerDocument?: number
+  expansionThreshold?: number
 }
 
 export interface RAGSource {
@@ -168,10 +173,10 @@ class RAGService {
       messages,
       model,
       query,
-      searchLimit = 5,
-      searchThreshold = 0.5,
+      searchLimit = 20, // Increased to allow reranker to find best matches
+      searchThreshold = 0.1, // Lowered to get more candidates for reranking
       hybridAlpha = 0.5,
-      rerank = false,
+      rerank = true, // Enable reranking by default for better results
       rerankTopK = 5,
       userContext,
     } = request
@@ -228,10 +233,13 @@ class RAGService {
         });
       }
 
-      console.log(`🔀 Query routed: type=${queryAnalysis.queryType}, strategy=${queryAnalysis.suggestedStrategy}, entities=${queryAnalysis.entities.length}`);
+      console.log(`🔀 Query routed: type=${queryAnalysis.queryType}, strategy=${queryAnalysis.suggestedStrategy}, entities=${queryAnalysis.entities.length}, levels=${queryAnalysis.recommendedLevelFilter.join(',')}`);
 
       // Override graph usage based on query analysis
       const useGraph = request.useGraph ?? (queryAnalysis.requiresGraph && this.graphInitialized);
+
+      // Use query-type-based level filter from router
+      const levelFilter = queryAnalysis.recommendedLevelFilter;
 
       // Step 1: Get accessible document IDs for this user (permission-aware)
       let allowedDocumentIds: string[] | undefined;
@@ -272,14 +280,14 @@ class RAGService {
       let searchResults: VectorSearchResponse
 
       if (useV2) {
-        console.log('🔍 Using V2 hierarchical search')
+        console.log(`🔍 Using V2 hierarchical search with levelFilter=${levelFilter.join(',')}`)
         const v2Results = await vectorServiceV2.search({
           query,
           limit: searchLimit,
           threshold: searchThreshold,
           hybridAlpha,
           allowedDocumentIds,
-          levelFilter: [2], // Search paragraph-level chunks by default
+          levelFilter, // Use query-type-based level filter from QueryRouter
           includeParentContext: request.includeParentContext ?? false,
         })
 
@@ -365,6 +373,57 @@ class RAGService {
             outputChunks: rerankResult.chunks.length,
             processingTimeMs: rerankResult.processingTimeMs,
           });
+        }
+      }
+
+      // Step 3.55: Document Expansion - Load all chunks from found documents
+      // This ensures the LLM has complete document context, not just top-K chunks
+      const enableExpansion = request.enableDocumentExpansion ?? true; // Enabled by default
+      const maxDocumentsToExpand = request.maxDocumentsToExpand ?? 3;
+      const maxChunksPerDocument = request.maxChunksPerDocument ?? 20;
+      const expansionThreshold = request.expansionThreshold ?? 0.3;
+
+      if (enableExpansion && hasRelevantSources && useV2) {
+        try {
+          // Get unique document IDs from search results that meet threshold
+          const qualifiedDocIds = [...new Set(
+            searchResults.results
+              .filter(r => r.score >= expansionThreshold)
+              .map(r => r.chunk.documentId)
+          )].slice(0, maxDocumentsToExpand);
+
+          if (qualifiedDocIds.length > 0) {
+            // Fetch all chunks for these documents
+            const expandedChunks = await vectorServiceV2.getChunksByDocumentIds(
+              qualifiedDocIds,
+              { maxChunksPerDocument, levelFilter: [2] } // Only paragraph-level for now
+            );
+
+            // Merge with existing results, avoiding duplicates
+            const existingChunkIds = new Set(
+              searchResults.results.map(r => `${r.chunk.documentId}:${r.chunk.chunkIndex}`)
+            );
+
+            const newChunks = expandedChunks.filter(
+              c => !existingChunkIds.has(`${c.chunk.documentId}:${c.chunk.chunkIndex}`)
+            );
+
+            // Add expansion chunks with lower score (they weren't found by search)
+            const expansionResults = newChunks.map(c => ({
+              ...c,
+              score: 0.1, // Mark as expansion chunk with low score
+            }));
+
+            // Combine: original results first, then expansion chunks sorted by document order
+            searchResults.results = [
+              ...searchResults.results,
+              ...expansionResults,
+            ];
+
+            console.log(`📄 Document Expansion: Added ${newChunks.length} chunks from ${qualifiedDocIds.length} document(s)`);
+          }
+        } catch (expansionError) {
+          console.warn('⚠️ Document expansion failed (continuing without):', expansionError);
         }
       }
 
@@ -564,10 +623,12 @@ class RAGService {
       messages,
       model,
       query,
-      searchLimit = 5,
-      searchThreshold = 0.5,
+      searchLimit = 20, // Increased to allow reranker to find best matches
+      searchThreshold = 0.1, // Lowered to get more candidates for reranking
       hybridAlpha = 0.5,
       userContext,
+      rerank = true, // Enable reranking by default
+      rerankTopK = 5,
     } = request
 
     try {
@@ -612,17 +673,22 @@ class RAGService {
       // Use V2 search if enabled
       const useV2 = request.useV2 ?? USE_V2_SEARCH
 
+      // Query analysis for optimal level filter (same as non-streaming)
+      const queryAnalysis = this.queryRouter.analyze(query);
+      const levelFilter = queryAnalysis.recommendedLevelFilter;
+      console.log(`🔀 Streaming Query routed: type=${queryAnalysis.queryType}, levels=${levelFilter.join(',')}`);
+
       let searchResults: VectorSearchResponse
 
       if (useV2) {
-        console.log('🔍 Using V2 hierarchical search (streaming)')
+        console.log(`🔍 Using V2 hierarchical search (streaming) with levelFilter=${levelFilter.join(',')}`)
         const v2Results = await vectorServiceV2.search({
           query,
           limit: searchLimit,
           threshold: searchThreshold,
           hybridAlpha,
           allowedDocumentIds,
-          levelFilter: [2],
+          levelFilter, // Use query-type-based level filter from QueryRouter
           includeParentContext: request.includeParentContext ?? false,
         })
 
@@ -650,6 +716,73 @@ class RAGService {
           hybridAlpha,
           allowedDocumentIds,
         })
+      }
+
+      // Apply reranking if enabled (same as non-streaming version)
+      if (rerank && searchResults.results.length > 0 && rerankerService.isAvailable()) {
+        const chunks = searchResults.results.map((r) => ({
+          id: r.chunk.id,
+          documentId: r.chunk.documentId,
+          chunkIndex: r.chunk.chunkIndex,
+          content: r.chunk.content,
+          score: r.score,
+        }));
+
+        console.log(`🔧 DEBUG Streaming: Sending ${chunks.length} chunks to reranker with topK=${rerankTopK}`);
+        const rerankResult = await rerankerService.rerank(query, chunks, rerankTopK);
+        console.log(`🔧 DEBUG Streaming: Reranker returned ${rerankResult.chunks.length} chunks`);
+
+        if (rerankResult.chunks.length > 0) {
+          const rerankedResults = rerankResult.chunks.map((chunk) => {
+            const original = searchResults.results.find(
+              (r) => r.chunk.documentId === chunk.documentId && r.chunk.chunkIndex === chunk.chunkIndex
+            );
+            return original!;
+          }).filter(Boolean);
+          searchResults.results = rerankedResults;
+          console.log(`🔄 Streaming: Reranked ${rerankResult.chunks.length} results in ${rerankResult.processingTimeMs}ms`);
+        }
+      }
+
+      // Document Expansion for Streaming (same logic as non-streaming)
+      const enableExpansion = request.enableDocumentExpansion ?? true;
+      const maxDocumentsToExpand = request.maxDocumentsToExpand ?? 3;
+      const maxChunksPerDocument = request.maxChunksPerDocument ?? 20;
+      const expansionThreshold = request.expansionThreshold ?? 0.3;
+
+      if (enableExpansion && searchResults.results.length > 0 && useV2) {
+        try {
+          const qualifiedDocIds = [...new Set(
+            searchResults.results
+              .filter(r => r.score >= expansionThreshold)
+              .map(r => r.chunk.documentId)
+          )].slice(0, maxDocumentsToExpand);
+
+          if (qualifiedDocIds.length > 0) {
+            const expandedChunks = await vectorServiceV2.getChunksByDocumentIds(
+              qualifiedDocIds,
+              { maxChunksPerDocument, levelFilter: [2] }
+            );
+
+            const existingChunkIds = new Set(
+              searchResults.results.map(r => `${r.chunk.documentId}:${r.chunk.chunkIndex}`)
+            );
+
+            const newChunks = expandedChunks.filter(
+              c => !existingChunkIds.has(`${c.chunk.documentId}:${c.chunk.chunkIndex}`)
+            );
+
+            const expansionResults = newChunks.map(c => ({
+              ...c,
+              score: 0.1,
+            }));
+
+            searchResults.results = [...searchResults.results, ...expansionResults];
+            console.log(`📄 Streaming Document Expansion: Added ${newChunks.length} chunks from ${qualifiedDocIds.length} document(s)`);
+          }
+        } catch (expansionError) {
+          console.warn('⚠️ Streaming document expansion failed:', expansionError);
+        }
       }
 
       const hasRelevantSources = searchResults.results.length > 0

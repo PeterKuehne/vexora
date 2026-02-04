@@ -25,6 +25,7 @@ import { DEFAULT_CHUNKER_CONFIG } from '../../types/chunking.js';
 import { SemanticChunker, DEFAULT_SEMANTIC_CONFIG } from './SemanticChunker.js';
 import { TableChunker, DEFAULT_TABLE_CONFIG } from './TableChunker.js';
 import { HierarchicalIndexer, DEFAULT_HIERARCHICAL_CONFIG } from './HierarchicalIndexer.js';
+import { contextualRetrieval, type ContextualChunk } from '../rag/ContextualRetrieval.js';
 
 // ============================================
 // Pipeline Class
@@ -112,10 +113,10 @@ export class ChunkingPipeline {
     // Step 3: Merge table chunks into all chunks
     allChunks = [...allChunks, ...tableChunks];
 
-    // Step 4: Apply hierarchical indexing
+    // Step 4: Apply hierarchical indexing (now async for abstractive summaries)
     console.log('🏗️  Building hierarchy...');
     const { docChunk, sectionChunks, hierarchy, updatedChunks } =
-      this.hierarchicalIndexer.createHierarchy(
+      await this.hierarchicalIndexer.createHierarchy(
         documentId,
         blocks,
         allChunks,
@@ -138,18 +139,49 @@ export class ChunkingPipeline {
       finalChunks[i].totalChunks = finalChunks.length;
     }
 
-    // Step 5: Calculate statistics
+    // Step 5: Apply Contextual Retrieval (if enabled)
+    // This adds LLM-generated context to improve retrieval quality
+    let enrichedChunks: Chunk[] = finalChunks;
+    if (contextualRetrieval.getConfig().enabled) {
+      console.log('🧠 Applying Contextual Retrieval...');
+      const contextualChunks = await contextualRetrieval.enrichChunksWithContext(
+        finalChunks,
+        fullText,
+        metadata.title
+      );
+      // Use contextualContent for chunks that have it
+      enrichedChunks = contextualChunks.map(chunk => {
+        const contextual = chunk as ContextualChunk;
+        if (contextual.contextualContent) {
+          return {
+            ...chunk,
+            content: contextual.contextualContent,
+            metadata: {
+              ...chunk.metadata,
+              hasContextualContext: true,
+              originalContent: chunk.content, // Store original for display
+            },
+          };
+        }
+        return chunk;
+      });
+    }
+
+    // Step 6: Calculate statistics
     const processingTimeMs = Date.now() - startTime;
-    const stats = this.calculateStats(finalChunks, tableChunks, processingTimeMs);
+    const stats = this.calculateStats(enrichedChunks, tableChunks, processingTimeMs);
 
     console.log(`✅ ChunkingPipeline complete:`);
     console.log(`   Total chunks: ${stats.totalChunks}`);
     console.log(`   Avg chunk size: ${stats.avgChunkSize} chars`);
     console.log(`   Processing time: ${stats.processingTimeMs}ms`);
+    if (contextualRetrieval.getConfig().enabled) {
+      console.log(`   Contextual contexts: ${enrichedChunks.filter(c => c.metadata.hasContextualContext).length}`);
+    }
 
     return {
       documentId,
-      chunks: finalChunks,
+      chunks: enrichedChunks,
       tableChunks,
       hierarchy,
       stats,

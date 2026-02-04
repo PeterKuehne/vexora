@@ -80,6 +80,18 @@ export interface ChunkMetadata {
   sourceBlockPositions?: number[];
   /** Semantic similarity score (for semantic chunks) */
   semanticBreakpointScore?: number;
+  /** Overlap content from previous chunk (prefix) for context preservation */
+  overlapPrefix?: string;
+  /** Overlap content for next chunk (suffix) */
+  overlapSuffix?: string;
+  /** Size of overlap in characters */
+  overlapSize?: number;
+  /** Whether chunk has contextual retrieval context added */
+  hasContextualContext?: boolean;
+  /** Original content before contextual context was prepended */
+  originalContent?: string;
+  /** Whether summary was generated using LLM (abstractive) vs extractive */
+  isAbstractiveSummary?: boolean;
 }
 
 /**

@@ -5,6 +5,8 @@
  * Analyzes queries and selects optimal retrieval strategy
  */
 
+import type { ChunkLevel } from '../../types/chunking.js';
+
 export type QueryType =
   | 'factual'
   | 'comparative'
@@ -28,6 +30,8 @@ export interface QueryAnalysis {
   requiresTable: boolean;
   suggestedStrategy: RetrievalStrategy;
   confidence: number;
+  // NEW: Recommended level filter based on query type
+  recommendedLevelFilter: ChunkLevel[];
 }
 
 export interface QueryRouterConfig {
@@ -80,6 +84,9 @@ export class QueryRouter {
     // 7. Calculate confidence
     const confidence = this.calculateConfidence(query, queryType);
 
+    // 8. Determine recommended level filter based on query type
+    const recommendedLevelFilter = this.getLevelFilterForQueryType(queryType, isMultiHop);
+
     return {
       queryType,
       entities,
@@ -88,7 +95,40 @@ export class QueryRouter {
       requiresTable,
       suggestedStrategy,
       confidence,
+      recommendedLevelFilter,
     };
+  }
+
+  /**
+   * Get recommended level filter based on query type
+   * Level 0: Document summary
+   * Level 1: Section summaries
+   * Level 2: Paragraph-level chunks
+   */
+  private getLevelFilterForQueryType(queryType: QueryType, isMultiHop: boolean): ChunkLevel[] {
+    // For overview/aggregation questions, include all levels
+    if (queryType === 'aggregative') {
+      return [0, 1, 2] as ChunkLevel[];
+    }
+
+    // For multi-hop or relational queries, include sections for context
+    if (isMultiHop || queryType === 'relational') {
+      return [1, 2] as ChunkLevel[];
+    }
+
+    // For comparative questions, sections help with structure
+    if (queryType === 'comparative') {
+      return [1, 2] as ChunkLevel[];
+    }
+
+    // For procedural questions (how-to), sections + paragraphs
+    if (queryType === 'procedural') {
+      return [1, 2] as ChunkLevel[];
+    }
+
+    // For factual and temporal questions, paragraph-level is usually sufficient
+    // But include sections for better context
+    return [1, 2] as ChunkLevel[];
   }
 
   /**

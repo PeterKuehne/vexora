@@ -313,7 +313,7 @@ export class SemanticChunker {
   }
 
   /**
-   * Create chunks from sentence groups, applying size constraints
+   * Create chunks from sentence groups, applying size constraints and overlap
    */
   private createChunksFromGroups(
     documentId: string,
@@ -375,12 +375,64 @@ export class SemanticChunker {
       }
     }
 
+    // Apply overlap between chunks for context preservation
+    this.applyOverlapToChunks(chunks);
+
     // Update totalChunks for all chunks
     for (const chunk of chunks) {
       chunk.totalChunks = chunks.length;
     }
 
     return chunks;
+  }
+
+  /**
+   * Apply overlap between adjacent chunks for context preservation
+   * Stores overlap content in metadata without duplicating in main content
+   */
+  private applyOverlapToChunks(chunks: Chunk[]): void {
+    if (this.config.overlapSize <= 0 || chunks.length < 2) {
+      return;
+    }
+
+    for (let i = 1; i < chunks.length; i++) {
+      const prevChunk = chunks[i - 1]!;
+      const currentChunk = chunks[i]!;
+
+      // Extract overlap from end of previous chunk
+      const overlapText = this.extractOverlapText(prevChunk.content, this.config.overlapSize);
+
+      if (overlapText.length > 0) {
+        // Store overlap in metadata (not duplicated in content for embedding efficiency)
+        currentChunk.metadata.overlapPrefix = overlapText;
+        currentChunk.metadata.overlapSize = overlapText.length;
+
+        // Also store what becomes the suffix for the previous chunk
+        prevChunk.metadata.overlapSuffix = overlapText;
+      }
+    }
+
+    console.log(`🔗 Applied ${this.config.overlapSize} char overlap to ${chunks.length - 1} chunk boundaries`);
+  }
+
+  /**
+   * Extract overlap text from the end of content, respecting word boundaries
+   */
+  private extractOverlapText(content: string, targetSize: number): string {
+    if (content.length <= targetSize) {
+      return content;
+    }
+
+    // Start from targetSize characters before the end
+    let startPos = content.length - targetSize;
+
+    // Find the next word boundary (space) to avoid cutting words
+    const spacePos = content.indexOf(' ', startPos);
+    if (spacePos !== -1 && spacePos < content.length - 10) {
+      startPos = spacePos + 1; // Start after the space
+    }
+
+    return content.slice(startPos).trim();
   }
 
   /**

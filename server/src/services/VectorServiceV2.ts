@@ -294,6 +294,7 @@ class VectorServiceV2 {
   async storeChunks(
     chunks: Chunk[],
     documentMetadata: {
+      documentId: string; // Required: The PostgreSQL document ID
       filename: string;
       originalName: string;
       pageCount: number;
@@ -319,9 +320,11 @@ class VectorServiceV2 {
       const embeddings = await embeddingService.generateEmbeddings(texts, EMBEDDING_MODEL);
 
       // Prepare objects for batch insert
+      // IMPORTANT: Use documentMetadata.documentId (from PostgreSQL) instead of chunk.documentId (from parser)
+      // This ensures consistency between PostgreSQL and Weaviate for permission filtering
       const objects = chunks.map((chunk, i) => ({
         properties: {
-          documentId: chunk.documentId,
+          documentId: documentMetadata.documentId,
           content: chunk.content,
           chunkIndex: chunk.chunkIndex,
           totalChunks: chunk.totalChunks,
@@ -471,40 +474,61 @@ class VectorServiceV2 {
 
   /**
    * Enrich results with parent chunk context
+   * FIX: Derive parent paths from child paths instead of using parentChunkId
+   * (parentChunkId contains internal IDs that aren't stored as searchable properties)
    */
   private async enrichWithParentContext(
     results: SearchResultV2[],
     collection: any
   ): Promise<SearchResultV2[]> {
-    const parentIds = new Set<string>();
+    // Derive parent paths from child paths
+    // e.g., "doc/section-1/chunk-0" -> "doc/section-1"
+    const parentPaths = new Set<string>();
 
     for (const result of results) {
-      if (result.chunk.parentChunkId) {
-        parentIds.add(result.chunk.parentChunkId);
+      if (result.chunk.level === 2 && result.chunk.path) {
+        // Level 2 chunks have parents at level 1
+        const pathParts = result.chunk.path.split('/');
+        if (pathParts.length >= 2) {
+          // Remove the last segment (chunk-N) to get parent path
+          const parentPath = pathParts.slice(0, -1).join('/');
+          if (parentPath && parentPath !== 'doc') {
+            parentPaths.add(parentPath);
+          }
+        }
       }
     }
 
-    if (parentIds.size === 0) {
+    if (parentPaths.size === 0) {
       return results;
     }
 
-    // Fetch parent chunks
+    // Fetch parent chunks by their paths
     try {
       const parentResults = await collection.query.fetchObjects({
-        where: collection.filter.byProperty('path').containsAny([...parentIds]),
-        limit: parentIds.size,
+        filters: Filters.or(
+          ...[...parentPaths].map(path =>
+            collection.filter.byProperty('path').equal(path)
+          )
+        ),
+        limit: parentPaths.size,
       });
 
-      // Create a map of parent content
+      // Create a map of parent path -> content
       const parentMap = new Map<string, string>();
       for (const parent of parentResults.objects) {
         parentMap.set(parent.properties.path, parent.properties.content);
       }
 
+      console.log(`📎 Parent context: Found ${parentMap.size} of ${parentPaths.size} parent chunks`);
+
       // Enrich results with parent context
       return results.map((result) => {
-        if (result.chunk.parentChunkId && parentMap.has(result.chunk.path.split('/').slice(0, -1).join('/'))) {
-          const parentContent = parentMap.get(result.chunk.path.split('/').slice(0, -1).join('/'));
+        if (result.chunk.level === 2 && result.chunk.path) {
+          const pathParts = result.chunk.path.split('/');
+          const parentPath = pathParts.slice(0, -1).join('/');
+          const parentContent = parentMap.get(parentPath);
+
           if (parentContent) {
             return {
               ...result,
@@ -518,7 +542,7 @@ class VectorServiceV2 {
         return result;
       });
     } catch (error) {
-      console.warn('Failed to fetch parent context:', error);
+      console.warn('⚠️ Failed to fetch parent context:', error);
       return results;
     }
   }
@@ -568,6 +592,98 @@ class VectorServiceV2 {
     } catch (error) {
       console.error('❌ Failed to get chunk count:', error);
       return 0;
+    }
+  }
+
+  /**
+   * Document Expansion: Get all chunks for given document IDs
+   * This is crucial for ensuring complete document context is available to the LLM
+   */
+  async getChunksByDocumentIds(
+    documentIds: string[],
+    options?: {
+      maxChunksPerDocument?: number;
+      levelFilter?: number[];
+    }
+  ): Promise<SearchResultV2[]> {
+    await this.initialize();
+
+    if (!this.client) {
+      throw new Error('Weaviate client not initialized');
+    }
+
+    if (documentIds.length === 0) {
+      return [];
+    }
+
+    const maxChunksPerDocument = options?.maxChunksPerDocument || 50;
+
+    try {
+      const collection = this.client.collections.get<DocumentChunkV2Properties>(COLLECTION_NAME_V2);
+
+      // Build filter for document IDs
+      const filters: any[] = [
+        collection.filter.byProperty('documentId').containsAny(documentIds)
+      ];
+
+      // Optional level filter
+      if (options?.levelFilter && options.levelFilter.length > 0) {
+        filters.push(collection.filter.byProperty('level').containsAny(options.levelFilter));
+      }
+
+      // Combine filters
+      const combinedFilter = filters.length === 1
+        ? filters[0]
+        : Filters.and(...filters);
+
+      // Fetch all chunks for these documents
+      const result = await collection.query.fetchObjects({
+        filters: combinedFilter,
+        limit: documentIds.length * maxChunksPerDocument,
+      });
+
+      // Map to SearchResultV2 format
+      const results: SearchResultV2[] = result.objects.map((obj) => ({
+        chunk: {
+          id: obj.uuid,
+          documentId: obj.properties.documentId,
+          content: obj.properties.content,
+          chunkIndex: obj.properties.chunkIndex,
+          totalChunks: obj.properties.totalChunks,
+          level: obj.properties.level as ChunkLevel,
+          parentChunkId: obj.properties.parentChunkId || null,
+          path: obj.properties.path,
+          chunkingMethod: obj.properties.chunkingMethod,
+          pageStart: obj.properties.pageStart,
+          pageEnd: obj.properties.pageEnd,
+          tokenCount: obj.properties.tokenCount,
+          filename: obj.properties.filename,
+          originalName: obj.properties.originalName,
+          pageCount: obj.properties.pageCount,
+        },
+        score: 1.0, // Expansion chunks don't have a search score
+        document: {
+          id: obj.properties.documentId,
+          filename: obj.properties.filename,
+          originalName: obj.properties.originalName,
+          pages: obj.properties.pageCount,
+        },
+      }));
+
+      // Sort by documentId, then by chunkIndex for proper ordering
+      results.sort((a, b) => {
+        if (a.chunk.documentId !== b.chunk.documentId) {
+          return a.chunk.documentId.localeCompare(b.chunk.documentId);
+        }
+        return a.chunk.chunkIndex - b.chunk.chunkIndex;
+      });
+
+      console.log(`📄 Document Expansion: Loaded ${results.length} chunks for ${documentIds.length} document(s)`);
+
+      return results;
+    } catch (error) {
+      console.error('❌ Failed to get chunks by document IDs:', error);
+      throw error;
     }
   }
 

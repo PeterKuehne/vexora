@@ -17,6 +17,7 @@ import type {
   ChunkHierarchyNode,
   HierarchicalIndexerConfig,
 } from '../../types/chunking.js';
+import { ollamaService } from '../OllamaService.js';
 
 // ============================================
 // Default Configuration
@@ -28,6 +29,34 @@ export const DEFAULT_HIERARCHICAL_CONFIG: HierarchicalIndexerConfig = {
   maxSummaryLength: 500,
   sectionHeadingLevels: [1, 2],
 };
+
+// Extended config for abstractive summaries
+interface AbstractiveSummaryConfig {
+  enabled: boolean;
+  model: string;
+  maxInputLength: number;
+}
+
+const ABSTRACTIVE_SUMMARY_CONFIG: AbstractiveSummaryConfig = {
+  enabled: process.env.ABSTRACTIVE_SUMMARIES_ENABLED === 'true',
+  model: process.env.ABSTRACTIVE_SUMMARIES_MODEL || 'qwen3:14b',
+  maxInputLength: 6000, // Truncate input to this length for LLM
+};
+
+// Prompts for abstractive summaries
+const DOC_SUMMARY_PROMPT = `Fasse das folgende Dokument in 2-3 Sätzen zusammen. Die Zusammenfassung soll die wichtigsten Themen und Kernaussagen des Dokuments enthalten. Antworte NUR mit der Zusammenfassung, ohne Einleitung.
+
+Dokument:
+{CONTENT}
+
+Zusammenfassung:`;
+
+const SECTION_SUMMARY_PROMPT = `Fasse den folgenden Abschnitt "{TITLE}" in 1-2 Sätzen zusammen. Die Zusammenfassung soll die Kernpunkte des Abschnitts enthalten. Antworte NUR mit der Zusammenfassung, ohne Einleitung.
+
+Abschnitt:
+{CONTENT}
+
+Zusammenfassung:`;
 
 // ============================================
 // Utility Functions
@@ -146,31 +175,34 @@ function detectSections(
 
 export class HierarchicalIndexer {
   private config: HierarchicalIndexerConfig;
+  private abstractiveConfig: AbstractiveSummaryConfig;
 
   constructor(config?: Partial<HierarchicalIndexerConfig>) {
     this.config = { ...DEFAULT_HIERARCHICAL_CONFIG, ...config };
+    this.abstractiveConfig = { ...ABSTRACTIVE_SUMMARY_CONFIG };
   }
 
   /**
    * Create hierarchical structure from content blocks
+   * Now supports async abstractive summaries via LLM
    */
-  createHierarchy(
+  async createHierarchy(
     documentId: string,
     blocks: ContentBlock[],
     existingChunks: Chunk[],
     documentTitle?: string
-  ): {
+  ): Promise<{
     docChunk: Chunk | null;
     sectionChunks: Chunk[];
     hierarchy: ChunkHierarchyNode;
     updatedChunks: Chunk[];
-  } {
+  }> {
     let docChunk: Chunk | null = null;
     const sectionChunks: Chunk[] = [];
 
     // Create document-level chunk (Level 0)
     if (this.config.generateDocSummary) {
-      docChunk = this.createDocumentChunk(documentId, blocks, documentTitle);
+      docChunk = await this.createDocumentChunk(documentId, blocks, documentTitle);
     }
 
     // Detect sections
@@ -179,8 +211,8 @@ export class HierarchicalIndexer {
     // Create section-level chunks (Level 1)
     if (this.config.generateSectionSummaries && sections.length > 0) {
       for (let i = 0; i < sections.length; i++) {
-        const section = sections[i];
-        const sectionChunk = this.createSectionChunk(
+        const section = sections[i]!;
+        const sectionChunk = await this.createSectionChunk(
           documentId,
           section,
           i,
@@ -215,20 +247,35 @@ export class HierarchicalIndexer {
 
   /**
    * Create document-level summary chunk
+   * Supports both extractive and abstractive (LLM-generated) summaries
    */
-  private createDocumentChunk(
+  private async createDocumentChunk(
     documentId: string,
     blocks: ContentBlock[],
     title?: string
-  ): Chunk {
+  ): Promise<Chunk> {
     // Collect text for summary
     const textBlocks = blocks.filter(
       (b) => b.type === 'paragraph' || b.type === 'heading'
     );
     const fullText = textBlocks.map((b) => b.content).join(' ');
 
-    // Create extractive summary
-    const summary = createExtractiveSummary(fullText, this.config.maxSummaryLength);
+    // Create summary (abstractive or extractive)
+    let summary: string;
+    let isAbstractive = false;
+
+    if (this.abstractiveConfig.enabled) {
+      try {
+        summary = await this.generateAbstractiveSummary(fullText, 'document', title);
+        isAbstractive = true;
+        console.log('📝 Generated abstractive document summary');
+      } catch (error) {
+        console.warn('⚠️ Abstractive summary failed, using extractive:', error);
+        summary = createExtractiveSummary(fullText, this.config.maxSummaryLength);
+      }
+    } else {
+      summary = createExtractiveSummary(fullText, this.config.maxSummaryLength);
+    }
 
     // Build content with title if available
     let content = '';
@@ -258,27 +305,41 @@ export class HierarchicalIndexer {
       charCount: content.length,
       metadata: {
         sectionTitle: title,
+        isAbstractiveSummary: isAbstractive,
       },
     };
   }
 
   /**
    * Create section-level summary chunk
+   * Supports both extractive and abstractive (LLM-generated) summaries
    */
-  private createSectionChunk(
+  private async createSectionChunk(
     documentId: string,
     section: Section,
     sectionIndex: number,
     parentChunkId: string | null
-  ): Chunk {
+  ): Promise<Chunk> {
     // Collect text for summary
     const textBlocks = section.blocks.filter(
       (b) => b.type === 'paragraph' || b.type === 'heading'
     );
     const fullText = textBlocks.map((b) => b.content).join(' ');
 
-    // Create extractive summary
-    const summary = createExtractiveSummary(fullText, this.config.maxSummaryLength);
+    // Create summary (abstractive or extractive)
+    let summary: string;
+    let isAbstractive = false;
+
+    if (this.abstractiveConfig.enabled) {
+      try {
+        summary = await this.generateAbstractiveSummary(fullText, 'section', section.title);
+        isAbstractive = true;
+      } catch (error) {
+        summary = createExtractiveSummary(fullText, this.config.maxSummaryLength);
+      }
+    } else {
+      summary = createExtractiveSummary(fullText, this.config.maxSummaryLength);
+    }
 
     // Build content
     const content = `Section: ${section.title}\n\nSummary: ${summary}`;
@@ -300,8 +361,49 @@ export class HierarchicalIndexer {
       metadata: {
         sectionTitle: section.title,
         headingLevel: section.level,
+        isAbstractiveSummary: isAbstractive,
       },
     };
+  }
+
+  /**
+   * Generate an abstractive summary using LLM
+   */
+  private async generateAbstractiveSummary(
+    text: string,
+    type: 'document' | 'section',
+    title?: string
+  ): Promise<string> {
+    // Truncate input if too long
+    const truncatedText = text.length > this.abstractiveConfig.maxInputLength
+      ? text.substring(0, this.abstractiveConfig.maxInputLength) + '...'
+      : text;
+
+    // Select prompt based on type
+    const prompt = type === 'document'
+      ? DOC_SUMMARY_PROMPT.replace('{CONTENT}', truncatedText)
+      : SECTION_SUMMARY_PROMPT
+          .replace('{TITLE}', title || 'Abschnitt')
+          .replace('{CONTENT}', truncatedText);
+
+    const response = await ollamaService.chat({
+      model: this.abstractiveConfig.model,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    // Clean and return the summary
+    let summary = response.message.content.trim();
+
+    // Truncate if too long
+    if (summary.length > this.config.maxSummaryLength) {
+      summary = summary.substring(0, this.config.maxSummaryLength);
+      const lastPeriod = summary.lastIndexOf('.');
+      if (lastPeriod > summary.length * 0.5) {
+        summary = summary.substring(0, lastPeriod + 1);
+      }
+    }
+
+    return summary;
   }
 
   /**
