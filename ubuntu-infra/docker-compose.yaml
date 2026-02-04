@@ -1,0 +1,155 @@
+# Ubuntu Infrastructure - RAG Stack
+# Ubuntu Server: 192.168.178.23
+#
+# Start: docker compose up -d
+# Stop:  docker compose down
+# Logs:  docker compose logs -f
+
+services:
+  # ===========================================
+  # PostgreSQL mit pgvector (RAG)
+  # ===========================================
+  postgres:
+    image: docker.io/pgvector/pgvector:pg17
+    container_name: postgres
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ===========================================
+  # Weaviate Vector Database (RAG)
+  # ===========================================
+  weaviate:
+    image: cr.weaviate.io/semitechnologies/weaviate:1.28.4
+    container_name: weaviate
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:8080:8080"
+      - "0.0.0.0:50051:50051"
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
+      DEFAULT_VECTORIZER_MODULE: "none"
+      ENABLE_MODULES: ""
+      CLUSTER_HOSTNAME: "node1"
+      LOG_LEVEL: "info"
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/v1/.well-known/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # ===========================================
+  # Redis Cache (RAG Performance)
+  # Phase 6: Production Hardening
+  # ===========================================
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:6379:6379"
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 600M
+
+  # ===========================================
+  # Neo4j Graph Database (Knowledge Graph RAG)
+  # Phase 4: Intelligence & Production
+  # ===========================================
+  neo4j:
+    image: neo4j:5.26-community  # LTS version - supported until Nov 2028
+    container_name: neo4j
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:7474:7474"  # HTTP Browser
+      - "0.0.0.0:7687:7687"  # Bolt Protocol
+    environment:
+      # Authentication - set NEO4J_PASSWORD in .env
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-changeme}
+
+      # Enable APOC plugin for graph algorithms
+      NEO4J_PLUGINS: '["apoc"]'
+
+      # Memory settings - adjust based on dataset size
+      NEO4J_dbms_memory_heap_initial__size: 1G
+      NEO4J_dbms_memory_heap_max__size: 4G
+      NEO4J_dbms_memory_pagecache_size: 1G
+
+      # Performance tuning
+      NEO4J_dbms_memory_transaction_total_max: 512m
+      NEO4J_db_tx__log_rotation_retention__policy: 2 days
+
+      # APOC configuration
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*
+      NEO4J_dbms_security_procedures_allowlist: apoc.*
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_plugins:/plugins
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "${NEO4J_PASSWORD:-changeme}", "RETURN 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+        reservations:
+          memory: 2G
+
+volumes:
+  postgres_data:
+    name: vexora_postgres_data
+  weaviate_data:
+    name: vexora_weaviate_data
+  redis_data:
+    name: vexora_redis_data
+  neo4j_data:
+    name: vexora_neo4j_data
+  neo4j_logs:
+    name: vexora_neo4j_logs
+  neo4j_plugins:
+    name: vexora_neo4j_plugins
+
+networks:
+  default:
+    name: vexora_network
