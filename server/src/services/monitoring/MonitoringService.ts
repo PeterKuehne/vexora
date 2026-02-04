@@ -174,7 +174,13 @@ export class MonitoringService {
           COUNT(*) as total_queries,
           AVG(total_latency_ms) as avg_latency,
           COUNT(*) FILTER (WHERE NOT success) * 1.0 / NULLIF(COUNT(*), 0) as error_rate,
-          AVG((spans->0->>'metadata')::jsonb->>'groundedness')::float as avg_groundedness
+          AVG(CASE
+            WHEN jsonb_array_length(spans) > 0
+              AND spans->0->'metadata' IS NOT NULL
+              AND spans->0->'metadata'->>'groundedness' IS NOT NULL
+            THEN (spans->0->'metadata'->>'groundedness')::float
+            ELSE NULL
+          END) as avg_groundedness
         FROM rag_traces
         WHERE timestamp > NOW() - INTERVAL '24 hours'
       `);
