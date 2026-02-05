@@ -631,6 +631,12 @@ class RAGService {
       rerankTopK = 5,
     } = request
 
+    // Start trace for streaming (same as non-streaming for monitoring)
+    const userId = userContext?.userId || 'anonymous';
+    const sessionId = request.messages[0]?.content?.substring(0, 32) || 'unknown';
+    const traceId = this.tracingService.startTrace(userId, sessionId, query.length);
+    const startTime = Date.now();
+
     try {
       // Step 1: Get accessible document IDs for this user (same permission logic as generateResponse)
       let allowedDocumentIds: string[] | undefined;
@@ -679,6 +685,17 @@ class RAGService {
       const useGraph = request.useGraph ?? (queryAnalysis.requiresGraph && this.graphInitialized);
       console.log(`🔀 Streaming Query routed: type=${queryAnalysis.queryType}, levels=${levelFilter.join(',')}, useGraph=${useGraph}`);
 
+      // Set trace metadata
+      if (traceId) {
+        this.tracingService.setTraceMetadata(traceId, {
+          queryType: queryAnalysis.queryType,
+          retrievalStrategy: queryAnalysis.suggestedStrategy,
+        });
+      }
+
+      // Start search span
+      const searchSpanId = traceId ? this.tracingService.startSpan(traceId, 'vector_search') : '';
+
       let searchResults: VectorSearchResponse
 
       if (useV2) {
@@ -717,6 +734,14 @@ class RAGService {
           hybridAlpha,
           allowedDocumentIds,
         })
+      }
+
+      // End search span
+      if (traceId && searchSpanId) {
+        this.tracingService.endSpan(traceId, searchSpanId, {
+          resultsCount: searchResults.results.length,
+          strategy: useV2 ? 'v2_hierarchical' : 'v1_standard',
+        });
       }
 
       // Apply reranking if enabled (same as non-streaming version)
@@ -874,49 +899,62 @@ class RAGService {
         score: result.score,
       }))
 
-      // Step 6: Wrap the original stream to cleanup user context when done
-      let wrappedStream = ollamaResponse.body || new ReadableStream();
+      // Step 6: Wrap the original stream to cleanup user context and end trace when done
+      const originalStream = ollamaResponse.body || new ReadableStream();
+      const tracingService = this.tracingService;
+      const totalLatency = Date.now() - startTime;
 
-      if (userContext) {
-        const originalStream = wrappedStream;
-        wrappedStream = new ReadableStream({
-          start(controller) {
-            const reader = originalStream.getReader();
+      const wrappedStream = new ReadableStream({
+        start(controller) {
+          const reader = originalStream.getReader();
 
-            const pump = async (): Promise<void> => {
-              try {
-                while (true) {
-                  const { done, value } = await reader.read();
+          const pump = async (): Promise<void> => {
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
 
-                  if (done) {
-                    // Cleanup user context when stream ends
+                if (done) {
+                  // End trace on successful completion
+                  if (traceId) {
+                    await tracingService.endTrace(traceId, true, totalLatency);
+                  }
+
+                  // Cleanup user context when stream ends
+                  if (userContext) {
                     try {
                       await documentService.clearUserContext();
                       console.log('🧹 Cleaned up user context after streaming RAG completion');
                     } catch (cleanupError) {
                       console.error('❌ Failed to cleanup user context after streaming:', cleanupError);
                     }
-                    controller.close();
-                    break;
                   }
-
-                  controller.enqueue(value);
+                  controller.close();
+                  break;
                 }
-              } catch (error) {
-                // Cleanup user context on error too
+
+                controller.enqueue(value);
+              }
+            } catch (error) {
+              // End trace on error
+              if (traceId) {
+                await tracingService.endTrace(traceId, false, totalLatency);
+              }
+
+              // Cleanup user context on error too
+              if (userContext) {
                 try {
                   await documentService.clearUserContext();
                 } catch (cleanupError) {
                   console.error('❌ Failed to cleanup user context after streaming error:', cleanupError);
                 }
-                controller.error(error);
               }
-            };
+              controller.error(error);
+            }
+          };
 
-            pump();
-          },
-        });
-      }
+          pump();
+        },
+      });
 
       return {
         stream: wrappedStream,
@@ -926,6 +964,11 @@ class RAGService {
       }
     } catch (error) {
       console.error('❌ RAG streaming generation failed:', error)
+
+      // End trace on error
+      if (traceId) {
+        await this.tracingService.endTrace(traceId, false, Date.now() - startTime);
+      }
 
       // Ensure user context cleanup on initialization error
       if (request.userContext) {
