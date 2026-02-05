@@ -161,7 +161,7 @@ Der Level-Filter wird dynamisch basierend auf Query-Typ angepasst:
 
 - [x] Aggregative Queries durchsuchen alle Level
 - [x] Factual Queries durchsuchen Level 1+2 (geändert für besseren Kontext)
-- [ ] Level-Filter kann manuell überschrieben werden
+- [x] Level-Filter kann manuell überschrieben werden
 - [x] Default-Verhalten ist `[1, 2]`
 
 ### 4.5 Implementierung (2026-02-05)
@@ -187,7 +187,20 @@ Der Level-Filter wird dynamisch basierend auf Query-Typ angepasst:
 **Logging:**
 ```
 🔀 Query routed: type=factual, strategy=hybrid, entities=1, levels=1,2
+🔀 Query routed: type=factual, strategy=hybrid, entities=1, levels=0,1,2 (manual)
 🔍 Using V2 hierarchical search with levelFilter=1,2
+```
+
+**Manueller Override (2026-02-05):**
+```typescript
+// RAGRequest Interface erweitert um levelFilter
+levelFilter?: ChunkLevel[] // [0]=doc, [1]=section, [2]=paragraph
+
+// Beispiel: Nur Document-Summaries durchsuchen
+await ragService.generateResponse({
+  ...request,
+  levelFilter: [0] // Nur Level 0 (Document Summaries)
+});
 ```
 
 ---

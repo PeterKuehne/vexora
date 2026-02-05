@@ -15,6 +15,7 @@ import { LoggerService } from './LoggerService.js'
 import { rerankerService, type RerankerResult } from './rag/RerankerService.js'
 import { GraphService, createGraphServiceFromEnv } from './graph/index.js'
 import type { RefinedResult } from '../types/graph.js'
+import type { ChunkLevel } from '../types/chunking.js'
 // Phase 5: Query Intelligence & Observability
 import { QueryRouter, type QueryAnalysis, type RetrievalStrategy } from './rag/QueryRouter.js'
 import { TracingService, type SpanName } from './observability/TracingService.js'
@@ -51,6 +52,7 @@ export interface RAGRequest {
   // V2 options
   useV2?: boolean
   includeParentContext?: boolean
+  levelFilter?: ChunkLevel[] // Manual override for chunk level filter (0=doc, 1=section, 2=paragraph)
   // NEW: Graph RAG options (Phase 4)
   useGraph?: boolean
   graphMaxDepth?: number
@@ -238,13 +240,13 @@ class RAGService {
         });
       }
 
-      console.log(`🔀 Query routed: type=${queryAnalysis.queryType}, strategy=${queryAnalysis.suggestedStrategy}, entities=${queryAnalysis.entities.length}, levels=${queryAnalysis.recommendedLevelFilter.join(',')}`);
+      // Use manual level filter if provided, otherwise use query-type-based filter from router
+      const levelFilter = request.levelFilter ?? queryAnalysis.recommendedLevelFilter;
+
+      console.log(`🔀 Query routed: type=${queryAnalysis.queryType}, strategy=${queryAnalysis.suggestedStrategy}, entities=${queryAnalysis.entities.length}, levels=${levelFilter.join(',')}${request.levelFilter ? ' (manual)' : ''}`);
 
       // Override graph usage based on query analysis
       const useGraph = request.useGraph ?? (queryAnalysis.requiresGraph && this.graphInitialized);
-
-      // Use query-type-based level filter from router
-      const levelFilter = queryAnalysis.recommendedLevelFilter;
 
       // Step 1: Get accessible document IDs for this user (permission-aware)
       let allowedDocumentIds: string[] | undefined;
@@ -694,9 +696,10 @@ class RAGService {
 
       // Query analysis for optimal level filter (same as non-streaming)
       const queryAnalysis = this.queryRouter.analyze(query);
-      const levelFilter = queryAnalysis.recommendedLevelFilter;
+      // Use manual level filter if provided, otherwise use query-type-based filter from router
+      const levelFilter = request.levelFilter ?? queryAnalysis.recommendedLevelFilter;
       const useGraph = request.useGraph ?? (queryAnalysis.requiresGraph && this.graphInitialized);
-      console.log(`🔀 Streaming Query routed: type=${queryAnalysis.queryType}, levels=${levelFilter.join(',')}, useGraph=${useGraph}`);
+      console.log(`🔀 Streaming Query routed: type=${queryAnalysis.queryType}, levels=${levelFilter.join(',')}${request.levelFilter ? ' (manual)' : ''}, useGraph=${useGraph}`);
 
       // Set trace metadata
       if (traceId) {
