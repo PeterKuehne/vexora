@@ -138,11 +138,25 @@ const upload = multer({
     files: 1,
   },
   fileFilter: (_req, file, cb) => {
-    // Only allow PDF files
-    if (file.mimetype === 'application/pdf') {
+    // Allow all supported document formats
+    const allowedMimeTypes = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // pptx
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+      'text/html',
+      'text/markdown',
+      'text/plain',
+      'application/octet-stream', // fallback for some browsers
+    ]
+    const allowedExtensions = ['.pdf', '.docx', '.pptx', '.xlsx', '.html', '.htm', '.md', '.markdown', '.txt']
+
+    const ext = file.originalname.toLowerCase().match(/\.[^.]+$/)?.[0]
+
+    if (allowedMimeTypes.includes(file.mimetype) || (ext && allowedExtensions.includes(ext))) {
       cb(null, true)
     } else {
-      cb(new Error('Nur PDF-Dateien sind erlaubt'))
+      cb(new Error(`Dateiformat nicht unterstützt. Erlaubt: PDF, DOCX, PPTX, XLSX, HTML, MD, TXT`))
     }
   }
 })

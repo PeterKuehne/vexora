@@ -676,7 +676,8 @@ class RAGService {
       // Query analysis for optimal level filter (same as non-streaming)
       const queryAnalysis = this.queryRouter.analyze(query);
       const levelFilter = queryAnalysis.recommendedLevelFilter;
-      console.log(`🔀 Streaming Query routed: type=${queryAnalysis.queryType}, levels=${levelFilter.join(',')}`);
+      const useGraph = request.useGraph ?? (queryAnalysis.requiresGraph && this.graphInitialized);
+      console.log(`🔀 Streaming Query routed: type=${queryAnalysis.queryType}, levels=${levelFilter.join(',')}, useGraph=${useGraph}`);
 
       let searchResults: VectorSearchResponse
 
@@ -785,6 +786,33 @@ class RAGService {
         }
       }
 
+      // Graph enrichment for streaming (Phase 4)
+      let graphContextText = '';
+      if (useGraph && this.graphInitialized && this.graphService) {
+        try {
+          const queryEntities = this.extractQueryEntities(query);
+
+          const graphRefinement = await this.graphService.refineRAGResults({
+            query,
+            queryEntities,
+            topChunks: searchResults.results.slice(0, 10).map((r) => ({
+              id: r.chunk.id,
+              content: r.chunk.content,
+              score: r.score,
+            })),
+            maxDepth: request.graphMaxDepth || 2,
+            maxNodes: request.graphMaxNodes || 50,
+          });
+
+          if (graphRefinement.shouldUseGraph) {
+            graphContextText = this.graphService.buildGraphContext(graphRefinement);
+            console.log(`🕸️ Streaming Graph enrichment: Found ${graphRefinement.graphContext.nodes.length} related entities`);
+          }
+        } catch (graphError) {
+          console.error('⚠️ Streaming graph enrichment failed (continuing without):', graphError);
+        }
+      }
+
       const hasRelevantSources = searchResults.results.length > 0
 
       if (!hasRelevantSources) {
@@ -817,9 +845,9 @@ class RAGService {
         }
       }
 
-      // Step 2: Build context and system prompt
+      // Step 2: Build context and system prompt (including graph context if available)
       const context = this.buildContext(searchResults)
-      const systemPrompt = this.buildSystemPrompt(context)
+      const systemPrompt = this.buildSystemPrompt(context, graphContextText || undefined)
 
       // Step 3: Prepare messages with RAG context
       const ragMessages: ChatMessage[] = [
