@@ -321,9 +321,27 @@ Der aktuelle Wert `hybridAlpha = 0.5` gewichtet Keyword- und Semantic-Suche glei
 
 ### 7.4 Akzeptanzkriterien
 
-- [ ] Standardwert ist `0.3`
-- [ ] Wert kann per Request überschrieben werden
-- [ ] Umgebungsvariable `HYBRID_ALPHA` wird respektiert
+- [x] Standardwert ist `0.3`
+- [x] Wert kann per Request überschrieben werden
+- [x] Umgebungsvariable `HYBRID_ALPHA` wird respektiert
+
+### 7.5 Implementierung (2026-02-05)
+
+**Status:** ✅ Implementiert
+
+**Geänderte Dateien:**
+- `server/src/services/RAGService.ts`: Neue Konstante `DEFAULT_HYBRID_ALPHA` aus Env-Variable
+- `server/src/services/VectorService.ts`: Default 0.3
+- `server/src/services/VectorServiceV2.ts`: Default 0.3
+- `server/src/validation/schemas.ts`: Default 0.3
+- `server/src/index.ts`: Alle RAG-Endpoints auf 0.3
+
+**Konfiguration:**
+```bash
+HYBRID_ALPHA=0.3  # 70% Keyword, 30% Semantic (default, optimiert für deutsche Fachtexte)
+HYBRID_ALPHA=0.5  # 50% Keyword, 50% Semantic (balanciert)
+HYBRID_ALPHA=0.7  # 30% Keyword, 70% Semantic (für narrative Texte)
+```
 
 ---
 
@@ -346,9 +364,38 @@ Reranker-Scores werden als primäre Scores verwendet und in der Ausgabe angezeig
 
 ### 8.4 Akzeptanzkriterien
 
-- [ ] Nach Reranking zeigt `score` den Reranker-Score
-- [ ] Original-Score optional als `hybridScore` verfügbar
-- [ ] Logging zeigt beide Scores
+- [x] Nach Reranking zeigt `score` den Reranker-Score
+- [x] Original-Score optional als `hybridScore` verfügbar
+- [x] Logging zeigt beide Scores
+
+### 8.5 Implementierung (2026-02-05)
+
+**Status:** ✅ Implementiert
+
+**Geänderte Dateien:**
+- `server/src/services/RAGService.ts`:
+  - `RAGSource` Interface um `hybridScore?: number` erweitert
+  - Reranking-Logik aktualisiert: `score` = Reranker-Score, `hybridScore` = Original
+  - Beide Methoden (streaming + non-streaming) aktualisiert
+
+**Funktionsweise:**
+1. Nach Reranking wird `rerankerScore` als primärer `score` verwendet
+2. Der originale Hybrid-Score wird in `hybridScore` gespeichert
+3. Logging zeigt "(using reranker scores)" an
+
+**Beispiel Response:**
+```json
+{
+  "sources": [
+    {
+      "documentId": "doc-123",
+      "documentName": "Lebenslauf.pdf",
+      "score": 0.89,        // Reranker-Score (primary)
+      "hybridScore": 0.65   // Original hybrid search score
+    }
+  ]
+}
+```
 
 ---
 

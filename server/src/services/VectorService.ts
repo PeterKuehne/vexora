@@ -302,7 +302,7 @@ class VectorService {
       throw new Error('Weaviate client not initialized');
     }
 
-    const { query, limit = 5, threshold = 0.1, hybridAlpha = 0.5, allowedDocumentIds } = request;
+    const { query, limit = 5, threshold = 0.1, hybridAlpha = 0.3, allowedDocumentIds } = request;
 
     try {
       const collection = this.client.collections.get<DocumentChunkProperties>(COLLECTION_NAME);

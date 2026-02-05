@@ -24,6 +24,10 @@ import { DatabaseService } from './DatabaseService.js'
 // V2 configuration
 const USE_V2_SEARCH = process.env.RAG_VERSION === 'v2' || process.env.CHUNKING_VERSION === 'v2'
 
+// Hybrid-Alpha: 0 = pure BM25/keyword, 1 = pure vector/semantic
+// Default 0.3 = 70% keyword, 30% semantic (optimized for German technical texts)
+const DEFAULT_HYBRID_ALPHA = parseFloat(process.env.HYBRID_ALPHA || '0.3')
+
 // ============================================
 // Types
 // ============================================
@@ -65,6 +69,7 @@ export interface RAGSource {
   pageNumber?: number
   chunkIndex: number
   score: number
+  hybridScore?: number // Original hybrid search score (before reranking)
 }
 
 export interface RAGResponse {
@@ -175,7 +180,7 @@ class RAGService {
       query,
       searchLimit = 20, // Increased to allow reranker to find best matches
       searchThreshold = 0.1, // Lowered to get more candidates for reranking
-      hybridAlpha = 0.5,
+      hybridAlpha = DEFAULT_HYBRID_ALPHA,
       rerank = true, // Enable reranking by default for better results
       rerankTopK = 5,
       userContext,
@@ -353,17 +358,24 @@ class RAGService {
         rerankResult = await rerankerService.rerank(query, chunks, rerankTopK);
         console.log(`🔧 DEBUG: Reranker returned ${rerankResult.chunks.length} chunks`);
 
-        // Reorder searchResults based on reranking
+        // Reorder searchResults based on reranking and update scores
         if (rerankResult.chunks.length > 0) {
-          const rerankedResults = rerankResult.chunks.map((chunk) => {
+          const rerankedResults = rerankResult.chunks.map((rerankedChunk) => {
             const original = searchResults.results.find(
-              (r) => r.chunk.documentId === chunk.documentId && r.chunk.chunkIndex === chunk.chunkIndex
+              (r) => r.chunk.documentId === rerankedChunk.documentId && r.chunk.chunkIndex === rerankedChunk.chunkIndex
             );
-            return original!;
-          }).filter(Boolean);
+            if (!original) return null;
+
+            // Use reranker score as primary score, keep original as hybridScore
+            return {
+              ...original,
+              score: rerankedChunk.rerankerScore, // NEW: Use reranker score
+              hybridScore: original.score,         // NEW: Preserve original score
+            };
+          }).filter(Boolean) as typeof searchResults.results;
 
           searchResults.results = rerankedResults;
-          console.log(`🔄 Reranked ${rerankResult.chunks.length} results in ${rerankResult.processingTimeMs}ms`);
+          console.log(`🔄 Reranked ${rerankResult.chunks.length} results in ${rerankResult.processingTimeMs}ms (using reranker scores)`);
         }
 
         // Phase 5: End reranking span
@@ -529,6 +541,7 @@ class RAGService {
         pageNumber: result.chunk.pageNumber,
         chunkIndex: result.chunk.chunkIndex,
         score: result.score,
+        hybridScore: (result as { hybridScore?: number }).hybridScore, // Original score before reranking
       }))
 
       // Phase 5: Output guardrails validation
@@ -625,7 +638,7 @@ class RAGService {
       query,
       searchLimit = 20, // Increased to allow reranker to find best matches
       searchThreshold = 0.1, // Lowered to get more candidates for reranking
-      hybridAlpha = 0.5,
+      hybridAlpha = DEFAULT_HYBRID_ALPHA,
       userContext,
       rerank = true, // Enable reranking by default
       rerankTopK = 5,
@@ -759,14 +772,21 @@ class RAGService {
         console.log(`🔧 DEBUG Streaming: Reranker returned ${rerankResult.chunks.length} chunks`);
 
         if (rerankResult.chunks.length > 0) {
-          const rerankedResults = rerankResult.chunks.map((chunk) => {
+          const rerankedResults = rerankResult.chunks.map((rerankedChunk) => {
             const original = searchResults.results.find(
-              (r) => r.chunk.documentId === chunk.documentId && r.chunk.chunkIndex === chunk.chunkIndex
+              (r) => r.chunk.documentId === rerankedChunk.documentId && r.chunk.chunkIndex === rerankedChunk.chunkIndex
             );
-            return original!;
-          }).filter(Boolean);
+            if (!original) return null;
+
+            // Use reranker score as primary score, keep original as hybridScore
+            return {
+              ...original,
+              score: rerankedChunk.rerankerScore,
+              hybridScore: original.score,
+            };
+          }).filter(Boolean) as typeof searchResults.results;
           searchResults.results = rerankedResults;
-          console.log(`🔄 Streaming: Reranked ${rerankResult.chunks.length} results in ${rerankResult.processingTimeMs}ms`);
+          console.log(`🔄 Streaming: Reranked ${rerankResult.chunks.length} results in ${rerankResult.processingTimeMs}ms (using reranker scores)`);
         }
       }
 
@@ -897,6 +917,7 @@ class RAGService {
         pageNumber: result.chunk.pageNumber,
         chunkIndex: result.chunk.chunkIndex,
         score: result.score,
+        hybridScore: (result as { hybridScore?: number }).hybridScore, // Original score before reranking
       }))
 
       // Step 6: Wrap the original stream to cleanup user context and end trace when done

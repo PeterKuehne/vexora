@@ -373,7 +373,7 @@ class VectorServiceV2 {
       query,
       limit = 10,
       threshold = 0.1,
-      hybridAlpha = 0.5,
+      hybridAlpha = 0.3, // 0.3 optimized for German texts (70% keyword, 30% semantic)
       allowedDocumentIds,
       levelFilter,
       includeParentContext = false,
