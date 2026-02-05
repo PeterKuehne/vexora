@@ -426,7 +426,7 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
               min="0"
               max="1"
               step="0.1"
-              value={settings.hybridSearchAlpha ?? 0.5}
+              value={settings.hybridSearchAlpha ?? 0.3}
               onChange={(e) => {
                 const value = parseFloat(e.target.value);
                 updateSetting('hybridSearchAlpha', value);
@@ -465,7 +465,7 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
                 }
               `}
             >
-              {((settings.hybridSearchAlpha ?? 0.5) * 100).toFixed(0)}%
+              {((settings.hybridSearchAlpha ?? 0.3) * 100).toFixed(0)}%
             </div>
           </div>
           <div

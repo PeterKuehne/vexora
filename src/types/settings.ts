@@ -131,7 +131,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoSave: true,
   systemPrompt: '',
   modelProfile: 'custom',
-  hybridSearchAlpha: 0.5, // Default: balanced hybrid search
+  hybridSearchAlpha: 0.3, // Default: 70% keyword, 30% semantic (optimized for German texts)
   ragTopK: 5, // Default: retrieve top 5 chunks for RAG
 };
 
