@@ -419,6 +419,13 @@ class VectorServiceV2 {
 
       console.log(`🔍 V2 Hybrid search: "${query}" (alpha: ${hybridAlpha}, results: ${result.objects.length})`);
 
+      // DEBUG: Log all scores before filtering
+      const allScores = result.objects.map((obj) => ({
+        score: obj.metadata?.score || 0,
+        content: obj.properties.content.substring(0, 50) + '...',
+      }));
+      console.log(`🔍 V2 Scores before filter (threshold=${threshold}):`, allScores.map(s => s.score.toFixed(3)).join(', '));
+
       // Map results
       let results: SearchResultV2[] = result.objects
         .filter((obj) => {

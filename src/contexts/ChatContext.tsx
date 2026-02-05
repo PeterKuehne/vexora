@@ -362,8 +362,8 @@ export function ChatProvider({ children, initialModel, selectedModel }: ChatProv
                 enabled: true,
                 query: content.trim(), // Use the user's message as query
                 searchLimit: settings.ragTopK ?? 5,
-                searchThreshold: 0.5,
-                hybridAlpha: settings.hybridSearchAlpha ?? 0.5,
+                searchThreshold: 0.1, // Low threshold to get more candidates for reranking
+                hybridAlpha: settings.hybridSearchAlpha ?? 0.3, // 0.3 optimized for German texts
               }
             }),
           }

@@ -275,7 +275,7 @@ app.post('/api/chat', authenticateToken, asyncHandler(async (req: AuthenticatedR
           model: chatRequest.model || 'qwen3:8b',
           query: ragQuery,
           searchLimit: chatRequest.rag?.searchLimit || 5,
-          searchThreshold: chatRequest.rag?.searchThreshold || 0.5,
+          searchThreshold: chatRequest.rag?.searchThreshold ?? 0.1, // 0.1 for more reranking candidates
           hybridAlpha: chatRequest.rag?.hybridAlpha ?? 0.3, // 0.3 optimized for German texts
           userContext, // NEW: Pass user context for permission filtering
         })
@@ -456,7 +456,7 @@ app.post('/api/chat', authenticateToken, asyncHandler(async (req: AuthenticatedR
           model: chatRequest.model || 'qwen3:8b',
           query: ragQuery,
           searchLimit: chatRequest.rag?.searchLimit || 5,
-          searchThreshold: chatRequest.rag?.searchThreshold || 0.5,
+          searchThreshold: chatRequest.rag?.searchThreshold ?? 0.1, // 0.1 for more reranking candidates
           hybridAlpha: chatRequest.rag?.hybridAlpha ?? 0.3, // 0.3 optimized for German texts
           userContext, // NEW: Pass user context for permission filtering
         })
@@ -1064,7 +1064,7 @@ app.post('/api/documents/bulk-delete', authenticateToken, asyncHandler(async (re
 
 // RAG search endpoint - search for relevant documents
 app.post('/api/rag/search', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-  const { query, searchLimit = 5, searchThreshold = 0.5, hybridAlpha = 0.3 } = req.body
+  const { query, searchLimit = 5, searchThreshold = 0.1, hybridAlpha = 0.3 } = req.body
 
   if (!query || typeof query !== 'string') {
     res.status(400).json({
@@ -1121,7 +1121,7 @@ app.post('/api/rag/chat', authenticateToken, asyncHandler(async (req: Authentica
     query,
     model = 'qwen3:8b',
     searchLimit = 5,
-    searchThreshold = 0.5,
+    searchThreshold = 0.1, // 0.1 for more reranking candidates
     hybridAlpha = 0.3 // 0.3 optimized for German texts
   } = req.body
 
