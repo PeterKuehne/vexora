@@ -1466,7 +1466,9 @@ app.use(notFoundHandler)
 app.use(errorHandler)
 
 // Start server with HTTP server (for both Express and Socket.io)
-httpServer.listen(env.PORT, async () => {
+
+// Use event listener instead of callback (more reliable)
+httpServer.on('listening', async () => {
   console.log(`🚀 Server running on port ${env.PORT}`)
 
   // Initialize reranker service (Phase 1 - RAG V2)
@@ -1475,7 +1477,21 @@ httpServer.listen(env.PORT, async () => {
   } catch (error) {
     console.warn('⚠️  Reranker service initialization failed:', error)
   }
+
+  // Initialize RAG service with database (for Graph RAG - Phase 4)
+  try {
+    await ragService.initialize(databaseService)
+    console.log('✅ RAG service initialized (Graph RAG enabled:', process.env.GRAPH_ENABLED === 'true', ')')
+  } catch (error) {
+    console.warn('⚠️  RAG service initialization failed:', error)
+  }
 })
+
+httpServer.on('error', (err) => {
+  console.error('❌ Server error:', err)
+})
+
+httpServer.listen(env.PORT)
 
 export { io }
 export default app
