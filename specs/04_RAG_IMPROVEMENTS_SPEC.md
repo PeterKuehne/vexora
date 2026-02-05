@@ -621,59 +621,99 @@ Query → Retrieval → Concatenate → LLM → Response
 Query → LLM → [Tool: keyword_search] → LLM → [Tool: semantic_search] → LLM → Response
 ```
 
-### 14.2 Drei Retrieval-Tools
+### 14.2 Vier Retrieval-Tools
 
 | Tool | Beschreibung | Parameter |
 |------|--------------|-----------|
-| `keyword_search` | BM25 lexikalische Suche | query, limit |
-| `semantic_search` | Vektor-basierte Suche | query, limit, threshold |
-| `chunk_read` | Feinkörniges Lesen | chunk_id, expand |
+| `keyword_search` | BM25 lexikalische Suche (80% BM25) | query, limit |
+| `semantic_search` | Vektor-basierte Suche (80% semantic) | query, limit |
+| `read_chunk` | Feinkörniges Lesen mit Kontext | chunkId, expandContext |
+| `answer_question` | Finale Antwort generieren | answer |
 
 ### 14.3 Status
 
-**Status:** 🔜 Geplant für Phase 3
+**Status:** ✅ Implementiert (2026-02-05)
 
-**Voraussetzungen:**
-- Tool-Use fähiges LLM (z.B. Qwen 2.5 mit Function Calling)
-- Tool-Definitions im OpenAI-kompatiblen Format
-- Iterative Conversation Loop
+### 14.4 Modell-Empfehlung
 
-**Architektur-Skizze:**
-```typescript
-interface RAGTool {
-  name: string;
-  description: string;
-  parameters: JSONSchema;
-  execute: (params: any) => Promise<any>;
+Basierend auf Recherche (Docker Evaluation 2025, BFCL Benchmark):
+
+| Modell | Tool Calling | Empfehlung |
+|--------|--------------|------------|
+| **Qwen3 8B** | ⭐⭐⭐⭐⭐ | **Beste Wahl lokal** |
+| Qwen3 14B | ⭐⭐⭐⭐⭐ | Höhere Genauigkeit |
+| Llama 3.1 8B | ⭐⭐⭐⭐ | Alternative |
+
+> "Even the 8B version of Qwen3 outperformed any other local model for tool calling."
+> — Docker Local LLM Evaluation 2025
+
+### 14.5 Implementierung
+
+**Neue Dateien:**
+- `server/src/services/rag/AgenticRAG.ts`: Agentic RAG Service
+
+**Geänderte Dateien:**
+- `server/src/services/rag/index.ts`: Export hinzugefügt
+- `server/src/index.ts`: API Endpoint `/api/rag/agentic`
+
+### 14.6 Konfiguration
+
+| Parameter | Beschreibung | Standardwert |
+|-----------|--------------|--------------|
+| `AGENTIC_RAG_MODEL` | LLM für Tool Calling | `qwen3:8b` |
+| `maxIterations` | Max. Tool-Call Iterationen | `5` |
+| `temperature` | Temperatur für Tool-Auswahl | `0.1` |
+| `includeThinking` | Thinking-Log in Response | `false` |
+
+### 14.7 API Endpoint
+
+```bash
+POST /api/rag/agentic
+Authorization: Bearer <token>
+
+{
+  "query": "Wo hat Peter Kühne gearbeitet?",
+  "model": "qwen3:8b",        // optional
+  "maxIterations": 5,          // optional
+  "includeThinking": true      // optional
 }
-
-const tools: RAGTool[] = [
-  {
-    name: 'keyword_search',
-    description: 'Search for documents using keywords (BM25)',
-    parameters: { query: 'string', limit: 'number' },
-    execute: async ({ query, limit }) => vectorServiceV2.search({ query, limit, hybridAlpha: 0 })
-  },
-  {
-    name: 'semantic_search',
-    description: 'Search for documents using semantic similarity',
-    parameters: { query: 'string', limit: 'number' },
-    execute: async ({ query, limit }) => vectorServiceV2.search({ query, limit, hybridAlpha: 1 })
-  },
-  {
-    name: 'read_chunk',
-    description: 'Read a specific chunk by ID with optional expansion',
-    parameters: { chunkId: 'string', expand: 'boolean' },
-    execute: async ({ chunkId, expand }) => vectorServiceV2.getChunkById(chunkId, expand)
-  }
-];
 ```
 
-**Empfehlung:**
-A-RAG als separates Feature in einer zukünftigen Phase implementieren, da es:
-- Signifikante Architekturänderungen erfordert
-- Tool-Use Unterstützung im LLM voraussetzt
-- Umfangreiche Tests benötigt
+**Response:**
+```json
+{
+  "answer": "Peter Kühne hat bei ... gearbeitet.",
+  "sources": [...],
+  "toolCalls": [
+    {"tool": "keyword_search", "args": {...}, "result": "..."},
+    {"tool": "semantic_search", "args": {...}, "result": "..."}
+  ],
+  "iterations": 3,
+  "thinking": "...",  // wenn includeThinking=true
+  "model": "qwen3:8b"
+}
+```
+
+### 14.8 Funktionsweise
+
+1. User Query wird mit System-Prompt an LLM gesendet
+2. LLM entscheidet welches Tool zu nutzen (oder direkt antworten)
+3. Tool wird ausgeführt, Ergebnis zurück an LLM
+4. Wiederholung bis `answer_question` aufgerufen oder max. Iterationen
+5. Alle gefundenen Sources werden gesammelt und zurückgegeben
+
+**Logging:**
+```
+🤖 A-RAG: Processing query with qwen3:8b
+   Iteration 1/5
+   🔧 Tool: keyword_search {"query": "Peter Kühne Arbeitgeber", "limit": 5}
+   Iteration 2/5
+   🔧 Tool: semantic_search {"query": "Berufserfahrung Karriere", "limit": 5}
+   Iteration 3/5
+   🔧 Tool: answer_question {"answer": "..."}
+   ✅ Final answer received
+🤖 A-RAG: Completed in 3 iterations with 8 sources
+```
 
 ---
 

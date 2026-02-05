@@ -11,3 +11,17 @@ export {
   type QueryAnalysis,
   type QueryRouterConfig,
 } from './QueryRouter.js';
+
+export {
+  AgenticRAG,
+  agenticRAG,
+  type AgenticRAGConfig,
+  type AgenticRAGResult,
+} from './AgenticRAG.js';
+
+export {
+  ContextualRetrieval,
+  contextualRetrieval,
+  type ContextualRetrievalConfig,
+  type ContextualChunk,
+} from './ContextualRetrieval.js';

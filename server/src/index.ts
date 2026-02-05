@@ -1202,6 +1202,76 @@ app.post('/api/rag/chat', authenticateToken, asyncHandler(async (req: Authentica
   }
 }))
 
+// A-RAG (Agentic RAG) endpoint - experimental tool-based retrieval
+app.post('/api/rag/agentic', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const { query, model, maxIterations, includeThinking } = req.body;
+
+  if (!query || typeof query !== 'string') {
+    res.status(400).json({
+      error: 'Query is required',
+      code: 'VALIDATION_ERROR',
+    });
+    return;
+  }
+
+  try {
+    // Import AgenticRAG dynamically to avoid circular dependencies
+    const { agenticRAG } = await import('./services/rag/AgenticRAG.js');
+
+    // Configure if options provided
+    if (model || maxIterations !== undefined || includeThinking !== undefined) {
+      agenticRAG.setConfig({
+        ...(model && { model }),
+        ...(maxIterations !== undefined && { maxIterations }),
+        ...(includeThinking !== undefined && { includeThinking }),
+      });
+    }
+
+    // Get allowed document IDs for permission filtering
+    let allowedDocumentIds: string[] | undefined;
+    const user = req.user;
+    if (user) {
+      await documentService.setUserContext(
+        user.user_id,
+        user.role,
+        user.department
+      );
+      allowedDocumentIds = await documentService.getAccessibleDocumentIds();
+    }
+
+    console.log(`🤖 A-RAG request from ${user?.email}: ${query.substring(0, 100)}...`);
+
+    const result = await agenticRAG.query(query, allowedDocumentIds);
+
+    // Clear user context
+    if (user) {
+      await documentService.clearUserContext();
+    }
+
+    res.json({
+      answer: result.answer,
+      sources: result.sources.map(s => ({
+        documentId: s.document.id,
+        documentName: s.document.originalName,
+        content: s.chunk.content.substring(0, 200) + '...',
+        pageNumber: s.chunk.pageStart,
+        score: s.score,
+      })),
+      toolCalls: result.toolCalls,
+      iterations: result.iterations,
+      thinking: result.thinking,
+      model: agenticRAG.getConfig().model,
+    });
+  } catch (error) {
+    console.error('A-RAG query failed:', error);
+    res.status(500).json({
+      error: 'A-RAG query failed',
+      code: 'AGENTIC_RAG_ERROR',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}))
+
 // ============================================
 // Ollama Endpoints
 // ============================================
