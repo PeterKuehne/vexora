@@ -253,7 +253,7 @@ class VectorService {
       const textChunks = this.chunkDocument(document.text);
 
       // Generate embeddings for all chunks
-      const embeddings = await embeddingService.generateEmbeddings(textChunks, EMBEDDING_MODEL);
+      const embeddings = await embeddingService.generateEmbeddings(textChunks, EMBEDDING_MODEL, 'document');
 
       // Prepare data for insertMany
       const collection = this.client.collections.get<DocumentChunkProperties>(COLLECTION_NAME);
@@ -309,7 +309,7 @@ class VectorService {
       const collection = this.client.collections.get<DocumentChunkProperties>(COLLECTION_NAME);
 
       // Generate query embedding for vector search
-      const queryEmbedding = await embeddingService.generateEmbedding(query, EMBEDDING_MODEL);
+      const queryEmbedding = await embeddingService.generateEmbedding(query, EMBEDDING_MODEL, 'query');
 
       // Build query with permission filter if provided
       const queryOptions = {

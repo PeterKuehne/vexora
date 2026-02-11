@@ -205,7 +205,8 @@ export class SemanticChunker {
     try {
       const embeddings = await embeddingService.generateEmbeddings(
         texts,
-        this.config.embeddingModel
+        this.config.embeddingModel,
+        'document'
       );
 
       return sentences.map((sentence, i) => ({

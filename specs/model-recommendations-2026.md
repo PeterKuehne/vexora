@@ -49,21 +49,21 @@ LLM: Qwen3 8B (Q4_K_M quantized)
   Context: 128K tokens
   Ollama: qwen3:8b-q4_K_M
 
-Embedding: nomic-embed-text
-  ~0.5GB memory footprint
-  Open source, efficient
+Embedding: nomic-embed-text-v2-moe
+  ~1GB memory footprint
+  Open source, MoE architecture
   Dimensions: 768
   MTEB Arena: Top-10 performance at 1/70th size
   Multilingual: 100+ languages
-  Context: 8192 tokens
-  Ollama: nomic-embed-text
+  Context: 512 tokens
+  Ollama: nomic-embed-text-v2-moe
 
 Reranker: Qwen3-Reranker-0.6B (Q5_K_M)
   ~0.5GB memory footprint
   Lightweight but effective
   Ollama: dengcao/Qwen3-Reranker-0.6B
 
-Total Memory: ~6GB (leaves 10GB for system + Docker containers)
+Total Memory: ~6.5GB (leaves 9.5GB for system + Docker containers)
 ```
 
 ### Option 3: Lightweight (8GB VRAM)
@@ -73,7 +73,7 @@ LLM: Qwen3 1.7B (Instruct)
   Context: 128K tokens
   Ollama: qwen3:1.7b
 
-Embedding: nomic-embed-text-v2
+Embedding: nomic-embed-text-v2-moe
   Same as Option 2
 
 Reranker: Qwen3-Reranker-0.6B
@@ -100,7 +100,7 @@ Reranker: Qwen3-Reranker-0.6B
 | Model | MTEB Score | Dimensions | Context | Local? | Notes |
 |-------|------------|------------|---------|--------|-------|
 | **Qwen3-Embedding 8B** | ~68 | 8192 | 8K | ✅ Yes | #1 multilingual |
-| **nomic-embed-text-v2** | ~64 | 768 | 8K | ✅ Yes | MoE, very efficient |
+| **nomic-embed-text-v2** | ~64 | 768 | 512 | ✅ Yes | MoE, very efficient |
 | Mistral-embed | 77.8% accuracy | 1024 | 8K | ✅ Yes | Highest accuracy |
 | jina-embeddings-v3 | Lower | 1024 | 8K | ✅ Yes | 100+ languages |
 
@@ -120,7 +120,7 @@ Reranker: Qwen3-Reranker-0.6B
 ollama pull qwen3:8b
 
 # Embedding Model
-ollama pull nomic-embed-text
+ollama pull nomic-embed-text-v2-moe
 
 # Reranker Model
 ollama pull dengcao/Qwen3-Reranker-4B:Q5_K_M
@@ -228,12 +228,12 @@ Based on benchmarks:
 ```bash
 # Install all models for Vexora RAG
 ollama pull qwen3:8b
-ollama pull nomic-embed-text
+ollama pull nomic-embed-text-v2-moe
 ollama pull dengcao/Qwen3-Reranker-4B:Q5_K_M
 
 # Test embedding
 curl http://localhost:11434/api/embed \
-  -d '{"model": "nomic-embed-text", "input": "Test embedding"}'
+  -d '{"model": "nomic-embed-text-v2-moe", "input": "search_query: Test embedding"}'
 
 # Test LLM
 ollama run qwen3:8b "Explain RAG in one sentence"

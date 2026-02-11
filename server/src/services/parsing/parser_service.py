@@ -22,7 +22,7 @@ import markdown
 
 # Docling imports
 try:
-    from docling.document_converter import DocumentConverter
+    from docling.document_converter import DocumentConverter, PdfFormatOption
     from docling.datamodel.base_models import InputFormat
     from docling.datamodel.pipeline_options import PdfPipelineOptions
     from docling.backend.pypdfium2_backend import PyPdfiumDocumentBackend
@@ -773,8 +773,9 @@ async def lifespan(app: FastAPI):
         try:
             # Configure pipeline options
             pipeline_options = PdfPipelineOptions()
-            pipeline_options.do_ocr = False  # OCR can be enabled per-request
-            pipeline_options.do_table_structure = True
+            pipeline_options.do_ocr = False  # Disable OCR (saves ~75% processing time)
+            pipeline_options.do_table_structure = False  # Disable - causes hang on large PDFs
+            pipeline_options.document_timeout = 300  # 5 min safety timeout
 
             converter = DocumentConverter(
                 allowed_formats=[
@@ -784,6 +785,11 @@ async def lifespan(app: FastAPI):
                     InputFormat.XLSX,
                     InputFormat.HTML,
                 ],
+                format_options={
+                    InputFormat.PDF: PdfFormatOption(
+                        pipeline_options=pipeline_options,
+                    )
+                }
             )
             print(f"Docling loaded in {time.time() - start:.2f}s")
         except Exception as e:

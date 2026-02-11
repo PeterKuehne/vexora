@@ -186,7 +186,7 @@ async function main() {
 
         // Generate embeddings
         console.log(`   Generating embeddings...`);
-        const embeddings = await embeddingService.generateEmbeddings(textChunks, EMBEDDING_MODEL);
+        const embeddings = await embeddingService.generateEmbeddings(textChunks, EMBEDDING_MODEL, 'document');
 
         // Store in Weaviate v3 using insertMany
         console.log(`   Storing in Weaviate...`);

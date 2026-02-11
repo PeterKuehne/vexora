@@ -317,7 +317,7 @@ class VectorServiceV2 {
       // Generate embeddings for all chunks
       const texts = chunks.map((c) => c.content);
       console.log(`📊 Generating embeddings for ${texts.length} V2 chunks...`);
-      const embeddings = await embeddingService.generateEmbeddings(texts, EMBEDDING_MODEL);
+      const embeddings = await embeddingService.generateEmbeddings(texts, EMBEDDING_MODEL, 'document');
 
       // Prepare objects for batch insert
       // IMPORTANT: Use documentMetadata.documentId (from PostgreSQL) instead of chunk.documentId (from parser)
@@ -383,7 +383,7 @@ class VectorServiceV2 {
       const collection = this.client.collections.get<DocumentChunkV2Properties>(COLLECTION_NAME_V2);
 
       // Generate query embedding
-      const queryEmbedding = await embeddingService.generateEmbedding(query, EMBEDDING_MODEL);
+      const queryEmbedding = await embeddingService.generateEmbedding(query, EMBEDDING_MODEL, 'query');
 
       // Build query options
       const queryOptions: any = {

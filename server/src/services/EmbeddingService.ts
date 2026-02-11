@@ -8,6 +8,8 @@
 
 import { env } from '../config/env.js';
 
+export type EmbeddingType = 'query' | 'document';
+
 export interface EmbeddingResponse {
   embedding: number[];
   model: string;
@@ -23,10 +25,23 @@ class EmbeddingService {
   }
 
   /**
+   * Apply task prefix for nomic embedding models.
+   * nomic-embed-text-v2-moe requires "search_query: " / "search_document: " prefixes.
+   */
+  private applyPrefix(text: string, model: string, type?: EmbeddingType): string {
+    if (!type) return text;
+    if (model.includes('nomic-embed-text')) {
+      return type === 'query' ? `search_query: ${text}` : `search_document: ${text}`;
+    }
+    return text;
+  }
+
+  /**
    * Generate embedding for a single text
    */
-  async generateEmbedding(text: string, model?: string): Promise<EmbeddingResponse> {
+  async generateEmbedding(text: string, model?: string, type?: EmbeddingType): Promise<EmbeddingResponse> {
     const embeddingModel = model || this.defaultModel;
+    const prefixedText = this.applyPrefix(text, embeddingModel, type);
 
     try {
       const response = await fetch(`${this.ollamaUrl}/api/embed`, {
@@ -36,7 +51,7 @@ class EmbeddingService {
         },
         body: JSON.stringify({
           model: embeddingModel,
-          input: text,
+          input: prefixedText,
           truncate: true,
         }),
       });
@@ -66,7 +81,7 @@ class EmbeddingService {
    * Generate embeddings for multiple texts in batch
    * Uses native /api/embed batch support (input as string[])
    */
-  async generateEmbeddings(texts: string[], model?: string): Promise<EmbeddingResponse[]> {
+  async generateEmbeddings(texts: string[], model?: string, type?: EmbeddingType): Promise<EmbeddingResponse[]> {
     const embeddingModel = model || this.defaultModel;
 
     // Process in batches of 50 (native batching is much more efficient)
@@ -74,7 +89,7 @@ class EmbeddingService {
     const results: EmbeddingResponse[] = [];
 
     for (let i = 0; i < texts.length; i += batchSize) {
-      const batch = texts.slice(i, i + batchSize);
+      const batch = texts.slice(i, i + batchSize).map(t => this.applyPrefix(t, embeddingModel, type));
 
       try {
         const response = await fetch(`${this.ollamaUrl}/api/embed`, {
