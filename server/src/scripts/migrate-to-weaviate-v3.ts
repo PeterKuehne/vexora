@@ -6,7 +6,7 @@
  * 1. Drops old DocumentChunks collection (v2 schema, no vectors)
  * 2. Creates new DocumentChunks collection (v3 schema, with vectors)
  * 3. Re-indexes all documents from PostgreSQL with embeddings
- * 4. Uses Ollama nomic-embed-text for vector generation
+ * 4. Uses Ollama nomic-embed-text-v2-moe for vector generation
  *
  * Usage:
  *   npx tsx server/src/scripts/migrate-to-weaviate-v3.ts
@@ -28,7 +28,7 @@ const POSTGRES_CONFIG = {
 };
 const UPLOADS_DIR = './uploads';
 const COLLECTION_NAME = 'DocumentChunks';
-const EMBEDDING_MODEL = 'nomic-embed-text';
+const EMBEDDING_MODEL = 'nomic-embed-text-v2-moe';
 
 interface DocumentRecord {
   id: string;

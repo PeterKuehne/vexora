@@ -2,7 +2,8 @@
  * EmbeddingService - Ollama Embedding Generation
  *
  * Handles text embedding generation using Ollama's embedding models
- * Default: nomic-embed-text (768 dimensions)
+ * Uses /api/embed (supports batching, truncation, and dimensions control)
+ * Default: nomic-embed-text-v2-moe (768 dimensions, multilingual MoE, 512 token context)
  */
 
 import { env } from '../config/env.js';
@@ -15,7 +16,7 @@ export interface EmbeddingResponse {
 
 class EmbeddingService {
   private readonly ollamaUrl: string;
-  private readonly defaultModel: string = 'nomic-embed-text';
+  private readonly defaultModel: string = 'nomic-embed-text-v2-moe';
 
   constructor() {
     this.ollamaUrl = env.OLLAMA_API_URL || 'http://localhost:11434';
@@ -28,31 +29,32 @@ class EmbeddingService {
     const embeddingModel = model || this.defaultModel;
 
     try {
-      const response = await fetch(`${this.ollamaUrl}/api/embeddings`, {
+      const response = await fetch(`${this.ollamaUrl}/api/embed`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           model: embeddingModel,
-          prompt: text,
+          input: text,
+          truncate: true,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Ollama embeddings API error: ${response.statusText}`);
+        throw new Error(`Ollama embed API error: ${response.statusText}`);
       }
 
       const data = await response.json();
 
-      if (!data.embedding || !Array.isArray(data.embedding)) {
+      if (!data.embeddings || !Array.isArray(data.embeddings) || data.embeddings.length === 0) {
         throw new Error('Invalid embedding response from Ollama');
       }
 
       return {
-        embedding: data.embedding,
+        embedding: data.embeddings[0],
         model: embeddingModel,
-        dimensions: data.embedding.length,
+        dimensions: data.embeddings[0].length,
       };
     } catch (error) {
       console.error('❌ Failed to generate embedding:', error);
@@ -62,18 +64,52 @@ class EmbeddingService {
 
   /**
    * Generate embeddings for multiple texts in batch
-   * More efficient than calling generateEmbedding multiple times
+   * Uses native /api/embed batch support (input as string[])
    */
   async generateEmbeddings(texts: string[], model?: string): Promise<EmbeddingResponse[]> {
+    const embeddingModel = model || this.defaultModel;
+
+    // Process in batches of 50 (native batching is much more efficient)
+    const batchSize = 50;
     const results: EmbeddingResponse[] = [];
 
-    // Process in parallel batches of 10
-    const batchSize = 10;
     for (let i = 0; i < texts.length; i += batchSize) {
       const batch = texts.slice(i, i + batchSize);
-      const batchPromises = batch.map(text => this.generateEmbedding(text, model));
-      const batchResults = await Promise.all(batchPromises);
-      results.push(...batchResults);
+
+      try {
+        const response = await fetch(`${this.ollamaUrl}/api/embed`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: embeddingModel,
+            input: batch,
+            truncate: true,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ollama embed API error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.embeddings || !Array.isArray(data.embeddings)) {
+          throw new Error('Invalid batch embedding response from Ollama');
+        }
+
+        for (const embedding of data.embeddings) {
+          results.push({
+            embedding,
+            model: embeddingModel,
+            dimensions: embedding.length,
+          });
+        }
+      } catch (error) {
+        console.error(`❌ Failed to generate batch embeddings (batch ${i / batchSize + 1}):`, error);
+        throw error;
+      }
     }
 
     return results;

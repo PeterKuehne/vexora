@@ -30,7 +30,7 @@ async function testRedisCache() {
   console.log('Testing embedding cache:');
   const testEmbedding = [0.1, 0.2, 0.3, 0.4, 0.5];
   const testText = 'Dies ist ein Testtext für Embeddings';
-  const testModel = 'nomic-embed-text';
+  const testModel = 'nomic-embed-text-v2-moe';
 
   // Set embedding
   await cache.setEmbedding(testText, testModel, testEmbedding);

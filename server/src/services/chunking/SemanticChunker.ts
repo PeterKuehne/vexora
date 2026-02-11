@@ -4,7 +4,7 @@
  *
  * Algorithm:
  * 1. Extract sentences from content blocks
- * 2. Generate embeddings for all sentences (nomic-embed-text)
+ * 2. Generate embeddings for all sentences (nomic-embed-text-v2-moe)
  * 3. Calculate cosine similarity between adjacent sentences
  * 4. Identify breakpoints where similarity < threshold (bottom percentile)
  * 5. Group sentences between breakpoints into chunks
@@ -27,7 +27,7 @@ import { embeddingService } from '../EmbeddingService.js';
 // ============================================
 
 export const DEFAULT_SEMANTIC_CONFIG: SemanticChunkerConfig = {
-  embeddingModel: 'nomic-embed-text',
+  embeddingModel: 'nomic-embed-text-v2-moe',
   breakpointThreshold: 0.5,
   breakpointPercentile: 0.2, // Bottom 20% of similarities
   minChunkSize: 100,

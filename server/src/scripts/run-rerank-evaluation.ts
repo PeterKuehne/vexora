@@ -53,7 +53,7 @@ async function runRerankEvaluation() {
 
     const v1RerankConfig = {
       ragConfig: {
-        embeddingModel: 'nomic-embed-text',
+        embeddingModel: 'nomic-embed-text-v2-moe',
         rerankerEnabled: true,
         rerankerModel: 'BAAI/bge-reranker-v2-m3',
         searchLimit: 20,  // Fetch more, then rerank

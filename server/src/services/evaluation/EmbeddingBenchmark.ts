@@ -48,7 +48,7 @@ interface SearchResultItem {
 export class EmbeddingBenchmark {
   // Candidate models to benchmark (must be available in Ollama)
   private candidateModels = [
-    'nomic-embed-text',      // 768 dims, good general performance
+    'nomic-embed-text-v2-moe', // 768 dims, multilingual MoE, state-of-the-art
     'mxbai-embed-large',     // 1024 dims, high quality
     'all-minilm',            // 384 dims, fast
   ];
@@ -295,7 +295,7 @@ export class EmbeddingBenchmark {
   } {
     if (results.length === 0) {
       return {
-        recommended: 'nomic-embed-text',
+        recommended: 'nomic-embed-text-v2-moe',
         reason: 'Default model (no benchmark data available)',
         comparison: '',
       };
@@ -305,7 +305,7 @@ export class EmbeddingBenchmark {
     const bestByPrecision = results[0];
     if (!bestByPrecision) {
       return {
-        recommended: 'nomic-embed-text',
+        recommended: 'nomic-embed-text-v2-moe',
         reason: 'Default model (no valid benchmark data)',
         comparison: '',
       };

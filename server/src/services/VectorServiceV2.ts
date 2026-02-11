@@ -92,7 +92,7 @@ interface DocumentChunkV2Properties {
 
 // Collection name constant
 const COLLECTION_NAME_V2 = 'DocumentChunksV2';
-const EMBEDDING_MODEL = 'nomic-embed-text';
+const EMBEDDING_MODEL = 'nomic-embed-text-v2-moe';
 
 // ============================================
 // VectorServiceV2 Class

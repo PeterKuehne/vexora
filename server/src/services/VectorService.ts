@@ -68,12 +68,12 @@ interface DocumentChunkProperties {
 
 // Collection name constant
 const COLLECTION_NAME = 'DocumentChunks';
-const EMBEDDING_MODEL = 'nomic-embed-text';
+const EMBEDDING_MODEL = 'nomic-embed-text-v2-moe';
 
 class VectorService {
   private client: WeaviateClient | null = null;
   private initialized: boolean = false;
-  private embeddingDimensions: number = 768; // Default for nomic-embed-text
+  private embeddingDimensions: number = 768; // Default for nomic-embed-text-v2-moe
 
   /**
    * Initialize Weaviate client with v3 API
@@ -217,8 +217,9 @@ class VectorService {
 
   /**
    * Chunk document text into smaller pieces
+   * Note: chunkSize=350 words ≈ 450 tokens, safe for nomic-embed-text-v2-moe (512 token context)
    */
-  private chunkDocument(text: string, chunkSize = 500, overlap = 50): string[] {
+  private chunkDocument(text: string, chunkSize = 350, overlap = 50): string[] {
     const words = text.split(/\s+/);
     const chunks: string[] = [];
 

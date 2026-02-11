@@ -351,7 +351,7 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
               `}
             >
               <AlertTriangle className="w-4 h-4 inline mr-2" />
-              Keine Embedding-Modelle gefunden. Installieren Sie z.B. <code className="font-mono">nomic-embed-text</code> mit <code className="font-mono">ollama pull nomic-embed-text</code>
+              Keine Embedding-Modelle gefunden. Installieren Sie z.B. <code className="font-mono">nomic-embed-text-v2-moe</code> mit <code className="font-mono">ollama pull nomic-embed-text-v2-moe</code>
             </div>
           ) : (
             <select

@@ -356,7 +356,7 @@ router.post(
     // Build config with defaults
     const config = {
       ragConfig: {
-        embeddingModel: request.ragConfig?.embeddingModel || 'nomic-embed-text',
+        embeddingModel: request.ragConfig?.embeddingModel || 'nomic-embed-text-v2-moe',
         rerankerEnabled: request.ragConfig?.rerankerEnabled || false,
         rerankerModel: request.ragConfig?.rerankerModel,
         searchLimit: request.ragConfig?.searchLimit || 20,

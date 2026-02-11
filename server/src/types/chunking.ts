@@ -202,7 +202,7 @@ export interface ChunkerConfig {
 export const DEFAULT_CHUNKER_CONFIG: ChunkerConfig = {
   strategy: 'hybrid',
   semantic: {
-    embeddingModel: 'nomic-embed-text',
+    embeddingModel: 'nomic-embed-text-v2-moe',
     breakpointThreshold: 0.5,
     breakpointPercentile: 0.2,
     minChunkSize: 100,

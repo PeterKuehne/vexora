@@ -142,7 +142,7 @@ INSERT INTO model_configurations (
     'MacBook M2 16GB (Recommended)',
     true,
     'qwen3:8b-q4_K_M',
-    'nomic-embed-text',
+    'nomic-embed-text-v2-moe',
     768,
     'qwen3-reranker-0.6B',
     512,

@@ -44,7 +44,7 @@ async function runBaselineEvaluation() {
 
     const v1Config = {
       ragConfig: {
-        embeddingModel: 'nomic-embed-text',
+        embeddingModel: 'nomic-embed-text-v2-moe',
         rerankerEnabled: false,
         searchLimit: 20,
         searchThreshold: 0.1,  // Lower threshold to get more results
@@ -116,7 +116,7 @@ async function runBaselineEvaluation() {
     console.log('🧪 RUNNING EMBEDDING BENCHMARK');
     console.log('─'.repeat(60));
 
-    const benchmarkModels = ['nomic-embed-text', 'mxbai-embed-large', 'all-minilm'];
+    const benchmarkModels = ['nomic-embed-text-v2-moe', 'mxbai-embed-large', 'all-minilm'];
     console.log(`\n📋 Testing models: ${benchmarkModels.join(', ')}`);
     console.log('   This may take a few minutes...\n');
 

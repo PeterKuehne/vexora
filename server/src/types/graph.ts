@@ -130,7 +130,7 @@ export const DEFAULT_ENTITY_RESOLUTION_CONFIG: EntityResolutionConfig = {
   useSemanticSimilarity: true,
   useLLMResolution: false,
   llmModel: 'qwen2.5:14b',
-  embeddingModel: 'nomic-embed-text',
+  embeddingModel: 'nomic-embed-text-v2-moe',
   batchSize: 50,
   blockingEnabled: true,
   blockingKeyFields: ['canonicalForm'],
