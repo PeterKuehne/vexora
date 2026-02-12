@@ -18,6 +18,7 @@ import type { RefinedResult } from '../types/graph.js'
 import type { ChunkLevel } from '../types/chunking.js'
 // Phase 5: Query Intelligence & Observability
 import { QueryRouter, type QueryAnalysis, type RetrievalStrategy } from './rag/QueryRouter.js'
+import { QueryRewriter } from './rag/QueryRewriter.js'
 import { TracingService, type SpanName } from './observability/TracingService.js'
 import { InputGuardrails, OutputGuardrails } from './guardrails/Guardrails.js'
 import { DatabaseService } from './DatabaseService.js'
@@ -89,6 +90,7 @@ class RAGService {
   private graphInitialized = false;
   // Phase 5: Query Intelligence & Observability
   private queryRouter: QueryRouter;
+  private queryRewriter: QueryRewriter;
   private tracingService: TracingService;
   private inputGuardrails: InputGuardrails;
   private outputGuardrails: OutputGuardrails;
@@ -101,6 +103,7 @@ class RAGService {
       enableTableFocus: true,
       defaultStrategy: 'hybrid',
     });
+    this.queryRewriter = new QueryRewriter();
     this.tracingService = new TracingService(undefined, {
       enabled: this.observabilityEnabled,
       sampleRate: parseFloat(process.env.TRACE_SAMPLE_RATE || '1.0'),
@@ -221,9 +224,12 @@ class RAGService {
       // Use sanitized query
       const sanitizedQuery = inputValidation.sanitizedQuery;
 
+      // Query Rewriting: Resolve references from chat history
+      const effectiveQuery = await this.queryRewriter.rewrite(sanitizedQuery, messages, model);
+
       // Phase 5: Query analysis and routing
       const analysisSpanId = traceId ? this.tracingService.startSpan(traceId, 'query_analysis') : '';
-      const queryAnalysis = this.queryRouter.analyze(sanitizedQuery);
+      const queryAnalysis = this.queryRouter.analyze(effectiveQuery);
 
       if (traceId && analysisSpanId) {
         this.tracingService.endSpan(traceId, analysisSpanId, {
@@ -289,7 +295,7 @@ class RAGService {
       if (useV2) {
         console.log(`🔍 Using V2 hierarchical search with levelFilter=${levelFilter.join(',')}`)
         const v2Results = await vectorServiceV2.search({
-          query,
+          query: effectiveQuery,
           limit: searchLimit,
           threshold: searchThreshold,
           hybridAlpha,
@@ -317,7 +323,7 @@ class RAGService {
         }
       } else {
         searchResults = await vectorService.search({
-          query,
+          query: effectiveQuery,
           limit: searchLimit,
           threshold: searchThreshold,
           hybridAlpha,
@@ -690,12 +696,15 @@ class RAGService {
         }
       }
 
+      // Query Rewriting: Resolve references from chat history
+      const effectiveQuery = await this.queryRewriter.rewrite(query, messages, model);
+
       // Step 2: Search for relevant document chunks (permission-aware)
       // Use V2 search if enabled
       const useV2 = request.useV2 ?? USE_V2_SEARCH
 
       // Query analysis for optimal level filter (same as non-streaming)
-      const queryAnalysis = this.queryRouter.analyze(query);
+      const queryAnalysis = this.queryRouter.analyze(effectiveQuery);
       // Use manual level filter if provided, otherwise use query-type-based filter from router
       const levelFilter = request.levelFilter ?? queryAnalysis.recommendedLevelFilter;
       const useGraph = request.useGraph ?? (queryAnalysis.requiresGraph && this.graphInitialized);
@@ -717,7 +726,7 @@ class RAGService {
       if (useV2) {
         console.log(`🔍 Using V2 hierarchical search (streaming) with levelFilter=${levelFilter.join(',')}`)
         const v2Results = await vectorServiceV2.search({
-          query,
+          query: effectiveQuery,
           limit: searchLimit,
           threshold: searchThreshold,
           hybridAlpha,
@@ -744,7 +753,7 @@ class RAGService {
         }
       } else {
         searchResults = await vectorService.search({
-          query,
+          query: effectiveQuery,
           limit: searchLimit,
           threshold: searchThreshold,
           hybridAlpha,

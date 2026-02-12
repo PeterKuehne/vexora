@@ -73,6 +73,7 @@ export interface OllamaChatRequest {
   messages: OllamaChatMessage[]
   stream?: boolean
   options?: OllamaChatOptions
+  think?: boolean
 }
 
 export interface OllamaChatResponse {
@@ -261,6 +262,7 @@ export class OllamaService {
     messages: OllamaChatMessage[]
     model?: string
     options?: OllamaChatOptions
+    think?: boolean
   }): Promise<OllamaChatResponse> {
     const model = request.model ?? this.defaultModel
 
@@ -269,6 +271,7 @@ export class OllamaService {
       messages: request.messages,
       stream: false,
       options: request.options,
+      ...(request.think !== undefined && { think: request.think }),
     }
 
     let response: Response

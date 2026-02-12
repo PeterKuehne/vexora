@@ -829,11 +829,108 @@ Authorization: Bearer <token>
 
 ---
 
-## 12. Offene Fragen
+## 16. Query Rewriting für Follow-up-Fragen
 
-1. Soll Document Expansion standardmäßig aktiviert sein oder opt-in?
+### 12.1 Problem
+
+Follow-up-Fragen im RAG-Chat scheitern, wenn sie Pronomen oder Referenzen enthalten ("diesem Dokument", "dazu", "diese Firmen"), weil die Vektor-Suche jede Frage isoliert behandelt. Der Chat-Verlauf wird nicht berücksichtigt.
+
+**Beispiel:**
+```
+User: "Was steht in dem AMA PDF?"
+Assistant: [Ausführliche Antwort über AMA.pdf...]
+User: "Kannst du mir mehr über dieses Thema aus dem Dokument erläutern: Episodische Erinnerungen"
+→ Suche findet nichts, weil "dieses Thema" und "dem Dokument" keine konkreten Terme für die Vektor-Suche sind
+```
+
+### 12.2 Lösung
+
+LLM-basiertes Query Rewriting vor dem Such-Schritt. Ein neuer `QueryRewriter`-Service wird in der RAG-Pipeline zwischen Input-Guardrails und QueryRouter eingefügt.
+
+### 12.3 Konfiguration
+
+| Parameter | Beschreibung | Wert |
+|-----------|--------------|------|
+| `think` | Qwen3 Thinking-Modus | `false` (verhindert leere Antworten) |
+| `temperature` | Sampling-Temperatur | `0.7` (Qwen3 verbietet `0` / Greedy Decoding) |
+| `top_p` | Nucleus Sampling | `0.8` |
+| `top_k` | Top-K Sampling | `20` |
+| `num_predict` | Max. Output-Tokens | `150` |
+| `MAX_HISTORY_MESSAGES` | Chat-History für Kontext | `6` (letzte 3 Q/A-Paare) |
+| `MAX_ASSISTANT_CONTENT_LENGTH` | Trunkierung langer Antworten | `500` Zeichen |
+
+### 12.4 Betroffene Komponenten
+
+| Komponente | Änderungstyp | Beschreibung |
+|------------|--------------|--------------|
+| `rag/QueryRewriter.ts` | **Neue Datei** | Referenz-Erkennung + LLM-basiertes Rewriting |
+| `rag/index.ts` | Export | QueryRewriter Export hinzugefügt |
+| `RAGService.ts` | Erweiterung | QueryRewriter-Aufruf vor QueryRouter in beiden Methoden |
+| `OllamaService.ts` | Erweiterung | `think?: boolean` Parameter in Request-Interface |
+
+### 12.5 Funktionsweise
+
+**Referenz-Erkennung (`needsRewriting`):**
+1. Prüft ob Chat-Verlauf > 1 User-Message hat (erste Nachricht nie rewriten)
+2. Pattern-Matching auf Pronomen/Referenzen:
+   - **DE:** `dies*`, `dazu`, `davon`, `darüber`, `darauf`, `darin`, `daran`, `damit`, `welche*`, `obige*`, `genannte*`, `besagte*`, `dem Dokument`, `dem PDF`, `dem Text`, `der Datei`
+   - **EN:** `this`, `that`, `these`, `those`, `the document`, `the file`, `the PDF`
+3. Bewusst ausgeschlossen: häufige deutsche Wörter (`das`, `es`, `sie`, `dem`, `der`, `den`, `ihm`, `ihr*`) — diese erscheinen in fast jedem Satz und würden unnötige Rewrites auslösen
+4. Gibt `false` zurück wenn kein Pattern matcht → spart ~60-70% der LLM-Calls
+
+**Rewriting (`rewrite`):**
+1. Letzte 6 Messages aus dem Chat-Verlauf extrahieren
+2. Assistant-Antworten auf 500 Zeichen kürzen (nur Themen-Kontext nötig)
+3. `ollamaService.chat()` mit `think: false` und System-Prompt aufrufen
+4. Residuale `<think>`-Tags entfernen (Safety Net)
+5. Sanity-Check: leere oder zu lange Antworten → Fallback auf Original-Query
+
+**Kritische Design-Entscheidungen (aus Recherche):**
+- **`think: false`**: Qwen3 hat Thinking standardmäßig aktiviert. Mit `num_predict: 150` verbraucht das Modell alle Tokens für Thinking und gibt leere Antworten zurück (`message.content = ""`)
+- **`temperature: 0.7`**: Qwen3 Model Card warnt explizit: "DO NOT use greedy decoding" — `temperature: 0` kann zu degenerierten/leeren Outputs führen
+- **Assistant-Trunkierung**: Lange Antworten (z.B. 2000+ Zeichen PDF-Zusammenfassung) können das Context-Window sprengen. Ollama trunciert Messages silently ohne Warnung
+- **Pattern-basierte Vorselektion**: Industrie-Standard (LangChain `CondenseQuestionChain`, LlamaIndex `CondensePlusContext`) — nicht jede Follow-up-Frage braucht Rewriting
+
+### 12.6 Akzeptanzkriterien
+
+- [x] Follow-up-Fragen mit Referenzen werden korrekt aufgelöst
+- [x] Erste Nachricht wird nie umgeschrieben
+- [x] Eigenständige Follow-up-Fragen werden nicht umgeschrieben (Pattern-Check)
+- [x] Bei Fehler oder leerer Antwort wird die Original-Query verwendet
+- [x] Logging zeigt Original- und umgeschriebene Query
+
+### 12.7 Implementierung (2026-02-11)
+
+**Status:** ✅ Implementiert
+
+**Neue Dateien:**
+- `server/src/services/rag/QueryRewriter.ts`: QueryRewriter-Service
+
+**Geänderte Dateien:**
+- `server/src/services/OllamaService.ts`: `think?: boolean` in `OllamaChatRequest` und `chat()` Methode
+- `server/src/services/RAGService.ts`: QueryRewriter-Import, Instanz im Constructor, Aufruf in `generateResponse()` und `generateStreamingResponse()` vor QueryRouter
+- `server/src/services/rag/index.ts`: QueryRewriter Export
+
+**Logging:**
+```
+🔄 Query rewritten: "Kannst du mir mehr über dieses Thema aus dem Dokument erläutern: Episodische Erinnerungen" → "Kannst du mir mehr über das Thema "Episodische Erinnerungen" aus dem Dokument AMA.pdf erläutern?"
+```
+
+### 12.8 Referenzen
+
+- [Qwen3-8B Model Card](https://huggingface.co/Qwen/Qwen3-8B) — Sampling-Parameter, Greedy-Decoding-Warnung
+- [Ollama Thinking Documentation](https://docs.ollama.com/capabilities/thinking) — `think` Parameter
+- [LangChain ConversationalRetrievalChain](https://python.langchain.com/docs/versions/migrating_chains/conversation_retrieval_chain/) — CondenseQuestion-Pattern
+- [LlamaIndex CondensePlusContext](https://docs.llamaindex.ai/en/stable/examples/chat_engine/chat_engine_condense_plus_context/) — Condense-Pattern
+
+---
+
+## 17. Offene Fragen
+
+1. ~~Soll Document Expansion standardmäßig aktiviert sein oder opt-in?~~ ✅ Standardmäßig aktiviert
 2. Wie soll mit sehr großen Dokumenten (> 100 Chunks) umgegangen werden?
-3. Soll die Expansion auch für Streaming-Responses gelten?
+3. ~~Soll die Expansion auch für Streaming-Responses gelten?~~ ✅ Ja, implementiert
+4. Soll ein separates, leichteres Modell für Query Rewriting verwendet werden (z.B. `qwen2.5:3b`)?
 
 ---
 
@@ -841,10 +938,13 @@ Authorization: Bearer <token>
 
 ```
 server/src/services/
-├── RAGService.ts           # Hauptlogik, Document Expansion
+├── RAGService.ts           # Hauptlogik, Document Expansion, Query Rewriting
+├── OllamaService.ts        # think-Parameter für Qwen3
 ├── VectorServiceV2.ts      # Neue Methode getChunksByDocumentIds
 ├── rag/
-│   └── RerankerService.ts  # Score-Handling
+│   ├── QueryRewriter.ts    # Query Rewriting für Follow-up-Fragen
+│   ├── RerankerService.ts  # Score-Handling
+│   └── index.ts            # Barrel Exports
 └── chunking/
     ├── SemanticChunker.ts  # Overlap Implementation
     └── ChunkingPipeline.ts # Konfiguration

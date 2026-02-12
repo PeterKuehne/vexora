@@ -25,3 +25,7 @@ export {
   type ContextualRetrievalConfig,
   type ContextualChunk,
 } from './ContextualRetrieval.js';
+
+export {
+  QueryRewriter,
+} from './QueryRewriter.js';
