@@ -81,7 +81,7 @@ async function runMigration() {
     const adminUser = await databaseService.query(`
       SELECT id, email, name, role, department, is_active
       FROM users
-      WHERE email = 'admin@vexora.local';
+      WHERE email = 'admin@cor7ex.local';
     `);
 
     if (adminUser.rows.length > 0) {

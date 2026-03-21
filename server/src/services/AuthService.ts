@@ -38,12 +38,27 @@ import { LoggerService } from './LoggerService.js';
 export class AuthService {
   private readonly jwtSecret: string;
   private readonly jwtExpiresIn = '15m'; // 15 minutes
-  private readonly refreshExpiresIn = 30 * 24 * 60 * 60 * 1000; // 30 days in ms
+  private readonly refreshExpiresIn = 24 * 60 * 60 * 1000; // 24 hours (OAuth 2.1 best practice)
 
   constructor() {
-    this.jwtSecret = process.env.JWT_SECRET || 'dev-secret-change-in-production';
-    if (!this.jwtSecret || this.jwtSecret === 'dev-secret-change-in-production') {
-      LoggerService.logWarning('Using default JWT secret in development', {
+    this.jwtSecret = process.env.JWT_SECRET || '';
+
+    if (!this.jwtSecret) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: JWT_SECRET must be set in production');
+      }
+      // Dev-only fallback
+      this.jwtSecret = 'dev-secret-change-in-production-minimum-32-bytes';
+      LoggerService.logWarning('Using default JWT secret - NOT SAFE FOR PRODUCTION', {
+        environment: process.env.NODE_ENV || 'development'
+      });
+    }
+
+    if (this.jwtSecret.length < 32) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: JWT_SECRET must be at least 32 characters');
+      }
+      LoggerService.logWarning(`JWT_SECRET too short (${this.jwtSecret.length} chars, minimum 32)`, {
         environment: process.env.NODE_ENV || 'development'
       });
     }
@@ -228,25 +243,34 @@ export class AuthService {
 
     const tokens = await tokenResponse.json();
 
-    // Get user info from Google
-    const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: {
-        'Authorization': `Bearer ${tokens.access_token}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    // Decode id_token directly (faster than calling userinfo API)
+    let userInfo: any;
+    if (tokens.id_token) {
+      // id_token is a JWT - decode the payload (no verification needed, we just got it from Google)
+      const payload = tokens.id_token.split('.')[1];
+      userInfo = JSON.parse(Buffer.from(payload, 'base64url').toString());
+    } else {
+      // Fallback: call userinfo API
+      const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: {
+          'Authorization': `Bearer ${tokens.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(10000),
+      });
 
-    if (!userResponse.ok) {
-      const error = await userResponse.text();
-      throw new Error(`Google user info failed: ${error}`);
+      if (!userResponse.ok) {
+        const error = await userResponse.text();
+        throw new Error(`Google user info failed: ${error}`);
+      }
+
+      userInfo = await userResponse.json();
     }
 
-    const userInfo = await userResponse.json();
-
     return {
-      id: userInfo.id,
+      id: userInfo.sub || userInfo.id,
       email: userInfo.email,
-      verified_email: userInfo.verified_email || false,
+      verified_email: userInfo.email_verified ?? userInfo.verified_email ?? false,
       name: userInfo.name,
       given_name: userInfo.given_name,
       family_name: userInfo.family_name,
@@ -348,6 +372,7 @@ export class AuthService {
     };
 
     return jwt.sign(payload, this.jwtSecret, {
+      algorithm: 'HS256',
       expiresIn: this.jwtExpiresIn,
     });
   }
@@ -382,7 +407,9 @@ export class AuthService {
    */
   verifyAccessToken(token: string): JWTPayload {
     try {
-      return jwt.verify(token, this.jwtSecret) as JWTPayload;
+      return jwt.verify(token, this.jwtSecret, {
+        algorithms: ['HS256'],
+      }) as JWTPayload;
     } catch (error) {
       throw new Error('Invalid or expired access token');
     }

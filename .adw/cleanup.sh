@@ -1,5 +1,5 @@
 #!/bin/bash
-# ADW Cleanup Script for Vexora Enterprise Authentication & Authorization System
+# ADW Cleanup Script for Cor7ex Enterprise Authentication & Authorization System
 # Auto-generated from adw_config.yaml
 
 # Colors for output

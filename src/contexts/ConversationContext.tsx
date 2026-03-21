@@ -2,8 +2,8 @@
  * ConversationContext
  *
  * Manages multiple conversations with:
- * - Create, delete, switch conversations
- * - LocalStorage persistence
+ * - API-first storage (PostgreSQL via REST API)
+ * - LocalStorage as write-through cache (offline fallback)
  * - Active conversation tracking
  */
 
@@ -21,11 +21,19 @@ import { generateId } from '../utils';
 import { useDebounce } from '../hooks';
 import type { Conversation, CreateConversationInput } from '../types/conversation';
 import type { Message } from '../types/message';
+import {
+  fetchConversations as apiFetchConversations,
+  createAPIConversation,
+  updateAPIConversation,
+  deleteAPIConversation,
+  addAPIMessage,
+  type APIConversation,
+} from '../lib/api';
 
-// LocalStorage keys
-const STORAGE_KEY = 'vexora-conversations';
-const ACTIVE_ID_KEY = 'vexora-active-conversation';
-const SCROLL_POSITIONS_KEY = 'vexora-scroll-positions';
+// LocalStorage keys (cache)
+const STORAGE_KEY = 'cor7ex-conversations';
+const ACTIVE_ID_KEY = 'cor7ex-active-conversation';
+const SCROLL_POSITIONS_KEY = 'cor7ex-scroll-positions';
 
 // Auto-save debounce delay (ms)
 const SAVE_DEBOUNCE_DELAY = 500;
@@ -84,9 +92,7 @@ interface ConversationContextValue {
   activeMessages: Message[];
 
   // Scroll position management
-  /** Save current scroll position for conversation */
   saveScrollPosition: (conversationId: string, scrollTop: number, scrollHeight: number) => void;
-  /** Get saved scroll position for conversation */
   getScrollPosition: (conversationId: string) => { scrollTop: number; scrollHeight: number } | null;
 }
 
@@ -97,13 +103,10 @@ interface ConversationContextValue {
 const ConversationContext = createContext<ConversationContextValue | null>(null);
 
 // ============================================
-// Storage Helpers
+// LocalStorage Helpers (Cache)
 // ============================================
 
-/**
- * Load conversations from LocalStorage
- */
-function loadConversations(): Conversation[] {
+function loadConversationsFromCache(): Conversation[] {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) return [];
@@ -129,7 +132,6 @@ function loadConversations(): Conversation[] {
       isArchived?: boolean;
     }>;
 
-    // Convert date strings back to Date objects
     return parsed.map((conv) => ({
       ...conv,
       createdAt: new Date(conv.createdAt),
@@ -139,70 +141,53 @@ function loadConversations(): Conversation[] {
         timestamp: new Date(msg.timestamp),
       })) as Message[],
     }));
-  } catch (error) {
-    console.error('Failed to load conversations from storage:', error);
+  } catch {
     return [];
   }
 }
 
-/**
- * Save conversations to LocalStorage
- */
-function saveConversations(conversations: Conversation[]): void {
+function saveConversationsToCache(conversations: Conversation[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
-  } catch (error) {
-    console.error('Failed to save conversations to storage:', error);
-  }
-}
-
-/**
- * Load active conversation ID from LocalStorage
- */
-function loadActiveId(): string | null {
-  try {
-    return localStorage.getItem(ACTIVE_ID_KEY);
   } catch {
-    return null;
+    // Storage full or unavailable
   }
 }
 
-/**
- * Save active conversation ID to LocalStorage
- */
+function loadActiveId(): string | null {
+  try { return localStorage.getItem(ACTIVE_ID_KEY); } catch { return null; }
+}
+
 function saveActiveId(id: string | null): void {
   try {
-    if (id) {
-      localStorage.setItem(ACTIVE_ID_KEY, id);
-    } else {
-      localStorage.removeItem(ACTIVE_ID_KEY);
-    }
-  } catch (error) {
-    console.error('Failed to save active ID to storage:', error);
-  }
+    if (id) localStorage.setItem(ACTIVE_ID_KEY, id);
+    else localStorage.removeItem(ACTIVE_ID_KEY);
+  } catch { /* ignore */ }
 }
 
-/**
- * Load scroll positions from LocalStorage
- */
 function loadScrollPositions(): Record<string, { scrollTop: number; scrollHeight: number }> {
   try {
     const data = localStorage.getItem(SCROLL_POSITIONS_KEY);
     return data ? JSON.parse(data) : {};
-  } catch {
-    return {};
-  }
+  } catch { return {}; }
 }
 
-/**
- * Save scroll positions to LocalStorage
- */
 function saveScrollPositions(positions: Record<string, { scrollTop: number; scrollHeight: number }>): void {
-  try {
-    localStorage.setItem(SCROLL_POSITIONS_KEY, JSON.stringify(positions));
-  } catch (error) {
-    console.error('Failed to save scroll positions to storage:', error);
-  }
+  try { localStorage.setItem(SCROLL_POSITIONS_KEY, JSON.stringify(positions)); } catch { /* ignore */ }
+}
+
+/** Convert API conversation to local format */
+function apiToLocal(apiConv: APIConversation): Conversation {
+  return {
+    id: apiConv.id,
+    title: apiConv.title || 'Neue Unterhaltung',
+    messages: [],
+    createdAt: new Date(apiConv.createdAt),
+    updatedAt: new Date(apiConv.updatedAt),
+    ...(apiConv.model ? { model: apiConv.model } : {}),
+    isPinned: apiConv.isPinned,
+    isArchived: apiConv.isArchived,
+  };
 }
 
 // ============================================
@@ -214,144 +199,105 @@ interface ConversationProviderProps {
 }
 
 export function ConversationProvider({ children }: ConversationProviderProps) {
-  // Use lazy initializers to load from storage synchronously on first render
-  const [conversations, setConversations] = useState<Conversation[]>(() => {
-    return loadConversations();
-  });
+  // Initialize from LocalStorage cache (instant, no loading state)
+  const [conversations, setConversations] = useState<Conversation[]>(() => loadConversationsFromCache());
 
   const [activeConversationId, setActiveConversationId] = useState<string | null>(() => {
-    const loadedConversations = loadConversations();
-    const loadedActiveId = loadActiveId();
-
-    // Validate that active ID exists in loaded conversations
-    if (loadedActiveId && loadedConversations.some((c) => c.id === loadedActiveId)) {
-      return loadedActiveId;
-    } else if (loadedConversations.length > 0) {
-      // Default to most recent conversation
-      const sorted = [...loadedConversations].sort(
-        (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
-      );
+    const loaded = loadConversationsFromCache();
+    const activeId = loadActiveId();
+    if (activeId && loaded.some((c) => c.id === activeId)) return activeId;
+    if (loaded.length > 0) {
+      const sorted = [...loaded].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
       return sorted[0].id;
     }
     return null;
   });
 
-  // Save status for UI indicator
+  const [isLoading, setIsLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
-
-  // Search/Filter state
   const [searchQuery, setSearchQueryState] = useState<string>('');
-
-  // Debounced search query for performance
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const [scrollPositions, setScrollPositions] = useState(() => loadScrollPositions());
 
-  // Scroll positions storage
-  const [scrollPositions, setScrollPositions] = useState<Record<string, { scrollTop: number; scrollHeight: number }>>(() => {
-    return loadScrollPositions();
-  });
-
-  // Debounce timer ref
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Track if this is the initial mount (skip save on first render)
   const isInitialMount = useRef(true);
-
-  // No longer loading since we use synchronous initialization
-  const isLoading = false;
-
-  // Ref for status timer (to avoid race conditions)
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const apiAvailableRef = useRef(false);
 
-  // Debounced save conversations to storage when they change
+  // Try to sync from API on mount (non-blocking)
   useEffect(() => {
-    // Skip save on initial mount (we just loaded from storage)
+    const syncFromAPI = async () => {
+      try {
+        const result = await apiFetchConversations({ limit: 100 });
+        if (result.conversations.length > 0) {
+          apiAvailableRef.current = true;
+          // Merge API conversations with local cache (API is source of truth)
+          const apiConversations = result.conversations.map(apiToLocal);
+
+          // Preserve local messages for conversations that exist in both
+          setConversations(prev => {
+            const localMap = new Map(prev.map(c => [c.id, c]));
+            return apiConversations.map(apiConv => {
+              const local = localMap.get(apiConv.id);
+              return local ? { ...apiConv, messages: local.messages } : apiConv;
+            });
+          });
+        }
+      } catch {
+        // API not available - continue with LocalStorage
+        apiAvailableRef.current = false;
+      }
+    };
+    syncFromAPI();
+  }, []);
+
+  // Write-through to LocalStorage when conversations change
+  useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
 
-    // Clear existing timers
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-    }
-    if (statusTimerRef.current) {
-      clearTimeout(statusTimerRef.current);
-    }
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
 
-    // Set status to saving immediately (using microtask to avoid synchronous call warning)
-    statusTimerRef.current = setTimeout(() => {
-      setSaveStatus('saving');
-    }, 0);
+    statusTimerRef.current = setTimeout(() => setSaveStatus('saving'), 0);
 
-    // Debounced save
     saveTimerRef.current = setTimeout(() => {
       try {
-        saveConversations(conversations);
+        saveConversationsToCache(conversations);
         setSaveStatus('saved');
         setLastSavedAt(new Date());
-
-        // Reset to idle after 2 seconds
-        statusTimerRef.current = setTimeout(() => {
-          setSaveStatus('idle');
-        }, 2000);
-      } catch (error) {
-        console.error('Failed to save conversations:', error);
+        statusTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch {
         setSaveStatus('error');
       }
     }, SAVE_DEBOUNCE_DELAY);
 
-    // Cleanup
     return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-      }
-      if (statusTimerRef.current) {
-        clearTimeout(statusTimerRef.current);
-      }
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     };
   }, [conversations]);
 
-  // Save active ID to storage when it changes (immediate, no debounce needed)
-  useEffect(() => {
-    saveActiveId(activeConversationId);
-  }, [activeConversationId]);
+  // Save active ID
+  useEffect(() => { saveActiveId(activeConversationId); }, [activeConversationId]);
 
-  // Get active conversation object
-  const activeConversation =
-    conversations.find((c) => c.id === activeConversationId) ?? null;
-
-  // Get messages for active conversation
+  const activeConversation = conversations.find((c) => c.id === activeConversationId) ?? null;
   const activeMessages = activeConversation?.messages ?? [];
 
-  // Filter conversations based on search query
   const filteredConversations = useMemo(() => {
-    if (!debouncedSearchQuery.trim()) {
-      return conversations;
-    }
-
+    if (!debouncedSearchQuery.trim()) return conversations;
     const query = debouncedSearchQuery.toLowerCase();
-
     return conversations.filter((conversation) => {
-      // Search in conversation title
-      if (conversation.title.toLowerCase().includes(query)) {
-        return true;
-      }
-
-      // Search in message content
-      const hasMatchingMessage = conversation.messages.some((message) =>
-        message.content.toLowerCase().includes(query)
-      );
-
-      return hasMatchingMessage;
+      if (conversation.title.toLowerCase().includes(query)) return true;
+      return conversation.messages.some((message) => message.content.toLowerCase().includes(query));
     });
   }, [conversations, debouncedSearchQuery]);
 
-  // Search state helpers
   const isSearchActive = debouncedSearchQuery.trim().length > 0;
 
-  /**
-   * Create a new conversation
-   */
   const createConversation = useCallback(
     (input?: CreateConversationInput): Conversation => {
       const now = new Date();
@@ -361,7 +307,6 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
         messages: [],
         createdAt: now,
         updatedAt: now,
-        // Only set model if provided (exactOptionalPropertyTypes requires this)
         ...(input?.model ? { model: input.model } : {}),
         isPinned: false,
         isArchived: false,
@@ -370,60 +315,52 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
       setConversations((prev) => [newConversation, ...prev]);
       setActiveConversationId(newConversation.id);
 
+      // Async API sync (fire-and-forget)
+      if (apiAvailableRef.current) {
+        createAPIConversation({ title: input?.title, model: input?.model }).catch(() => {});
+      }
+
       return newConversation;
     },
     []
   );
 
-  /**
-   * Delete a conversation
-   */
   const deleteConversation = useCallback(
     (id: string) => {
       setConversations((prev) => {
         const newConversations = prev.filter((c) => c.id !== id);
-
-        // If deleting active conversation, switch to another
         if (id === activeConversationId) {
           if (newConversations.length > 0) {
-            const sorted = [...newConversations].sort(
-              (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
-            );
+            const sorted = [...newConversations].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
             setActiveConversationId(sorted[0].id);
           } else {
             setActiveConversationId(null);
           }
         }
-
         return newConversations;
       });
+
+      // Async API sync
+      if (apiAvailableRef.current) {
+        deleteAPIConversation(id).catch(() => {});
+      }
     },
     [activeConversationId]
   );
 
-  /**
-   * Set active conversation
-   */
   const setActiveConversation = useCallback((id: string) => {
     setActiveConversationId(id);
   }, []);
 
-  /**
-   * Update conversation title
-   */
   const updateConversationTitle = useCallback((id: string, title: string) => {
     setConversations((prev) =>
-      prev.map((conv) =>
-        conv.id === id
-          ? { ...conv, title, updatedAt: new Date() }
-          : conv
-      )
+      prev.map((conv) => conv.id === id ? { ...conv, title, updatedAt: new Date() } : conv)
     );
+    if (apiAvailableRef.current) {
+      updateAPIConversation(id, { title }).catch(() => {});
+    }
   }, []);
 
-  /**
-   * Add a message to active conversation
-   */
   const addMessageToActive = useCallback(
     (message: Message) => {
       if (!activeConversationId) return;
@@ -435,7 +372,6 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
                 ...conv,
                 messages: [...conv.messages, message],
                 updatedAt: new Date(),
-                // Auto-generate title from first user message
                 title:
                   conv.title === 'Neue Unterhaltung' &&
                   message.role === 'user' &&
@@ -446,25 +382,30 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
             : conv
         )
       );
+
+      // Async API sync - persist message
+      if (apiAvailableRef.current) {
+        addAPIMessage(activeConversationId, {
+          role: message.role,
+          content: message.content,
+          model: message.model,
+          tokenCount: message.tokenCount,
+          sources: message.sources,
+        }).catch(() => {});
+      }
     },
     [activeConversationId]
   );
 
-  /**
-   * Update a message in active conversation
-   */
   const updateMessageInActive = useCallback(
     (messageId: string, updates: Partial<Message>) => {
       if (!activeConversationId) return;
-
       setConversations((prev) =>
         prev.map((conv) =>
           conv.id === activeConversationId
             ? {
                 ...conv,
-                messages: conv.messages.map((msg) =>
-                  msg.id === messageId ? { ...msg, ...updates } : msg
-                ),
+                messages: conv.messages.map((msg) => msg.id === messageId ? { ...msg, ...updates } : msg),
                 updatedAt: new Date(),
               }
             : conv
@@ -474,21 +415,13 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
     [activeConversationId]
   );
 
-  /**
-   * Remove a message from the active conversation
-   */
   const removeMessageFromActive = useCallback(
     (messageId: string) => {
       if (!activeConversationId) return;
-
       setConversations((prev) =>
         prev.map((conv) =>
           conv.id === activeConversationId
-            ? {
-                ...conv,
-                messages: conv.messages.filter((msg) => msg.id !== messageId),
-                updatedAt: new Date(),
-              }
+            ? { ...conv, messages: conv.messages.filter((msg) => msg.id !== messageId), updatedAt: new Date() }
             : conv
         )
       );
@@ -496,43 +429,20 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
     [activeConversationId]
   );
 
-  /**
-   * Clear messages in active conversation
-   */
   const clearActiveMessages = useCallback(() => {
     if (!activeConversationId) return;
-
     setConversations((prev) =>
       prev.map((conv) =>
         conv.id === activeConversationId
-          ? {
-              ...conv,
-              messages: [],
-              title: 'Neue Unterhaltung',
-              updatedAt: new Date(),
-            }
+          ? { ...conv, messages: [], title: 'Neue Unterhaltung', updatedAt: new Date() }
           : conv
       )
     );
   }, [activeConversationId]);
 
-  /**
-   * Set search query
-   */
-  const setSearchQuery = useCallback((query: string) => {
-    setSearchQueryState(query);
-  }, []);
+  const setSearchQuery = useCallback((query: string) => { setSearchQueryState(query); }, []);
+  const clearSearch = useCallback(() => { setSearchQueryState(''); }, []);
 
-  /**
-   * Clear search
-   */
-  const clearSearch = useCallback(() => {
-    setSearchQueryState('');
-  }, []);
-
-  /**
-   * Save scroll position for conversation
-   */
   const saveScrollPosition = useCallback((conversationId: string, scrollTop: number, scrollHeight: number) => {
     setScrollPositions(prev => {
       const newPositions = { ...prev, [conversationId]: { scrollTop, scrollHeight } };
@@ -541,9 +451,6 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
     });
   }, []);
 
-  /**
-   * Get saved scroll position for conversation
-   */
   const getScrollPosition = useCallback((conversationId: string) => {
     return scrollPositions[conversationId] || null;
   }, [scrollPositions]);
@@ -586,10 +493,8 @@ export function ConversationProvider({ children }: ConversationProviderProps) {
 
 export function useConversations(): ConversationContextValue {
   const context = useContext(ConversationContext);
-
   if (!context) {
     throw new Error('useConversations must be used within a ConversationProvider');
   }
-
   return context;
 }

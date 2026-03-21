@@ -1,4 +1,4 @@
-# Vexora RAG Infrastructure
+# Cor7ex RAG Infrastructure
 # Start with: docker compose up -d
 # Stop with: docker compose down
 # Reset data: docker compose down -v
@@ -7,7 +7,7 @@ services:
   # Vector Database for hybrid search (semantic + keyword)
   weaviate:
     image: cr.weaviate.io/semitechnologies/weaviate:1.28.4
-    container_name: vexora-weaviate
+    container_name: cor7ex-weaviate
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -36,19 +36,19 @@ services:
   # PostgreSQL with pgvector extension for structured data
   postgresql:
     image: pgvector/pgvector:pg16
-    container_name: vexora-postgresql
+    container_name: cor7ex-postgresql
     restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: vexora
-      POSTGRES_PASSWORD: vexora_dev_password
-      POSTGRES_DB: vexora
+      POSTGRES_USER: cor7ex
+      POSTGRES_PASSWORD: cor7ex_dev_password
+      POSTGRES_DB: cor7ex
     volumes:
       - postgresql_data:/var/lib/postgresql/data
       - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vexora -d vexora"]
+      test: ["CMD-SHELL", "pg_isready -U cor7ex -d cor7ex"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -61,7 +61,7 @@ services:
   # Redis for caching and background job processing
   redis:
     image: redis:7-alpine
-    container_name: vexora-redis
+    container_name: cor7ex-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -81,12 +81,12 @@ services:
 
 volumes:
   weaviate_data:
-    name: vexora_weaviate_data
+    name: cor7ex_weaviate_data
   postgresql_data:
-    name: vexora_postgresql_data
+    name: cor7ex_postgresql_data
   redis_data:
-    name: vexora_redis_data
+    name: cor7ex_redis_data
 
 networks:
   default:
-    name: vexora_network
+    name: cor7ex_network

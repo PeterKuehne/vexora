@@ -3,13 +3,13 @@
  *
  * Features:
  * - Tab navigation between Conversations and RAG/Documents
- * - Controlled or uncontrolled tab state
+ * - Refined Monochrome design with inverted CTA
  * - Consistent layout and sizing
  */
 
 import { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { Plus } from 'lucide-react';
+import { Plus, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import type { User } from '../../server/src/types/auth';
 import { SidebarTabs, type SidebarTab } from './SidebarTabs';
 import { ConversationSidebar } from './ConversationSidebar';
@@ -68,47 +68,35 @@ export function MainSidebar({
         className={`
           w-12 h-full flex flex-col items-center py-3
           border-r transition-colors
-          ${isDark ? 'bg-surface border-white/10' : 'bg-gray-50 border-gray-200'}
+          ${isDark ? 'bg-background border-white/[0.06]' : 'bg-gray-50 border-gray-200'}
         `.trim()}
       >
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
             className={`
-              p-2 rounded-lg transition-colors
+              p-2 rounded-xl transition-colors
               ${isDark
-                ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-black/10'
+                ? 'text-gray-500 hover:text-white hover:bg-white/[0.06]'
+                : 'text-gray-400 hover:text-gray-900 hover:bg-black/5'
               }
             `.trim()}
             title="Sidebar öffnen"
             aria-label="Sidebar öffnen"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+            <PanelLeftOpen size={18} />
           </button>
         )}
       </div>
     );
   }
 
-  // Header with tabs
-  const headerContent = (
-    <div className="w-full">
-      <SidebarTabs
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-      />
-    </div>
-  );
-
   return (
     <aside
       className={`
         h-full flex flex-col
         border-r transition-colors
-        ${isDark ? 'bg-surface border-white/10' : 'bg-gray-50 border-gray-200'}
+        ${isDark ? 'bg-background border-white/[0.06]' : 'bg-gray-50 border-gray-200'}
       `.trim()}
       style={{ width: `${SIDEBAR_WIDTH}px` }}
       aria-label="Hauptsidebar"
@@ -116,38 +104,40 @@ export function MainSidebar({
       {/* Header with tabs and collapse button */}
       <div
         className={`
-          flex items-center justify-between
+          animate-stagger-1
+          flex items-center gap-2
           px-3 py-3
           border-b shrink-0
-          ${isDark ? 'border-white/10' : 'border-gray-200'}
+          ${isDark ? 'border-white/[0.06]' : 'border-gray-200/80'}
         `.trim()}
       >
-        <div className="flex-1 mr-2">
-          {headerContent}
+        <div className="flex-1 min-w-0">
+          <SidebarTabs
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+          />
         </div>
         {onToggleCollapse && (
           <button
             onClick={onToggleCollapse}
             className={`
-              p-1.5 rounded transition-colors
+              p-1.5 rounded-lg transition-colors shrink-0
               ${isDark
-                ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-black/10'
+                ? 'text-gray-600 hover:text-gray-400 hover:bg-white/[0.04]'
+                : 'text-gray-400 hover:text-gray-600 hover:bg-black/5'
               }
             `.trim()}
             title="Sidebar schließen"
             aria-label="Sidebar schließen"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+            <PanelLeftClose size={16} />
           </button>
         )}
       </div>
 
       {/* New Conversation Button - only for conversations tab */}
       {activeTab === 'conversations' && onNewConversation && (
-        <div className="px-3 py-2.5 shrink-0">
+        <div className="animate-stagger-2 px-3 py-2.5 shrink-0">
           <button
             onClick={onNewConversation}
             className={`
@@ -155,44 +145,30 @@ export function MainSidebar({
               w-full
               flex items-center justify-center gap-2
               px-3 py-2
-              rounded-lg
+              rounded-xl
+              text-[13px] font-semibold
               transition-all duration-200
-              ${
-                isDark
-                  ? 'text-gray-400 hover:text-white hover:bg-white/10'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-black/10'
+              ${isDark
+                ? 'bg-white text-gray-900 hover:bg-gray-100 shadow-lg shadow-white/5'
+                : 'bg-gray-900 text-white hover:bg-gray-800 shadow-lg shadow-gray-900/20'
               }
             `.trim()}
             title="Neue Unterhaltung"
             aria-label="Neue Unterhaltung erstellen"
           >
-            {/* Animated Plus Icon */}
-            <span
-              className="
-                relative inline-flex items-center justify-center
-                transition-transform duration-300 ease-out
-                group-hover:scale-110
-                group-active:scale-95
-              "
-            >
-              <Plus
-                size={18}
-                className="
-                  transition-all duration-300 ease-out
-                  group-hover:rotate-90
-                "
-              />
-            </span>
-            <span className="text-sm font-medium">Neue Unterhaltung</span>
+            <Plus
+              size={16}
+              className="transition-transform duration-300 ease-out group-hover:rotate-90"
+            />
+            <span>Neue Unterhaltung</span>
           </button>
         </div>
       )}
 
       {/* Content area - different content based on active tab */}
-      <div className="flex-1 overflow-hidden">
+      <div className="animate-stagger-3 flex-1 overflow-hidden">
         {activeTab === 'conversations' && (
           <div className="h-full">
-            {/* Use the existing ConversationSidebar content without its own header/footer */}
             <ConversationSidebar
               isCollapsed={false}
             />
@@ -201,7 +177,6 @@ export function MainSidebar({
 
         {activeTab === 'rag' && (
           <div className="h-full">
-            {/* RAG mode selection */}
             <RAGSidebar
               isCollapsed={false}
             />
@@ -209,16 +184,17 @@ export function MainSidebar({
         )}
       </div>
 
-      {/* Footer with User Menu - entire area is clickable */}
+      {/* Footer with User Menu */}
       <div
         className={`
+          animate-stagger-5
           px-3 py-3
           border-t shrink-0
           transition-colors duration-150
-          ${isDark ? 'border-white/10' : 'border-gray-200'}
+          ${isDark ? 'border-white/[0.06]' : 'border-gray-200/80'}
           ${isDark
-            ? 'hover:bg-white/5 active:bg-white/10'
-            : 'hover:bg-black/5 active:bg-black/10'
+            ? 'hover:bg-white/[0.02]'
+            : 'hover:bg-black/[0.02]'
           }
         `.trim()}
       >

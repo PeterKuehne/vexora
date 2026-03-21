@@ -30,8 +30,10 @@ export function authenticateToken(req: AuthenticatedRequest, res: Response, next
       return;
     }
 
-    // Verify JWT token
-    const decoded = jwt.verify(token, env.JWT_SECRET) as JWTPayload;
+    // Verify JWT token - explicit algorithm allowlist prevents algorithm confusion attacks
+    const decoded = jwt.verify(token, env.JWT_SECRET, {
+      algorithms: ['HS256'],
+    }) as JWTPayload;
 
     // Create user context for the request
     const userContext: UserContext = {
@@ -95,8 +97,10 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
       return;
     }
 
-    // Verify JWT token if provided
-    const decoded = jwt.verify(token, env.JWT_SECRET) as JWTPayload;
+    // Verify JWT token if provided - explicit algorithm allowlist
+    const decoded = jwt.verify(token, env.JWT_SECRET, {
+      algorithms: ['HS256'],
+    }) as JWTPayload;
 
     // Create user context for the request
     const userContext: UserContext = {

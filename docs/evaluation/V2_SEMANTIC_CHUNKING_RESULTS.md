@@ -183,7 +183,7 @@ ORDER BY chunk_count DESC;
 
 ```bash
 # V2 Collection abfragen
-curl "http://192.168.178.23:8080/v1/objects?class=DocumentChunksV2&limit=10"
+curl "http://192.168.2.38:8080/v1/objects?class=DocumentChunksV2&limit=10"
 ```
 
 ---

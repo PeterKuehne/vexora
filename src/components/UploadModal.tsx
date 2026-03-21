@@ -1,8 +1,8 @@
 /**
- * UploadModal - Clean modal for document upload with fade animation
+ * UploadModal - Refined modal for document upload
  *
  * Features:
- * - Compact modal design
+ * - Refined modal design with glass-morphic backdrop
  * - Contains DocumentUploadWithPermissions
  * - Smooth fade-in/fade-out animation
  * - Closes on successful upload or cancel
@@ -27,16 +27,13 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
   // Handle open/close with animation
   useEffect(() => {
     if (isOpen) {
-      // Opening: show immediately, then animate in
       setIsVisible(true);
-      // Small delay to trigger CSS transition
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           setIsAnimating(true);
         });
       });
     } else {
-      // Closing: animate out, then hide
       setIsAnimating(false);
     }
   }, [isOpen]);
@@ -51,7 +48,6 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
   // Close with animation
   const handleClose = useCallback(() => {
     setIsAnimating(false);
-    // Wait for animation to complete before calling onClose
     setTimeout(() => {
       onClose();
     }, 150);
@@ -95,7 +91,7 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
       {/* Backdrop */}
       <div
         className={`
-          absolute inset-0 bg-black/50 backdrop-blur-sm
+          absolute inset-0 bg-black/60 backdrop-blur-sm
           transition-opacity duration-150
           ${isAnimating ? 'opacity-100' : 'opacity-0'}
         `}
@@ -105,11 +101,14 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
       {/* Modal */}
       <div
         className={`
-          relative w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto
-          rounded-xl shadow-2xl
-          transition-all duration-150
-          ${isAnimating ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}
-          ${isDark ? 'bg-surface' : 'bg-white'}
+          relative w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto scrollbar-thin
+          rounded-2xl shadow-2xl
+          transition-all duration-200 ease-out
+          ${isAnimating ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-[0.97] translate-y-2'}
+          ${isDark
+            ? 'bg-surface border border-white/[0.08]'
+            : 'bg-white border border-gray-200/80'
+          }
         `}
       >
         {/* Header */}
@@ -118,33 +117,33 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
             sticky top-0 z-10 flex items-center justify-between
             px-6 py-4 border-b
             ${isDark
-              ? 'bg-surface border-white/10'
-              : 'bg-white border-gray-200'
+              ? 'bg-surface/95 backdrop-blur-md border-white/[0.06]'
+              : 'bg-white/95 backdrop-blur-md border-gray-100'
             }
           `}
         >
           <div className="flex items-center gap-3">
             <div className={`
-              p-2 rounded-lg
-              ${isDark ? 'bg-blue-500/20' : 'bg-blue-100'}
+              p-2 rounded-xl
+              ${isDark ? 'bg-white/5' : 'bg-gray-50'}
             `}>
               <Upload
-                size={20}
-                className={isDark ? 'text-blue-400' : 'text-blue-600'}
+                size={18}
+                className={isDark ? 'text-gray-300' : 'text-gray-600'}
               />
             </div>
             <div>
               <h2 className={`
-                text-lg font-semibold
+                text-base font-semibold
                 ${isDark ? 'text-white' : 'text-gray-900'}
               `}>
                 Dokument hochladen
               </h2>
               <p className={`
-                text-sm
-                ${isDark ? 'text-gray-400' : 'text-gray-600'}
+                text-xs
+                ${isDark ? 'text-gray-500' : 'text-gray-400'}
               `}>
-                PDF mit Berechtigungen hochladen
+                Datei mit Berechtigungen und Klassifizierung hochladen
               </p>
             </div>
           </div>
@@ -152,15 +151,15 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
           <button
             onClick={handleClose}
             className={`
-              p-2 rounded-lg
+              p-2 rounded-xl
               transition-colors duration-150
               ${isDark
-                ? 'hover:bg-white/10 text-gray-400 hover:text-white'
-                : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+                ? 'hover:bg-white/5 text-gray-500 hover:text-gray-300'
+                : 'hover:bg-gray-100 text-gray-300 hover:text-gray-500'
               }
             `}
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 

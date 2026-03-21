@@ -8,10 +8,11 @@
  * - Bulk delete with confirmation dialog
  * - Loading and empty states
  * - Responsive design
+ * - Refined design with classification accents and elegant badges
  */
 
 import { useState, useMemo } from 'react';
-import { File, Trash2, CheckSquare, Square, X, Tag, Settings } from 'lucide-react';
+import { File, Trash2, CheckSquare, Square, X, Tag, Settings, FileText } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -79,17 +80,39 @@ function DocumentRow({ document, onDelete, onEditPermissions, isSelectionMode, i
     }
   };
 
-  // Classification badge color
-  const getClassificationColor = (classification?: string) => {
+  // Classification accent color (left border)
+  const getClassificationAccent = (classification?: string) => {
     switch (classification) {
       case 'public':
-        return isDark ? 'bg-green-900/40 text-green-300' : 'bg-green-100 text-green-700';
+        return isDark ? 'border-l-emerald-500/60' : 'border-l-emerald-400';
       case 'confidential':
-        return isDark ? 'bg-orange-900/40 text-orange-300' : 'bg-orange-100 text-orange-700';
+        return isDark ? 'border-l-amber-500/60' : 'border-l-amber-400';
       case 'restricted':
-        return isDark ? 'bg-red-900/40 text-red-300' : 'bg-red-100 text-red-700';
+        return isDark ? 'border-l-red-500/60' : 'border-l-red-400';
       default: // internal
-        return isDark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-100 text-blue-700';
+        return isDark ? 'border-l-blue-500/60' : 'border-l-blue-400';
+    }
+  };
+
+  // Classification badge styling
+  const getClassificationBadge = (classification?: string) => {
+    switch (classification) {
+      case 'public':
+        return isDark
+          ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20'
+          : 'bg-emerald-50 text-emerald-600 ring-emerald-200/60';
+      case 'confidential':
+        return isDark
+          ? 'bg-amber-500/10 text-amber-400 ring-amber-500/20'
+          : 'bg-amber-50 text-amber-600 ring-amber-200/60';
+      case 'restricted':
+        return isDark
+          ? 'bg-red-500/10 text-red-400 ring-red-500/20'
+          : 'bg-red-50 text-red-600 ring-red-200/60';
+      default: // internal
+        return isDark
+          ? 'bg-blue-500/10 text-blue-400 ring-blue-500/20'
+          : 'bg-blue-50 text-blue-600 ring-blue-200/60';
     }
   };
 
@@ -106,62 +129,76 @@ function DocumentRow({ document, onDelete, onEditPermissions, isSelectionMode, i
     <tr
       onClick={handleRowClick}
       className={`
-        group transition-colors duration-150
+        group transition-all duration-150
+        border-l-2
+        ${getClassificationAccent(document.metadata?.classification)}
         ${isSelectionMode ? 'cursor-pointer' : ''}
         ${isSelected
-          ? isDark ? 'bg-blue-900/30' : 'bg-blue-50'
-          : isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'
+          ? isDark ? 'bg-blue-500/8' : 'bg-blue-50/70'
+          : isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-gray-50/70'
         }
       `}
     >
       {/* Checkbox / Icon Column */}
-      <td className={`
-        px-4 py-3 w-12
-        ${isDark ? 'border-white/10' : 'border-gray-200'}
-      `}>
+      <td className="px-4 py-3 w-10">
         {isSelectionMode ? (
           <button
             onClick={(e) => {
               e.stopPropagation();
               onToggleSelect(document.id);
             }}
-            className={isSelected
-              ? isDark ? 'text-blue-400' : 'text-blue-600'
-              : isDark ? 'text-gray-500' : 'text-gray-400'
-            }
+            className={`
+              transition-colors duration-150
+              ${isSelected
+                ? isDark ? 'text-blue-400' : 'text-blue-600'
+                : isDark ? 'text-gray-600' : 'text-gray-300'
+              }
+            `}
           >
-            {isSelected ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
+            {isSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
           </button>
         ) : (
-          <File className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
+          <div className={`
+            p-1.5 rounded-lg
+            ${isDark ? 'bg-white/5' : 'bg-gray-50'}
+          `}>
+            <FileText className={`w-3.5 h-3.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+          </div>
         )}
       </td>
 
       {/* Name Column */}
-      <td className={`px-4 py-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+      <td className="px-3 py-3">
         <div className="flex flex-col">
           <span
-            className={`font-medium truncate max-w-xs ${isDark ? 'text-gray-200' : 'text-gray-900'}`}
+            className={`
+              text-[13px] font-medium truncate max-w-xs
+              ${isDark ? 'text-gray-200' : 'text-gray-800'}
+            `}
             title={document.originalName}
           >
             {document.originalName}
           </span>
           {/* Tags inline */}
           {document.tags && document.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
+            <div className="flex flex-wrap gap-1 mt-1.5">
               {document.tags.slice(0, 3).map((tag) => (
                 <span
                   key={tag}
-                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] ${
-                    isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'
-                  }`}
+                  className={`
+                    inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium
+                    ${isDark
+                      ? 'bg-white/5 text-gray-500'
+                      : 'bg-gray-100 text-gray-400'
+                    }
+                  `}
                 >
                   <Tag className="w-2 h-2" />
                   {tag}
                 </span>
               ))}
               {document.tags.length > 3 && (
-                <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                <span className={`text-[10px] tabular-nums ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>
                   +{document.tags.length - 3}
                 </span>
               )}
@@ -171,47 +208,47 @@ function DocumentRow({ document, onDelete, onEditPermissions, isSelectionMode, i
       </td>
 
       {/* Category Column */}
-      <td className={`px-4 py-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-        <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+      <td className="px-3 py-3">
+        <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
           {document.category || 'Allgemein'}
         </span>
       </td>
 
       {/* Classification Column */}
-      <td className={`px-4 py-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+      <td className="px-3 py-3">
         <span className={`
-          inline-flex px-2 py-0.5 rounded text-xs font-medium
-          ${getClassificationColor(document.metadata?.classification)}
+          inline-flex px-2 py-0.5 rounded-md text-[11px] font-medium ring-1
+          ${getClassificationBadge(document.metadata?.classification)}
         `}>
           {getClassificationLabel(document.metadata?.classification)}
         </span>
       </td>
 
       {/* Size Column */}
-      <td className={`px-4 py-3 text-right ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-        <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+      <td className="px-3 py-3 text-right">
+        <span className={`text-xs tabular-nums ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
           {formatFileSize(document.size)}
         </span>
       </td>
 
       {/* Pages Column */}
-      <td className={`px-4 py-3 text-center ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-        <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+      <td className="px-3 py-3 text-center">
+        <span className={`text-xs tabular-nums ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
           {document.pages}
         </span>
       </td>
 
       {/* Date Column */}
-      <td className={`px-4 py-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-        <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+      <td className="px-3 py-3">
+        <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
           {formatDate(document.uploadedAt)}
         </span>
       </td>
 
       {/* Actions Column */}
-      <td className={`px-4 py-3 w-24 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+      <td className="px-3 py-3 w-20">
         {!isSelectionMode && (
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end gap-0.5">
             {canEditPermissions && (
               <button
                 onClick={(e) => {
@@ -219,15 +256,15 @@ function DocumentRow({ document, onDelete, onEditPermissions, isSelectionMode, i
                   onEditPermissions(document);
                 }}
                 className={`
-                  p-1.5 rounded opacity-0 group-hover:opacity-100 transition-all
+                  p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200
                   ${isDark
-                    ? 'text-gray-500 hover:text-blue-400 hover:bg-blue-900/20'
-                    : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                    ? 'text-gray-600 hover:text-blue-400 hover:bg-blue-500/10'
+                    : 'text-gray-300 hover:text-blue-600 hover:bg-blue-50'
                   }
                 `}
                 title="Berechtigungen"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-3.5 h-3.5" />
               </button>
             )}
 
@@ -238,15 +275,15 @@ function DocumentRow({ document, onDelete, onEditPermissions, isSelectionMode, i
                   setShowDeleteConfirm(true);
                 }}
                 className={`
-                  p-1.5 rounded opacity-0 group-hover:opacity-100 transition-all
+                  p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200
                   ${isDark
-                    ? 'text-gray-500 hover:text-red-400 hover:bg-red-900/20'
-                    : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                    ? 'text-gray-600 hover:text-red-400 hover:bg-red-500/10'
+                    : 'text-gray-300 hover:text-red-500 hover:bg-red-50'
                   }
                 `}
                 title="Löschen"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             ) : (
               <div className="flex gap-1">
@@ -255,7 +292,7 @@ function DocumentRow({ document, onDelete, onEditPermissions, isSelectionMode, i
                     e.stopPropagation();
                     handleDelete();
                   }}
-                  className="px-2 py-1 text-xs rounded bg-red-600 hover:bg-red-700 text-white"
+                  className="px-2 py-1 text-[11px] font-medium rounded-md bg-red-600 hover:bg-red-700 text-white transition-colors"
                 >
                   Ja
                 </button>
@@ -264,8 +301,8 @@ function DocumentRow({ document, onDelete, onEditPermissions, isSelectionMode, i
                     e.stopPropagation();
                     setShowDeleteConfirm(false);
                   }}
-                  className={`px-2 py-1 text-xs rounded ${
-                    isDark ? 'bg-gray-600 text-gray-200' : 'bg-gray-200 text-gray-700'
+                  className={`px-2 py-1 text-[11px] font-medium rounded-md transition-colors ${
+                    isDark ? 'bg-white/10 text-gray-300 hover:bg-white/15' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
                   Nein
@@ -292,34 +329,39 @@ function BulkDeleteDialog({ count, onConfirm, onCancel }: BulkDeleteDialogProps)
   const { isDark } = useTheme();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div
         className={`
-          max-w-md w-full mx-4 p-6 rounded-xl shadow-xl
-          ${isDark ? 'bg-gray-800' : 'bg-white'}
+          max-w-md w-full mx-4 p-6 rounded-2xl shadow-2xl animate-scaleIn
+          ${isDark ? 'bg-surface border border-white/10' : 'bg-white border border-gray-200'}
         `}
       >
         <div className="flex items-center gap-3 mb-4">
-          <div className={`p-2 rounded-full ${isDark ? 'bg-red-900/30' : 'bg-red-100'}`}>
-            <Trash2 className={`w-6 h-6 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+          <div className={`p-2.5 rounded-xl ${isDark ? 'bg-red-500/10' : 'bg-red-50'}`}>
+            <Trash2 className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
           </div>
-          <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {count} Dokument{count !== 1 ? 'e' : ''} löschen?
-          </h3>
+          <div>
+            <h3 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {count} Dokument{count !== 1 ? 'e' : ''} löschen?
+            </h3>
+            <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+              Diese Aktion kann nicht rückgängig gemacht werden
+            </p>
+          </div>
         </div>
 
-        <p className={`mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          Diese Aktion kann nicht rückgängig gemacht werden. Alle ausgewählten Dokumente und ihre Vektordaten werden dauerhaft gelöscht.
+        <p className={`mb-6 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+          Alle ausgewählten Dokumente und ihre Vektordaten werden dauerhaft gelöscht.
         </p>
 
-        <div className="flex gap-3 justify-end">
+        <div className="flex gap-2.5 justify-end">
           <button
             onClick={onCancel}
             className={`
-              px-4 py-2 rounded-lg font-medium transition-colors
+              px-4 py-2 rounded-xl text-sm font-medium transition-colors
               ${isDark
-                ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-                : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                ? 'bg-white/5 hover:bg-white/10 text-gray-300'
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
               }
             `}
           >
@@ -327,15 +369,9 @@ function BulkDeleteDialog({ count, onConfirm, onCancel }: BulkDeleteDialogProps)
           </button>
           <button
             onClick={onConfirm}
-            className={`
-              px-4 py-2 rounded-lg font-medium transition-colors
-              ${isDark
-                ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-red-500 hover:bg-red-600 text-white'
-              }
-            `}
+            className="px-4 py-2 rounded-xl text-sm font-medium transition-colors bg-red-600 hover:bg-red-700 text-white"
           >
-            {count} Dokument{count !== 1 ? 'e' : ''} löschen
+            {count} löschen
           </button>
         </div>
       </div>
@@ -472,33 +508,33 @@ export function DocumentList({ searchQuery = '' }: DocumentListProps) {
   // Loading state
   if (isLoading) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {[1, 2, 3].map((i) => (
           <div
             key={i}
             className={`
-              p-4 rounded-lg border animate-pulse
-              ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}
+              p-4 rounded-xl animate-pulse
+              ${isDark ? 'bg-white/[0.02]' : 'bg-gray-50'}
             `}
           >
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-center">
               <div
-                className={`w-8 h-8 rounded ${
-                  isDark ? 'bg-gray-700' : 'bg-gray-300'
+                className={`w-8 h-8 rounded-lg ${
+                  isDark ? 'bg-white/5' : 'bg-gray-200'
                 }`}
               />
               <div className="flex-1">
                 <div
-                  className={`h-4 rounded mb-2 ${
-                    isDark ? 'bg-gray-700' : 'bg-gray-300'
+                  className={`h-3.5 rounded-md mb-2 ${
+                    isDark ? 'bg-white/5' : 'bg-gray-200'
                   }`}
-                  style={{ width: `${60 + i * 10}%` }}
+                  style={{ width: `${50 + i * 12}%` }}
                 />
                 <div
-                  className={`h-3 rounded ${
-                    isDark ? 'bg-gray-700' : 'bg-gray-300'
+                  className={`h-2.5 rounded-md ${
+                    isDark ? 'bg-white/[0.03]' : 'bg-gray-100'
                   }`}
-                  style={{ width: '40%' }}
+                  style={{ width: '35%' }}
                 />
               </div>
             </div>
@@ -511,25 +547,18 @@ export function DocumentList({ searchQuery = '' }: DocumentListProps) {
   // Empty state (no documents at all)
   if (documents.length === 0) {
     return (
-      <div className="text-center py-8">
-        <File
-          className={`w-16 h-16 mx-auto mb-4 ${
-            isDark ? 'text-gray-600' : 'text-gray-300'
-          }`}
-        />
-        <h3
-          className={`text-lg font-medium mb-2 ${
-            isDark ? 'text-gray-400' : 'text-gray-500'
-          }`}
-        >
+      <div className="text-center py-12">
+        <div className={`
+          inline-flex p-4 rounded-2xl mb-4
+          ${isDark ? 'bg-white/[0.03]' : 'bg-gray-50'}
+        `}>
+          <File className={`w-10 h-10 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
+        </div>
+        <h3 className={`text-sm font-semibold mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
           Keine Dokumente vorhanden
         </h3>
-        <p
-          className={`text-sm ${
-            isDark ? 'text-gray-500' : 'text-gray-400'
-          }`}
-        >
-          Laden Sie ein PDF-Dokument hoch, um zu beginnen
+        <p className={`text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+          Laden Sie ein Dokument hoch, um zu beginnen
         </p>
       </div>
     );
@@ -538,33 +567,25 @@ export function DocumentList({ searchQuery = '' }: DocumentListProps) {
   return (
     <div>
       {/* Header with stats and selection controls */}
-      <div className="mb-4">
+      <div className="mb-3">
         <div className="flex justify-between items-center">
-          <h3
-            className={`text-sm font-medium ${
-              isDark ? 'text-gray-300' : 'text-gray-700'
-            }`}
-          >
+          <h3 className={`text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
             Dokumente
           </h3>
 
           {/* Selection mode controls */}
           {isSelectionMode ? (
-            <div className="flex items-center gap-2">
-              <span
-                className={`text-xs ${
-                  isDark ? 'text-blue-400' : 'text-blue-600'
-                }`}
-              >
+            <div className="flex items-center gap-1.5">
+              <span className={`text-[11px] font-medium tabular-nums ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
                 {selectedCount} ausgewählt
               </span>
               <button
                 onClick={selectAllDocuments}
                 className={`
-                  text-xs px-2 py-1 rounded transition-colors
+                  text-[11px] px-2 py-1 rounded-md transition-colors font-medium
                   ${isDark
-                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    ? 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                   }
                 `}
               >
@@ -573,10 +594,10 @@ export function DocumentList({ searchQuery = '' }: DocumentListProps) {
               <button
                 onClick={clearSelection}
                 className={`
-                  text-xs px-2 py-1 rounded transition-colors
+                  text-[11px] px-2 py-1 rounded-md transition-colors font-medium
                   ${isDark
-                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    ? 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                   }
                 `}
               >
@@ -585,34 +606,30 @@ export function DocumentList({ searchQuery = '' }: DocumentListProps) {
               <button
                 onClick={toggleSelectionMode}
                 className={`
-                  p-1 rounded transition-colors
+                  p-1 rounded-md transition-colors
                   ${isDark
-                    ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    ? 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                   }
                 `}
                 title="Auswahl beenden"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <span
-                className={`text-xs ${
-                  isDark ? 'text-gray-500' : 'text-gray-400'
-                }`}
-              >
-                {totalDocuments} Datei{totalDocuments !== 1 ? 'en' : ''} • {formatTotalSize(totalSize)}
+            <div className="flex items-center gap-2.5">
+              <span className={`text-[11px] tabular-nums ${isDark ? 'text-gray-600' : 'text-gray-300'}`}>
+                {totalDocuments} Datei{totalDocuments !== 1 ? 'en' : ''} · {formatTotalSize(totalSize)}
               </span>
               {totalDocuments > 1 && (
                 <button
                   onClick={toggleSelectionMode}
                   className={`
-                    flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors
+                    flex items-center gap-1 text-[11px] px-2 py-1 rounded-md transition-colors font-medium
                     ${isDark
-                      ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                      ? 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                     }
                   `}
                   title="Mehrere auswählen"
@@ -627,18 +644,18 @@ export function DocumentList({ searchQuery = '' }: DocumentListProps) {
 
         {/* Bulk delete button */}
         {isSelectionMode && selectedCount > 0 && (
-          <div className="mt-3">
+          <div className="mt-2.5">
             <button
               onClick={() => setShowBulkDeleteDialog(true)}
               className={`
-                flex items-center gap-2 w-full px-3 py-2 rounded-lg font-medium transition-colors
+                flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm font-medium transition-colors
                 ${isDark
-                  ? 'bg-red-900/30 hover:bg-red-900/50 text-red-400'
-                  : 'bg-red-50 hover:bg-red-100 text-red-600'
+                  ? 'bg-red-500/10 hover:bg-red-500/15 text-red-400 ring-1 ring-red-500/20'
+                  : 'bg-red-50 hover:bg-red-100 text-red-600 ring-1 ring-red-200/60'
                 }
               `}
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3.5 h-3.5" />
               {selectedCount} Dokument{selectedCount !== 1 ? 'e' : ''} löschen
             </button>
           </div>
@@ -647,41 +664,46 @@ export function DocumentList({ searchQuery = '' }: DocumentListProps) {
 
       {/* Document table */}
       <div className={`
-        rounded-lg border overflow-hidden
-        ${isDark ? 'border-white/10' : 'border-gray-200'}
+        rounded-xl overflow-hidden
+        ${isDark ? 'ring-1 ring-white/[0.06]' : 'ring-1 ring-gray-200/80'}
       `}>
         <table className="w-full">
           <thead>
             <tr className={`
-              text-xs font-medium
+              text-[11px] font-medium uppercase tracking-wider
               ${isDark
-                ? 'bg-white/5 text-gray-400 border-b border-white/10'
-                : 'bg-gray-50 text-gray-500 border-b border-gray-200'
+                ? 'bg-white/[0.02] text-gray-500 border-b border-white/[0.06]'
+                : 'bg-gray-50/80 text-gray-400 border-b border-gray-100'
               }
             `}>
-              <th className="px-4 py-3 text-left w-12">
+              <th className="px-4 py-2.5 text-left w-10">
                 {/* Checkbox/Icon column */}
               </th>
-              <th className="px-4 py-3 text-left">Name</th>
-              <th className="px-4 py-3 text-left">Kategorie</th>
-              <th className="px-4 py-3 text-left">Klassifizierung</th>
-              <th className="px-4 py-3 text-right">Größe</th>
-              <th className="px-4 py-3 text-center">Seiten</th>
-              <th className="px-4 py-3 text-left">Datum</th>
-              <th className="px-4 py-3 w-24">
+              <th className="px-3 py-2.5 text-left">Name</th>
+              <th className="px-3 py-2.5 text-left">Kategorie</th>
+              <th className="px-3 py-2.5 text-left">Klassifizierung</th>
+              <th className="px-3 py-2.5 text-right">Größe</th>
+              <th className="px-3 py-2.5 text-center">Seiten</th>
+              <th className="px-3 py-2.5 text-left">Datum</th>
+              <th className="px-3 py-2.5 w-20">
                 {/* Actions column */}
               </th>
             </tr>
           </thead>
           <tbody className={`
             divide-y
-            ${isDark ? 'divide-white/5' : 'divide-gray-100'}
+            ${isDark ? 'divide-white/[0.04]' : 'divide-gray-50'}
           `}>
             {filteredDocuments.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center">
-                  <File className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
-                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                <td colSpan={8} className="px-4 py-10 text-center">
+                  <div className={`
+                    inline-flex p-3 rounded-xl mb-3
+                    ${isDark ? 'bg-white/[0.03]' : 'bg-gray-50'}
+                  `}>
+                    <File className={`w-8 h-8 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
+                  </div>
+                  <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                     {searchQuery.trim()
                       ? `Keine Dokumente für "${searchQuery}" gefunden`
                       : 'Keine Dokumente vorhanden'

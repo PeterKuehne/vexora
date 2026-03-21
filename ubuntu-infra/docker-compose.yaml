@@ -1,5 +1,5 @@
 # Ubuntu Infrastructure - RAG Stack
-# Ubuntu Server: 192.168.178.23
+# Ubuntu Server: 192.168.2.38
 #
 # Start: docker compose up -d
 # Stop:  docker compose down
@@ -136,20 +136,117 @@ services:
         reservations:
           memory: 2G
 
+  # ===========================================
+  # Presidio PII Guard (Phase 1: Hive Mind)
+  # ===========================================
+  presidio-analyzer:
+    build:
+      context: ./presidio
+      dockerfile: Dockerfile
+    image: cor7ex/presidio-analyzer:latest
+    container_name: presidio-analyzer
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:8003:3000"
+    environment:
+      - ANALYZER_CONF_FILE=/conf/analyzer-config.yml
+      - NLP_CONF_FILE=/conf/nlp-config.yml
+      - RECOGNIZER_REGISTRY_CONF_FILE=/conf/recognizers-config.yml
+    volumes:
+      - ./presidio/analyzer-config.yml:/conf/analyzer-config.yml:ro
+      - ./presidio/nlp-config.yml:/conf/nlp-config.yml:ro
+      - ./presidio/recognizers-config.yml:/conf/recognizers-config.yml:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s  # SpaCy model download on first start takes time
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  presidio-anonymizer:
+    image: mcr.microsoft.com/presidio-anonymizer:latest
+    container_name: presidio-anonymizer
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:8004:3000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ===========================================
+  # Reranker Service (BGE-reranker-v2-m3)
+  # ===========================================
+  reranker:
+    build:
+      context: ./reranker
+      dockerfile: Dockerfile
+    image: cor7ex/reranker:latest
+    container_name: reranker
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:8001:8001"
+    environment:
+      - RERANKER_MODEL=BAAI/bge-reranker-v2-m3
+      - RERANKER_TOP_K=5
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s  # Model download on first start
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+
+  # ===========================================
+  # Document Parser Service (Docling)
+  # ===========================================
+  parser:
+    build:
+      context: ./parser
+      dockerfile: Dockerfile
+    image: cor7ex/parser:latest
+    container_name: parser
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:8002:8002"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s  # Docling model loading
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+
 volumes:
   postgres_data:
-    name: vexora_postgres_data
+    name: cor7ex_postgres_data
   weaviate_data:
-    name: vexora_weaviate_data
+    name: cor7ex_weaviate_data
   redis_data:
-    name: vexora_redis_data
+    name: cor7ex_redis_data
   neo4j_data:
-    name: vexora_neo4j_data
+    name: cor7ex_neo4j_data
   neo4j_logs:
-    name: vexora_neo4j_logs
+    name: cor7ex_neo4j_logs
   neo4j_plugins:
-    name: vexora_neo4j_plugins
+    name: cor7ex_neo4j_plugins
 
 networks:
   default:
-    name: vexora_network
+    name: cor7ex_network

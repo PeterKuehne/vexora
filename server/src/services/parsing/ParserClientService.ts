@@ -33,7 +33,7 @@ export interface ParserClientConfig {
 }
 
 const DEFAULT_CONFIG: ParserClientConfig = {
-  serviceUrl: process.env.PARSER_SERVICE_URL || 'http://192.168.178.23:8002',
+  serviceUrl: process.env.PARSER_SERVICE_URL || 'http://192.168.2.38:8002',
   timeout: parseInt(process.env.PARSER_TIMEOUT || '300000'), // 5 minutes
   enabled: process.env.PARSER_ENABLED !== 'false',
   retries: 2,

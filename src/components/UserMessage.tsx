@@ -50,19 +50,19 @@ export function UserMessage({
     <div
       className={`
         flex flex-row-reverse gap-3
-        ${compact ? 'p-2' : 'p-4'}
+        ${compact ? 'p-2' : 'px-4 py-3'}
         ${className}
       `.trim()}
     >
       {/* User Avatar */}
       <div
         className={`
-          flex-shrink-0 rounded-full flex items-center justify-center
-          bg-primary
-          ${compact ? 'w-6 h-6' : 'w-8 h-8'}
+          flex-shrink-0 flex items-center justify-center
+          ${isDark ? 'bg-white text-gray-900' : 'bg-gray-900 text-white'}
+          ${compact ? 'w-6 h-6 rounded-lg' : 'w-8 h-8 rounded-xl'}
         `.trim()}
       >
-        <User size={compact ? 12 : 16} className="text-white" />
+        <User size={compact ? 12 : 15} />
       </div>
 
       {/* Message Content */}
@@ -70,7 +70,11 @@ export function UserMessage({
         {/* Message Bubble */}
         <div
           className={`
-            rounded-xl bg-primary text-white
+            rounded-xl
+            ${isDark
+              ? 'bg-white/[0.08] text-gray-100 border border-white/[0.06]'
+              : 'bg-gray-900 text-white'
+            }
             ${compact ? 'px-3 py-2 text-sm' : 'px-4 py-3'}
           `.trim()}
         >
@@ -83,8 +87,8 @@ export function UserMessage({
         {showTimestamp && formattedTime && (
           <span
             className={`
-              mt-1 text-xs
-              ${isDark ? 'text-gray-500' : 'text-gray-400'}
+              mt-1 text-[11px]
+              ${isDark ? 'text-gray-600' : 'text-gray-400'}
             `.trim()}
           >
             {formattedTime}

@@ -1,4 +1,4 @@
-PROJECT: Vexora Enterprise Authentication & Authorization System
+PROJECT: Cor7ex Enterprise Authentication & Authorization System
 
 ================================================================================
 AKTUELLER ZUSTAND

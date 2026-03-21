@@ -1,5 +1,5 @@
 #!/bin/bash
-# ADW Init Script for Vexora Enterprise Authentication & Authorization System
+# ADW Init Script for Cor7ex Enterprise Authentication & Authorization System
 # Auto-generated from adw_config.yaml
 
 set -e

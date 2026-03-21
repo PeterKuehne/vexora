@@ -1,4 +1,4 @@
-# Vexora RAG Setup für MacBook M2 16GB
+# Cor7ex RAG Setup für MacBook M2 16GB
 
 **Hardware:** MacBook mit Apple M2 Chip, 16GB Unified Memory
 **OS:** macOS
@@ -122,8 +122,8 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_DB: vexora_rag
-      POSTGRES_USER: vexora
+      POSTGRES_DB: cor7ex_rag
+      POSTGRES_USER: cor7ex
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       # PostgreSQL memory tuning for 16GB system
       POSTGRES_SHARED_BUFFERS: 128MB
@@ -197,7 +197,7 @@ export OLLAMA_FLASH_ATTENTION=1  # Enable on M2
 
 ### 1. Start Docker Containers First
 ```bash
-cd /path/to/vexora
+cd /path/to/cor7ex
 docker-compose up -d
 # Wait 30 seconds for services to stabilize
 ```
@@ -224,7 +224,7 @@ ps aux | grep ollama
 # Should show ~5-6GB
 ```
 
-### 5. Start Vexora Application
+### 5. Start Cor7ex Application
 ```bash
 npm run dev
 ```
@@ -408,8 +408,8 @@ curl http://localhost:11434/api/embed \
 # 5. Test chat
 ollama run qwen3:8b-q4_K_M "Hello, how are you?"
 
-# 6. Start Vexora
-cd /path/to/vexora
+# 6. Start Cor7ex
+cd /path/to/cor7ex
 npm run dev
 ```
 
@@ -426,7 +426,7 @@ npm run dev
 
 ## ✅ Success Checklist
 
-Before claiming Vexora is "working" on M2 16GB:
+Before claiming Cor7ex is "working" on M2 16GB:
 
 - [ ] All Docker containers running with <4GB total
 - [ ] Ollama loads Qwen3 8B Q4_K_M successfully

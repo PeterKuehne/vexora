@@ -70,16 +70,6 @@ export function ConfirmDialog({
     onCancel();
   };
 
-  // Button styles based on variant and theme
-  const confirmButtonStyles =
-    confirmVariant === 'danger'
-      ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white'
-      : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 text-white';
-
-  const cancelButtonStyles = isDark
-    ? 'border-gray-600 text-gray-300 hover:border-gray-500 hover:text-white focus:ring-gray-500'
-    : 'border-gray-300 text-gray-700 hover:border-gray-400 hover:text-gray-900 focus:ring-gray-500';
-
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={handleCancel}>
@@ -95,8 +85,8 @@ export function ConfirmDialog({
         >
           <div
             className={`
-              fixed inset-0
-              ${isDark ? 'bg-black/50' : 'bg-gray-900/50'}
+              fixed inset-0 backdrop-blur-sm
+              ${isDark ? 'bg-black/60' : 'bg-gray-900/50'}
             `}
           />
         </Transition.Child>
@@ -116,45 +106,52 @@ export function ConfirmDialog({
               <Dialog.Panel
                 className={`
                   w-full max-w-md
-                  rounded-lg shadow-xl
+                  rounded-2xl shadow-2xl
                   transform overflow-hidden
                   transition-all
-                  ${isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
+                  ${isDark
+                    ? 'bg-neutral-900 text-white border border-white/[0.06]'
+                    : 'bg-white text-gray-900 border border-gray-200/80'
+                  }
                 `}
               >
                 {/* Header */}
                 <div className="p-6">
-                  <div className="flex items-center gap-3">
-                    {/* Warning Icon */}
+                  <div className="flex items-start gap-3">
+                    {/* Icon container */}
                     <div
                       className={`
-                        flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center
+                        shrink-0 w-9 h-9 rounded-xl flex items-center justify-center
                         ${confirmVariant === 'danger'
-                          ? 'bg-red-100 text-red-600'
-                          : 'bg-blue-100 text-blue-600'
-                        }
-                        ${isDark && confirmVariant === 'danger'
-                          ? 'bg-red-900/30 text-red-400'
-                          : isDark && confirmVariant === 'primary'
-                          ? 'bg-blue-900/30 text-blue-400'
-                          : ''
+                          ? isDark
+                            ? 'bg-red-500/10 text-red-400'
+                            : 'bg-red-50 text-red-500'
+                          : isDark
+                            ? 'bg-blue-500/10 text-blue-400'
+                            : 'bg-blue-50 text-blue-500'
                         }
                       `}
                     >
-                      <AlertTriangle size={20} />
+                      <AlertTriangle size={18} />
                     </div>
 
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       {/* Title */}
-                      <Dialog.Title as="h3" className="text-lg font-semibold">
+                      <Dialog.Title
+                        as="h3"
+                        className={`
+                          text-[15px] font-semibold
+                          ${isDark ? 'text-white' : 'text-gray-900'}
+                        `}
+                      >
                         {title}
                       </Dialog.Title>
 
                       {/* Message */}
                       <p
                         className={`
-                          mt-2 text-sm
-                          ${isDark ? 'text-gray-300' : 'text-gray-600'}
+                          mt-2 text-[13px] leading-relaxed whitespace-pre-line
+                          ${isDark ? 'text-gray-400' : 'text-gray-600'}
                         `}
                       >
                         {message}
@@ -165,15 +162,15 @@ export function ConfirmDialog({
                     <button
                       onClick={handleCancel}
                       className={`
-                        p-2 rounded-lg transition-colors
+                        p-1.5 rounded-xl transition-colors duration-150 shrink-0
                         ${isDark
-                          ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                          ? 'text-gray-600 hover:text-gray-400 hover:bg-white/[0.06]'
+                          : 'text-gray-400 hover:text-gray-600 hover:bg-black/5'
                         }
                       `}
                       title="Schließen"
                     >
-                      <X size={18} />
+                      <X size={16} />
                     </button>
                   </div>
                 </div>
@@ -183,19 +180,20 @@ export function ConfirmDialog({
                   className={`
                     flex gap-3 px-6 py-4
                     border-t
-                    ${isDark ? 'border-gray-700 bg-gray-900/50' : 'border-gray-200 bg-gray-50'}
+                    ${isDark ? 'border-white/[0.06]' : 'border-gray-200/80'}
                   `}
                 >
                   {/* Cancel Button */}
                   <button
                     onClick={handleCancel}
                     className={`
-                      flex-1 px-4 py-2 rounded-lg
-                      text-sm font-medium
-                      border transition-all
-                      focus:outline-none focus:ring-2 focus:ring-offset-2
-                      ${isDark ? 'focus:ring-offset-gray-800' : 'focus:ring-offset-white'}
-                      ${cancelButtonStyles}
+                      flex-1 px-4 py-2 rounded-xl
+                      text-[13px] font-medium
+                      border transition-all duration-150
+                      ${isDark
+                        ? 'border-white/[0.08] text-gray-400 hover:text-white hover:bg-white/[0.04]'
+                        : 'border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-black/[0.02]'
+                      }
                     `}
                   >
                     {cancelText}
@@ -205,12 +203,15 @@ export function ConfirmDialog({
                   <button
                     onClick={handleConfirm}
                     className={`
-                      flex-1 px-4 py-2 rounded-lg
-                      text-sm font-medium
-                      transition-all
-                      focus:outline-none focus:ring-2 focus:ring-offset-2
-                      ${isDark ? 'focus:ring-offset-gray-800' : 'focus:ring-offset-white'}
-                      ${confirmButtonStyles}
+                      flex-1 px-4 py-2 rounded-xl
+                      text-[13px] font-semibold
+                      transition-all duration-150
+                      ${confirmVariant === 'danger'
+                        ? 'bg-red-500/80 hover:bg-red-500 text-white shadow-lg shadow-red-500/10'
+                        : isDark
+                          ? 'bg-white text-gray-900 hover:bg-gray-100 shadow-lg shadow-white/5'
+                          : 'bg-gray-900 text-white hover:bg-gray-800 shadow-lg shadow-gray-900/20'
+                      }
                     `}
                   >
                     {confirmText}

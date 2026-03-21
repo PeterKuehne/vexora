@@ -11,7 +11,9 @@
  * - Uses Sidebar layout component (280px width)
  */
 
+import { Plus } from 'lucide-react';
 import { useConversations } from '../contexts';
+import { useTheme } from '../contexts';
 import { Sidebar } from './layout';
 import { SkeletonConversationList } from './Skeleton';
 import { ConversationList } from './ConversationList';
@@ -31,12 +33,14 @@ export function ConversationSidebar({
   isCollapsed = false,
   onToggleCollapse,
 }: ConversationSidebarProps) {
+  const { isDark } = useTheme();
   const {
     conversations,
     filteredConversations,
     activeConversationId,
     setActiveConversation,
     deleteConversation,
+    createConversation,
     isLoading,
     isSearchActive,
   } = useConversations();
@@ -44,11 +48,23 @@ export function ConversationSidebar({
   // Use filtered conversations when search is active, otherwise all conversations
   const displayConversations = isSearchActive ? filteredConversations : conversations;
 
-  // Sidebar header content - removed, now in MainSidebar
-  const headerContent = null;
-
-  // Sidebar footer content - removed, now in MainSidebar
-  const footerContent = null;
+  // Header: "Neue Frage" button
+  const headerContent = (
+    <button
+      onClick={() => createConversation()}
+      className={`
+        w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg
+        text-sm font-medium transition-colors
+        ${isDark
+          ? 'bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.06]'
+          : 'bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 border border-gray-200'
+        }
+      `}
+    >
+      <Plus size={16} />
+      Neue Frage
+    </button>
+  );
 
   return (
     <Sidebar
@@ -56,11 +72,11 @@ export function ConversationSidebar({
       isCollapsed={isCollapsed}
       onToggleCollapse={onToggleCollapse}
       header={headerContent}
-      footer={footerContent}
+      showCollapseToggle={false}
       ariaLabel="Unterhaltungen Sidebar"
     >
       {/* Search Bar */}
-      <div className="px-3 pb-3">
+      <div className="animate-stagger-3 px-3 pb-3">
         <ConversationSearchBar
           showResultCount={false}
           showClearAll={true}
@@ -69,7 +85,7 @@ export function ConversationSidebar({
 
       {/* Loading State */}
       {isLoading ? (
-        <div className="py-2 px-2">
+        <div className="animate-stagger-4 py-2 px-2">
           <SkeletonConversationList count={5} />
         </div>
       ) : (

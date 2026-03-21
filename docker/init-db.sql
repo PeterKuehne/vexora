@@ -1,4 +1,4 @@
--- Vexora Database Initialization Script
+-- Cor7ex Database Initialization Script
 -- This script runs automatically when PostgreSQL container starts for the first time
 
 -- Enable pgvector extension for vector similarity search
@@ -181,7 +181,7 @@ CREATE TRIGGER update_rag_settings_updated_at
 -- Log successful initialization
 DO $$
 BEGIN
-    RAISE NOTICE 'Vexora database initialized successfully!';
+    RAISE NOTICE 'Cor7ex database initialized successfully!';
     RAISE NOTICE 'pgvector extension: enabled';
     RAISE NOTICE 'Tables created: documents, document_embeddings, processing_jobs, query_logs, model_configurations, rag_settings';
 END

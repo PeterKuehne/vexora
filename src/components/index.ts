@@ -65,6 +65,11 @@ export {
   HeaderDivider,
   HeaderSection,
   type SidebarControls,
+  // Workspace Layout (Hive Mind Phase 1)
+  WorkspaceLayout,
+  IconRail,
+  WorkspaceSidebar,
+  type WorkspaceSection,
 } from './layout';
 
 // Error components
@@ -73,6 +78,7 @@ export { ErrorBoundary } from './ErrorBoundary';
 
 // Status components
 export { SaveIndicator } from './SaveIndicator';
+export { TransparencyFooter, type TransparencyFooterProps } from './TransparencyFooter';
 
 // Storage Quota components
 export {

@@ -7,7 +7,7 @@
 
 ## 🎯 Design Principle
 
-Vexora must be **model-agnostic** and support easy upgrades from:
+Cor7ex must be **model-agnostic** and support easy upgrades from:
 - MacBook M2 16GB → Workstation with 64GB VRAM
 - Local Ollama → Cloud API providers (future)
 - Small models (8B) → Large models (70B+)
@@ -581,7 +581,7 @@ const llmResponse = await generate({
 
 ---
 
-## ✅ Summary: What Makes Vexora Flexible
+## ✅ Summary: What Makes Cor7ex Flexible
 
 1. **Profile System:** Pre-configured + Custom profiles
 2. **Auto-Discovery:** Detects available Ollama models
@@ -618,7 +618,7 @@ const llmResponse = await generate({
 ### Quick Start Guide
 
 ```markdown
-# Changing Models in Vexora
+# Changing Models in Cor7ex
 
 ## Option 1: Use a Preset Profile
 1. Go to Settings → RAG Configuration
@@ -639,7 +639,7 @@ const llmResponse = await generate({
 
 When you get better hardware:
 1. Pull new models: `ollama pull qwen3:32b`
-2. Switch profile in Vexora
+2. Switch profile in Cor7ex
 3. Re-index documents (automatic)
 4. Enjoy better quality!
 ```
@@ -648,7 +648,7 @@ When you get better hardware:
 
 ## 🎬 Example: User Journey
 
-**Day 1:** User installs Vexora on M2 16GB
+**Day 1:** User installs Cor7ex on M2 16GB
 - Selects "M2 16GB Balanced" profile
 - Uses Qwen3 8B + nomic-embed-text
 - Everything works great
@@ -656,7 +656,7 @@ When you get better hardware:
 **Month 6:** User gets workstation with RTX 4090 (64GB)
 - Pulls Qwen3 70B: `ollama pull qwen3:70b`
 - Opens Settings → Changes profile to "Workstation 64GB"
-- Vexora detects dimension change (768 → 8192)
+- Cor7ex detects dimension change (768 → 8192)
 - Prompts: "Re-index 5,000 documents? (~2 hours)"
 - User confirms, goes for coffee
 - Returns to ultra-high-quality RAG system

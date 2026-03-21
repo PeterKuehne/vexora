@@ -8,11 +8,11 @@
 
 ## Executive Summary
 
-Diese Analyse vergleicht die aktuelle Vexora RAG-Implementierung mit den neuesten Forschungsergebnissen der führenden AI-Labore (Stand Februar 2026). Die Implementierung ist **solide und fortschrittlich**, liegt aber in einigen Bereichen hinter dem aktuellen State-of-the-Art zurück.
+Diese Analyse vergleicht die aktuelle Cor7ex RAG-Implementierung mit den neuesten Forschungsergebnissen der führenden AI-Labore (Stand Februar 2026). Die Implementierung ist **solide und fortschrittlich**, liegt aber in einigen Bereichen hinter dem aktuellen State-of-the-Art zurück.
 
 ### Gesamtbewertung
 
-| Bereich | Vexora Status | State-of-the-Art 2026 | Gap |
+| Bereich | Cor7ex Status | State-of-the-Art 2026 | Gap |
 |---------|---------------|----------------------|-----|
 | Hybrid Search | ✅ Implementiert | Contextual Retrieval | Mittel |
 | Reranking | ✅ BGE-v2-m3 | ColBERT v2 / Late Interaction | Klein |
@@ -197,24 +197,24 @@ Compression von Retrieved Passages in Dense Vectors statt Raw Tokens.
 
 ---
 
-## 2. Vergleich: Vexora vs. State-of-the-Art
+## 2. Vergleich: Cor7ex vs. State-of-the-Art
 
 ### 2.1 Retrieval-Strategie
 
-| Feature | Vexora | State-of-the-Art | Bewertung |
+| Feature | Cor7ex | State-of-the-Art | Bewertung |
 |---------|--------|------------------|-----------|
 | Hybrid Search | BM25 + Vector (α=0.5) | Contextual BM25 + Contextual Embeddings | ⚠️ Gap |
 | Fusion Method | relativeScoreFusion | RRF (Reciprocal Rank Fusion) | ✅ OK |
 | Permission Filtering | ✅ PostgreSQL RLS | Standard | ✅ Gut |
 
 **Gap-Analyse:**
-Vexora verwendet Standard-Embeddings ohne Kontextanreicherung. Anthropics Contextual Retrieval könnte Failure Rate um 49-67% senken.
+Cor7ex verwendet Standard-Embeddings ohne Kontextanreicherung. Anthropics Contextual Retrieval könnte Failure Rate um 49-67% senken.
 
 ---
 
 ### 2.2 Chunking-Strategie
 
-| Feature | Vexora | State-of-the-Art | Bewertung |
+| Feature | Cor7ex | State-of-the-Art | Bewertung |
 |---------|--------|------------------|-----------|
 | Strategie | Semantic Chunking (Embedding-based) | Late Chunking / Agentic Chunking | ⚠️ Gap |
 | Hierarchie | 3-Level (Doc/Section/Para) | RAPTOR Tree-Structured | ⚠️ Ähnlich |
@@ -231,7 +231,7 @@ Vexora verwendet Standard-Embeddings ohne Kontextanreicherung. Anthropics Contex
 
 ### 2.3 Reranking
 
-| Feature | Vexora | State-of-the-Art | Bewertung |
+| Feature | Cor7ex | State-of-the-Art | Bewertung |
 |---------|--------|------------------|-----------|
 | Modell | BGE-reranker-v2-m3 | ColBERT v2 / Jina ColBERT v2 | ✅ Gut |
 | Architektur | Cross-Encoder | Late Interaction | ⚠️ Upgrade möglich |
@@ -245,7 +245,7 @@ BGE-reranker-v2-m3 ist ein solider Cross-Encoder. ColBERT v2 wäre effizienter b
 
 ### 2.4 Graph-RAG
 
-| Feature | Vexora | State-of-the-Art | Bewertung |
+| Feature | Cor7ex | State-of-the-Art | Bewertung |
 |---------|--------|------------------|-----------|
 | Graph DB | Neo4j | Neo4j / Custom | ✅ Gut |
 | Entity Extraction | Pattern + LLM | LLM-based | ✅ Gut |
@@ -254,13 +254,13 @@ BGE-reranker-v2-m3 ist ein solider Cross-Encoder. ColBERT v2 wäre effizienter b
 | Hierarchical Summarization | ❌ Nicht vorhanden | Microsoft GraphRAG | ⚠️ Gap |
 
 **Gap-Analyse:**
-Vexora hat solide Graph-RAG Basics. Microsoft GraphRAG bietet zusätzlich Community Detection für thematische Queries - relevant für große Dokumentensammlungen.
+Cor7ex hat solide Graph-RAG Basics. Microsoft GraphRAG bietet zusätzlich Community Detection für thematische Queries - relevant für große Dokumentensammlungen.
 
 ---
 
 ### 2.5 Agentic Capabilities
 
-| Feature | Vexora | State-of-the-Art | Bewertung |
+| Feature | Cor7ex | State-of-the-Art | Bewertung |
 |---------|--------|------------------|-----------|
 | Query Routing | ✅ 6 Query-Typen | ✅ Standard | ✅ Gut |
 | Strategy Selection | ✅ Automatisch | A-RAG Agent-Controlled | ⚠️ Gap |
@@ -269,7 +269,7 @@ Vexora hat solide Graph-RAG Basics. Microsoft GraphRAG bietet zusätzlich Commun
 | Planning | ❌ Nicht vorhanden | ReAct-Style Agents | ❌ Gap |
 
 **Gap-Analyse:**
-Vexora hat intelligentes Query-Routing, aber keine echte Agent-Architektur. A-RAG zeigt, dass LLMs bessere Retrieval-Entscheidungen treffen können, wenn sie direkte Tool-Kontrolle haben.
+Cor7ex hat intelligentes Query-Routing, aber keine echte Agent-Architektur. A-RAG zeigt, dass LLMs bessere Retrieval-Entscheidungen treffen können, wenn sie direkte Tool-Kontrolle haben.
 
 ---
 
@@ -452,7 +452,7 @@ Basierend auf der Analyse empfehlen wir folgende Zielarchitektur:
 
 ## 7. Fazit
 
-Die Vexora RAG-Implementierung ist **solide und überdurchschnittlich** für ein lokales System. Die wichtigsten Gaps sind:
+Die Cor7ex RAG-Implementierung ist **solide und überdurchschnittlich** für ein lokales System. Die wichtigsten Gaps sind:
 
 1. **Contextual Retrieval** - Größter Impact auf Retrieval-Qualität
 2. **Document Expansion** - Löst akutes Problem mit verlorenen Chunks

@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 /**
- * Custom environment variables for Vexora
+ * Custom environment variables for Cor7ex
  * Extends Vite's built-in ImportMetaEnv
  */
 interface ImportMetaEnv {

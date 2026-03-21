@@ -300,10 +300,10 @@ export class StorageService {
 // ============================================
 
 /**
- * Default storage service instance with 'vexora' prefix
+ * Default storage service instance with 'cor7ex' prefix
  * Use this for all app storage operations
  */
-export const storage = new StorageService('vexora');
+export const storage = new StorageService('cor7ex');
 
 // ============================================
 // Convenience Functions

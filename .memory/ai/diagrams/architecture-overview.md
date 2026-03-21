@@ -1,7 +1,7 @@
-# Vexora Architecture Overview
+# Cor7ex Architecture Overview
 
 ## Overview
-Complete system architecture for Vexora, a RAG-powered chat application with document management, knowledge graph integration, multi-model LLM support, evaluation framework, and production monitoring.
+Complete system architecture for Cor7ex, a RAG-powered chat application with document management, knowledge graph integration, multi-model LLM support, evaluation framework, and production monitoring.
 
 ## Trigger Points
 - System startup and initialization
@@ -248,7 +248,7 @@ graph TD
 
 ## Dependencies
 
-### Ubuntu Server (192.168.178.23)
+### Ubuntu Server (192.168.2.38)
 - **PostgreSQL** `:5432` - pgvector/pgvector:pg17 (users, documents, audit_logs, rag_traces, chunk_metadata, golden_queries)
 - **Weaviate** `:8080` - v1.28.4 (hybrid search, DocumentChunksV2 + V1 legacy)
 - **Neo4j** `:7687` - 5.26-community (knowledge graph, entity nodes + relationships)

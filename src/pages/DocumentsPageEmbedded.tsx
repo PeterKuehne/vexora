@@ -2,6 +2,7 @@
  * Documents Page Embedded - Document Management for Main Content Area
  * Embedded version of DocumentsPage for use within the chat layout
  * Follows MANDATORY TailwindCSS styling convention with theme support
+ * Refined design with integrated stat strip and layered surfaces
  */
 
 import { useState } from 'react';
@@ -11,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { DocumentList } from '../components/DocumentList';
 import { StorageQuotaDisplay } from '../components/StorageQuotaDisplay';
 import { UploadModal } from '../components/UploadModal';
-import { Search, Plus, FileText, TrendingUp, Users, Clock, X } from 'lucide-react';
+import { Search, Plus, FileText, TrendingUp, Users, Clock, X, Database } from 'lucide-react';
 
 export function DocumentsPageEmbedded() {
   const { isDark } = useTheme();
@@ -41,201 +42,119 @@ export function DocumentsPageEmbedded() {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
   };
 
+  const statItems = [
+    {
+      icon: FileText,
+      value: documentStats.total.toString(),
+      label: 'Gesamt',
+      color: isDark ? 'text-blue-400' : 'text-blue-600',
+      iconBg: isDark ? 'bg-blue-500/10' : 'bg-blue-50',
+    },
+    {
+      icon: Clock,
+      value: documentStats.recent.toString(),
+      label: '24h',
+      color: isDark ? 'text-emerald-400' : 'text-emerald-600',
+      iconBg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50',
+    },
+    {
+      icon: TrendingUp,
+      value: formatFileSize(documentStats.size),
+      label: 'Speicher',
+      color: isDark ? 'text-violet-400' : 'text-violet-600',
+      iconBg: isDark ? 'bg-violet-500/10' : 'bg-violet-50',
+    },
+    {
+      icon: Users,
+      value: user?.role === 'Admin' ? 'Alle' : user?.department || 'Eigene',
+      label: 'Zugriff',
+      color: isDark ? 'text-amber-400' : 'text-amber-600',
+      iconBg: isDark ? 'bg-amber-500/10' : 'bg-amber-50',
+    },
+  ];
+
   return (
     <div className={`
-      h-full overflow-auto
+      h-full overflow-auto scrollbar-thin
       transition-colors duration-150
-      ${isDark ? 'bg-background' : 'bg-white'}
+      ${isDark ? 'bg-background' : 'bg-gray-50/50'}
     `}>
       <div className="max-w-6xl mx-auto py-6 px-4 sm:px-6">
 
         {/* Header Section - Compact */}
-        <div className="mb-6">
-          <h1 className={`
-            text-2xl font-bold
-            transition-colors duration-150
-            ${isDark ? 'text-white' : 'text-gray-900'}
-          `}>
-            RAG Dokumente
-          </h1>
+        <div className="mb-5 animate-stagger-1">
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className={`
+              p-1.5 rounded-lg
+              ${isDark ? 'bg-white/5' : 'bg-white shadow-sm'}
+            `}>
+              <Database size={16} className={isDark ? 'text-gray-300' : 'text-gray-600'} />
+            </div>
+            <h1 className={`
+              text-lg font-bold tracking-tight
+              ${isDark ? 'text-white' : 'text-gray-900'}
+            `}>
+              RAG Dokumente
+            </h1>
+          </div>
           <p className={`
-            mt-1 text-sm
-            transition-colors duration-150
-            ${isDark ? 'text-gray-400' : 'text-gray-600'}
+            text-xs pl-0.5
+            ${isDark ? 'text-gray-500' : 'text-gray-400'}
           `}>
             Verwalten Sie Ihre Dokumente für die RAG-Suche
           </p>
         </div>
 
-        {/* Statistics Cards - Compact version */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className={`
-            p-4 rounded-lg border
-            transition-colors duration-150
-            ${isDark
-              ? 'bg-surface border-white/10'
-              : 'bg-white border-gray-200'
-            }
-          `}>
-            <div className="flex items-center gap-3">
-              <div className={`
-                p-2 rounded-lg
-                transition-colors duration-150
-                ${isDark ? 'bg-blue-500/20' : 'bg-blue-100'}
-              `}>
-                <FileText
-                  size={18}
+        {/* Integrated Stat Strip - Compact */}
+        <div className={`
+          animate-stagger-2
+          mb-5 rounded-xl overflow-hidden
+          ${isDark
+            ? 'bg-white/[0.03] border border-white/[0.06]'
+            : 'bg-white border border-gray-200/80 shadow-sm'
+          }
+        `}>
+          <div className="grid grid-cols-2 lg:grid-cols-4">
+            {statItems.map((stat, index) => {
+              const Icon = stat.icon;
+              return (
+                <div
+                  key={stat.label}
                   className={`
-                    transition-colors duration-150
-                    ${isDark ? 'text-blue-400' : 'text-blue-600'}
+                    flex items-center gap-2.5 px-4 py-3
+                    ${index < statItems.length - 1
+                      ? isDark
+                        ? 'lg:border-r border-white/[0.06]'
+                        : 'lg:border-r border-gray-100'
+                      : ''
+                    }
+                    ${index < 2
+                      ? isDark
+                        ? 'border-b lg:border-b-0 border-white/[0.06]'
+                        : 'border-b lg:border-b-0 border-gray-100'
+                      : ''
+                    }
                   `}
-                />
-              </div>
-              <div>
-                <div className={`
-                  text-xl font-bold
-                  transition-colors duration-150
-                  ${isDark ? 'text-blue-400' : 'text-blue-600'}
-                `}>
-                  {documentStats.total}
+                >
+                  <div className={`p-1.5 rounded-md ${stat.iconBg}`}>
+                    <Icon size={14} className={stat.color} />
+                  </div>
+                  <div>
+                    <div className={`text-base font-bold tabular-nums leading-tight ${stat.color}`}>
+                      {stat.value}
+                    </div>
+                    <div className={`text-[10px] font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                      {stat.label}
+                    </div>
+                  </div>
                 </div>
-                <div className={`
-                  text-xs font-medium
-                  transition-colors duration-150
-                  ${isDark ? 'text-gray-400' : 'text-gray-500'}
-                `}>
-                  Gesamt
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className={`
-            p-4 rounded-lg border
-            transition-colors duration-150
-            ${isDark
-              ? 'bg-surface border-white/10'
-              : 'bg-white border-gray-200'
-            }
-          `}>
-            <div className="flex items-center gap-3">
-              <div className={`
-                p-2 rounded-lg
-                transition-colors duration-150
-                ${isDark ? 'bg-green-500/20' : 'bg-green-100'}
-              `}>
-                <Clock
-                  size={18}
-                  className={`
-                    transition-colors duration-150
-                    ${isDark ? 'text-green-400' : 'text-green-600'}
-                  `}
-                />
-              </div>
-              <div>
-                <div className={`
-                  text-xl font-bold
-                  transition-colors duration-150
-                  ${isDark ? 'text-green-400' : 'text-green-600'}
-                `}>
-                  {documentStats.recent}
-                </div>
-                <div className={`
-                  text-xs font-medium
-                  transition-colors duration-150
-                  ${isDark ? 'text-gray-400' : 'text-gray-500'}
-                `}>
-                  Letzte 24h
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className={`
-            p-4 rounded-lg border
-            transition-colors duration-150
-            ${isDark
-              ? 'bg-surface border-white/10'
-              : 'bg-white border-gray-200'
-            }
-          `}>
-            <div className="flex items-center gap-3">
-              <div className={`
-                p-2 rounded-lg
-                transition-colors duration-150
-                ${isDark ? 'bg-purple-500/20' : 'bg-purple-100'}
-              `}>
-                <TrendingUp
-                  size={18}
-                  className={`
-                    transition-colors duration-150
-                    ${isDark ? 'text-purple-400' : 'text-purple-600'}
-                  `}
-                />
-              </div>
-              <div>
-                <div className={`
-                  text-xl font-bold
-                  transition-colors duration-150
-                  ${isDark ? 'text-purple-400' : 'text-purple-600'}
-                `}>
-                  {formatFileSize(documentStats.size)}
-                </div>
-                <div className={`
-                  text-xs font-medium
-                  transition-colors duration-150
-                  ${isDark ? 'text-gray-400' : 'text-gray-500'}
-                `}>
-                  Speicher
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className={`
-            p-4 rounded-lg border
-            transition-colors duration-150
-            ${isDark
-              ? 'bg-surface border-white/10'
-              : 'bg-white border-gray-200'
-            }
-          `}>
-            <div className="flex items-center gap-3">
-              <div className={`
-                p-2 rounded-lg
-                transition-colors duration-150
-                ${isDark ? 'bg-orange-500/20' : 'bg-orange-100'}
-              `}>
-                <Users
-                  size={18}
-                  className={`
-                    transition-colors duration-150
-                    ${isDark ? 'text-orange-400' : 'text-orange-600'}
-                  `}
-                />
-              </div>
-              <div>
-                <div className={`
-                  text-xl font-bold
-                  transition-colors duration-150
-                  ${isDark ? 'text-orange-400' : 'text-orange-600'}
-                `}>
-                  {user?.role === 'Admin' ? 'Alle' : user?.department || 'Eigene'}
-                </div>
-                <div className={`
-                  text-xs font-medium
-                  transition-colors duration-150
-                  ${isDark ? 'text-gray-400' : 'text-gray-500'}
-                `}>
-                  Zugriff
-                </div>
-              </div>
-            </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Storage Quota Display - Compact */}
-        <div className="mb-6">
+        {/* Storage Quota - Compact */}
+        <div className="mb-5 animate-stagger-3">
           <StorageQuotaDisplay
             showDetails={false}
             onQuotaLoaded={(usage) => {
@@ -245,36 +164,32 @@ export function DocumentsPageEmbedded() {
         </div>
 
         {/* Search Bar */}
-        <div className={`
-          mb-4 p-3 rounded-lg border
-          transition-colors duration-150
-          ${isDark
-            ? 'bg-surface border-white/10'
-            : 'bg-white border-gray-200'
-          }
-        `}>
-          <div className="relative">
+        <div className="mb-4 animate-stagger-4">
+          <div className="relative group">
             <Search
-              size={16}
+              size={15}
               className={`
-                absolute left-3 top-1/2 transform -translate-y-1/2
-                transition-colors duration-150
-                ${isDark ? 'text-gray-400' : 'text-gray-500'}
+                absolute left-3.5 top-1/2 transform -translate-y-1/2
+                transition-colors duration-200
+                ${isDark
+                  ? 'text-gray-600 group-focus-within:text-gray-400'
+                  : 'text-gray-300 group-focus-within:text-gray-500'
+                }
               `}
             />
             <input
               type="text"
-              placeholder="Dokumente nach Name, Kategorie oder Tags durchsuchen..."
+              placeholder="Name, Kategorie oder Tags durchsuchen..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`
-                w-full pl-9 pr-10 py-2 rounded-lg border
+                w-full pl-10 pr-10 py-2 rounded-xl
                 text-sm
-                transition-colors duration-150
-                focus:outline-none focus:ring-2 focus:ring-blue-500
+                transition-all duration-200
+                focus:outline-none focus:ring-2 focus:ring-blue-500/40
                 ${isDark
-                  ? 'bg-surface-secondary border-white/20 text-white placeholder-gray-400'
-                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  ? 'bg-white/[0.03] border border-white/[0.06] text-white placeholder-gray-600 focus:bg-white/[0.05] focus:border-white/10'
+                  : 'bg-white border border-gray-200 text-gray-900 placeholder-gray-400 focus:border-gray-300 shadow-sm'
                 }
               `}
             />
@@ -283,15 +198,15 @@ export function DocumentsPageEmbedded() {
                 onClick={() => setSearchQuery('')}
                 className={`
                   absolute right-3 top-1/2 transform -translate-y-1/2
-                  p-0.5 rounded transition-colors
+                  p-0.5 rounded-md transition-colors
                   ${isDark
-                    ? 'text-gray-400 hover:text-gray-200 hover:bg-white/10'
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                    ? 'text-gray-500 hover:text-gray-300 hover:bg-white/10'
+                    : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100'
                   }
                 `}
                 title="Suche zurücksetzen"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             )}
           </div>
@@ -299,33 +214,30 @@ export function DocumentsPageEmbedded() {
 
         {/* Document List */}
         <div className={`
-          rounded-lg border overflow-hidden
-          transition-colors duration-150
+          animate-stagger-5
+          rounded-xl overflow-hidden
           ${isDark
-            ? 'bg-surface border-white/10'
-            : 'bg-white border-gray-200'
+            ? 'bg-white/[0.03] border border-white/[0.06]'
+            : 'bg-white border border-gray-200/80 shadow-sm'
           }
         `}>
           <div className={`
             px-4 py-3 border-b
-            transition-colors duration-150
-            ${isDark ? 'border-white/10' : 'border-gray-200'}
+            ${isDark ? 'border-white/[0.06]' : 'border-gray-100'}
           `}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <h2 className={`
-                  text-base font-semibold
-                  transition-colors duration-150
+                  text-[13px] font-semibold
                   ${isDark ? 'text-white' : 'text-gray-900'}
                 `}>
                   Ihre Dokumente
                 </h2>
                 <span className={`
-                  text-xs px-2 py-0.5 rounded-full
-                  transition-colors duration-150
+                  text-[11px] tabular-nums px-2 py-0.5 rounded-full
                   ${isDark
-                    ? 'bg-white/10 text-gray-400'
-                    : 'bg-gray-100 text-gray-600'
+                    ? 'bg-white/5 text-gray-500'
+                    : 'bg-gray-100 text-gray-500'
                   }
                 `}>
                   {totalDocuments}
@@ -334,17 +246,17 @@ export function DocumentsPageEmbedded() {
               <button
                 onClick={() => setShowUploadModal(true)}
                 className={`
-                  flex items-center gap-1.5 px-3 py-1.5 rounded-lg
-                  text-sm font-medium
-                  transition-all duration-150
-                  focus:outline-none focus:ring-2 focus:ring-blue-500
+                  group flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg
+                  text-xs font-semibold
+                  transition-all duration-200
+                  focus:outline-none focus:ring-2 focus:ring-blue-500/40
                   ${isDark
-                    ? 'bg-blue-600 text-white hover:bg-blue-500'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                    ? 'bg-white text-gray-900 hover:bg-gray-100 shadow-sm shadow-white/5'
+                    : 'bg-gray-900 text-white hover:bg-gray-800 shadow-sm shadow-gray-900/10'
                   }
                 `}
               >
-                <Plus size={16} />
+                <Plus size={14} className="transition-transform duration-200 group-hover:rotate-90" />
                 Hochladen
               </button>
             </div>

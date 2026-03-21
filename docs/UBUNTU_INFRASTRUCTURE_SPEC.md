@@ -2,12 +2,12 @@
 
 ## Übersicht
 
-Auslagerung von Infrastruktur-Services auf einen Ubuntu-Server (192.168.178.23) im lokalen Netzwerk.
+Auslagerung von Infrastruktur-Services auf einen Ubuntu-Server (192.168.2.38) im lokalen Netzwerk.
 
 **Ziele:**
 - ~3 GB RAM-Ersparnis auf dem MacBook
 - Zentrales Observability-Dashboard für Claude Code
-- Multi-Projekt Support für Vexora
+- Multi-Projekt Support für Cor7ex
 
 **Status:** Phase 1-3 abgeschlossen, Phase 4-5 offen
 
@@ -42,7 +42,7 @@ export OTEL_METRICS_EXPORTER=otlpy
 
 export OTEL_LOGS_EXPORTER=otlp
 export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-export OTEL_EXPORTER_OTLP_ENDPOINT="http://192.168.178.23:4317"
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://192.168.2.38:4317"
 ```
 
 **Exportierte Events:**
@@ -61,10 +61,10 @@ export OTEL_EXPORTER_OTLP_ENDPOINT="http://192.168.178.23:4317"
 
 ```
 ┌─────────────────────────────────────┐      ┌─────────────────────────────────────────┐
-│           MacBook (lokal)           │      │         Ubuntu (192.168.178.23)         │
+│           MacBook (lokal)           │      │         Ubuntu (192.168.2.38)         │
 │                                     │      │                                         │
 │  ┌─────────────┐  ┌──────────────┐  │      │  ┌─────────────────────────────────┐    │
-│  │   Ollama    │  │    Vexora    │  │      │  │         SigNoz Stack            │    │
+│  │   Ollama    │  │    Cor7ex    │  │      │  │         SigNoz Stack            │    │
 │  │  (qwen3:8b) │  │  Dev Server  │  │      │  │                                 │    │
 │  │   :11434    │  │  :5173/:3001 │  │      │  │  ┌─────────┐  ┌─────────────┐  │    │
 │  └─────────────┘  └──────────────┘  │      │  │  │ SigNoz  │  │ OTel        │  │    │
@@ -80,7 +80,7 @@ export OTEL_EXPORTER_OTLP_ENDPOINT="http://192.168.178.23:4317"
 │                          │          │      │  └─────────────────────────────────┘    │
 │                          │          │      │                                         │
 │                          │          │      │  ┌─────────────────────────────────┐    │
-│                          │          │      │  │         Vexora Stack            │    │
+│                          │          │      │  │         Cor7ex Stack            │    │
 │                          └──────────┼──────┼──►                                 │    │
 │                                     │      │  │  ┌─────────┐  ┌─────────────┐  │    │
 │                                     │      │  │  │Weaviate │  │ PostgreSQL  │  │    │
@@ -105,8 +105,8 @@ Installiert via: `~/signoz-install/deploy/docker/`
 | signoz-clickhouse | 8123/9000 | Datenbank (intern) |
 | signoz-zookeeper-1 | 2181 | Koordination (intern) |
 
-### Vexora Stack
-Installiert via: `~/vexora-infra/`
+### Cor7ex Stack
+Installiert via: `~/cor7ex-infra/`
 
 | Container | Port | Beschreibung |
 |-----------|------|--------------|
@@ -125,20 +125,20 @@ export CLAUDE_CODE_ENABLE_TELEMETRY=1
 export OTEL_METRICS_EXPORTER=otlp
 export OTEL_LOGS_EXPORTER=otlp
 export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-export OTEL_EXPORTER_OTLP_ENDPOINT="http://192.168.178.23:4317"
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://192.168.2.38:4317"
 ```
 
-### Vexora Backend (server/.env) - TODO Phase 4
+### Cor7ex Backend (server/.env) - TODO Phase 4
 ```env
 # PostgreSQL - Ubuntu Server
-POSTGRES_HOST=192.168.178.23
+POSTGRES_HOST=192.168.2.38
 POSTGRES_PORT=5432
-POSTGRES_DB=vexora
-POSTGRES_USER=vexora
+POSTGRES_DB=cor7ex
+POSTGRES_USER=cor7ex
 POSTGRES_PASSWORD=xgw15pmc
 
 # Weaviate - Ubuntu Server
-WEAVIATE_URL=http://192.168.178.23:8080
+WEAVIATE_URL=http://192.168.2.38:8080
 WEAVIATE_GRPC_PORT=50051
 
 # Ollama - lokal (bleibt auf MacBook)
@@ -171,10 +171,10 @@ OLLAMA_API_URL=http://localhost:11434
 ### Phase 1: Ubuntu Setup ✅ ERLEDIGT
 - Docker + Docker Compose auf Ubuntu
 - SigNoz installiert (`~/signoz-install/`)
-- Weaviate + PostgreSQL installiert (`~/vexora-infra/`)
+- Weaviate + PostgreSQL installiert (`~/cor7ex-infra/`)
 
 ### Phase 2: SigNoz einrichten ✅ ERLEDIGT
-- Dashboard erreichbar: http://192.168.178.23:3001
+- Dashboard erreichbar: http://192.168.2.38:3001
 - Keine weitere Einrichtung nötig (out-of-the-box)
 
 ### Phase 3: Claude Code verbinden ✅ ERLEDIGT
@@ -182,10 +182,10 @@ OLLAMA_API_URL=http://localhost:11434
 - Telemetrie-Daten kommen in SigNoz an
 - Logs sichtbar unter "Logs" im Dashboard
 
-### Phase 4: Vexora verbinden ⏳ OFFEN
+### Phase 4: Cor7ex verbinden ⏳ OFFEN
 1. `server/.env` mit Ubuntu-Adressen aktualisieren
 2. Lokale Docker-Container (Weaviate, PostgreSQL) stoppen
-3. Vexora Backend testen
+3. Cor7ex Backend testen
 4. Optional: Daten migrieren
 
 ### Phase 5: ADW Sync (Optional) ⏳ OFFEN
@@ -198,9 +198,9 @@ Nur nötig wenn ADW-spezifische Daten gewünscht.
 
 | Service | URL | Anmerkung |
 |---------|-----|-----------|
-| SigNoz Dashboard | http://192.168.178.23:3001 | Keine Auth nötig |
-| Weaviate | http://192.168.178.23:8080 | Anonymous Access |
-| PostgreSQL | 192.168.178.23:5432 | User: vexora / xgw15pmc |
+| SigNoz Dashboard | http://192.168.2.38:3001 | Keine Auth nötig |
+| Weaviate | http://192.168.2.38:8080 | Anonymous Access |
+| PostgreSQL | 192.168.2.38:5432 | User: cor7ex / xgw15pmc |
 
 ---
 
@@ -214,9 +214,9 @@ docker compose logs -f signoz
 docker compose restart
 ```
 
-### Vexora (Weaviate + PostgreSQL)
+### Cor7ex (Weaviate + PostgreSQL)
 ```bash
-cd ~/vexora-infra
+cd ~/cor7ex-infra
 docker compose ps
 docker compose logs -f
 docker compose restart

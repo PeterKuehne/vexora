@@ -1,13 +1,13 @@
 #!/bin/bash
-# Vexora Reranker - Ubuntu Setup Script
-# Run this ON the Ubuntu server (192.168.178.23)
+# Cor7ex Reranker - Ubuntu Setup Script
+# Run this ON the Ubuntu server (192.168.2.38)
 
 set -e
 
-INSTALL_DIR="/opt/vexora/reranker"
+INSTALL_DIR="/opt/cor7ex/reranker"
 
 echo "=========================================="
-echo "  Vexora Reranker Service Setup"
+echo "  Cor7ex Reranker Service Setup"
 echo "  Model: BGE-reranker-v2-m3"
 echo "=========================================="
 
@@ -126,7 +126,7 @@ echo ""
 echo "Creating systemd service..."
 sudo tee /etc/systemd/system/reranker.service > /dev/null << EOF
 [Unit]
-Description=Vexora Reranker Service
+Description=Cor7ex Reranker Service
 After=network.target
 
 [Service]

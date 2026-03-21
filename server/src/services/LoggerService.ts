@@ -92,7 +92,7 @@ function createLogger() {
   return winston.createLogger({
     level: process.env.LOG_LEVEL || 'info',
     format: secureFormatter,
-    defaultMeta: { service: 'vexora-backend' },
+    defaultMeta: { service: 'cor7ex-backend' },
     transports: [
       // Error logs - separate file for critical issues
       new winston.transports.File({

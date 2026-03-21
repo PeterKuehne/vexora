@@ -67,7 +67,7 @@ export function Logo({
           <Bot size={config.icon} />
         </span>
       )}
-      {showText && <span>Vexora</span>}
+      {showText && <span>Cor7ex</span>}
     </span>
   );
 

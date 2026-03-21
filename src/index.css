@@ -288,6 +288,51 @@ textarea:focus-visible {
     }
   }
 
+  /* Staggered entrance animations */
+  .animate-stagger-1 { animation: fadeInUp 0.4s ease-out 0.05s both; }
+  .animate-stagger-2 { animation: fadeInUp 0.4s ease-out 0.1s both; }
+  .animate-stagger-3 { animation: fadeInUp 0.4s ease-out 0.15s both; }
+  .animate-stagger-4 { animation: fadeInUp 0.4s ease-out 0.2s both; }
+  .animate-stagger-5 { animation: fadeInUp 0.4s ease-out 0.25s both; }
+  .animate-stagger-6 { animation: fadeInUp 0.4s ease-out 0.3s both; }
+
+  /* Subtle pulse glow for active states */
+  .animate-pulse-glow {
+    animation: pulseGlow 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  /* Shimmer loading effect */
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.8s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Glass-morphic surface utility */
+  .glass-surface {
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+  }
+
+  /* Progress bar fill animation */
+  .animate-bar-fill {
+    animation: barFill 0.8s ease-out both;
+  }
+
+  @keyframes barFill {
+    from { width: 0%; }
+  }
+
   /* Mobile Touch Targets */
   .touch-target {
     min-height: var(--mobile-touch-target);

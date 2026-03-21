@@ -58,3 +58,5 @@ env/
 
 # Docker
 docker-compose.override.yml
+server/.env.hetzner
+server/.env.hetzner

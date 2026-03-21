@@ -1,13 +1,13 @@
 #!/bin/bash
-# Vexora + Langfuse Infrastructure Setup Script
-# Ubuntu Server: 192.168.178.23
+# Cor7ex + Langfuse Infrastructure Setup Script
+# Ubuntu Server: 192.168.2.38
 #
 # Ausführen mit: bash setup.sh
 
 set -e
 
 echo "========================================"
-echo "  Vexora + Langfuse Infrastructure Setup"
+echo "  Cor7ex + Langfuse Infrastructure Setup"
 echo "========================================"
 echo ""
 
@@ -119,12 +119,12 @@ echo "  Setup abgeschlossen!"
 echo "========================================"
 echo ""
 echo "Services:"
-echo "  - Langfuse:   http://192.168.178.23:3000"
-echo "  - Weaviate:   http://192.168.178.23:8080"
-echo "  - PostgreSQL: 192.168.178.23:5432"
+echo "  - Langfuse:   http://192.168.2.38:3000"
+echo "  - Weaviate:   http://192.168.2.38:8080"
+echo "  - PostgreSQL: 192.168.2.38:5432"
 echo ""
 echo "Nächste Schritte:"
-echo "  1. Öffne http://192.168.178.23:3000"
+echo "  1. Öffne http://192.168.2.38:3000"
 echo "  2. Erstelle einen Admin-Account"
 echo "  3. Erstelle ein Projekt und generiere API Keys"
 echo ""

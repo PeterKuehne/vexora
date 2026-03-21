@@ -1,14 +1,14 @@
 [Unit]
-Description=Vexora Document Parser Service
+Description=Cor7ex Document Parser Service
 After=network.target
 
 [Service]
 Type=simple
 User=peter
 Group=peter
-WorkingDirectory=/opt/vexora/parser
-Environment="PATH=/opt/vexora/parser/venv/bin:/usr/local/bin:/usr/bin:/bin"
-ExecStart=/opt/vexora/parser/venv/bin/uvicorn parser_service:app --host 0.0.0.0 --port 8002 --workers 2
+WorkingDirectory=/opt/cor7ex/parser
+Environment="PATH=/opt/cor7ex/parser/venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/opt/cor7ex/parser/venv/bin/uvicorn parser_service:app --host 0.0.0.0 --port 8002 --workers 2
 Restart=always
 RestartSec=5
 StandardOutput=journal

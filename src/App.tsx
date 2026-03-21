@@ -1,20 +1,20 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import {
-  AppShell,
   ChatContainer,
-  MainSidebar,
-  Header,
   OllamaConnectionError,
-  SaveIndicator,
   SettingsModal,
   StorageQuotaAlert,
   ToastContainer,
   ProtectedRoute,
   ErrorBoundary,
-  type SidebarControls,
-  type SidebarTab,
+  ConversationSidebar,
+  WorkspaceLayout,
+  type WorkspaceSection,
 } from './components';
+import { AgentTaskSidebar } from './components/AgentTaskSidebar';
+import { AgentTaskDetail } from './components/AgentTaskDetail';
+import { ModelSelector } from './components/ModelSelector';
 import { LoginPage, AdminUsersPage, AdminSystemSettingsPage, AuditLogsPage, DocumentsPage, DocumentsPageEmbedded, ProfilePage } from './pages';
 import { checkHealth } from './lib/api';
 import {
@@ -32,6 +32,7 @@ import {
   useToast,
   useToasts,
 } from './contexts';
+import { AgentProvider, useAgent } from './contexts/AgentContext';
 
 function ChatApp() {
   const [isOllamaConnected, setIsOllamaConnected] = useState<boolean | null>(null);
@@ -39,9 +40,6 @@ function ChatApp() {
   const [isRetrying, setIsRetrying] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string>('qwen3:8b');
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-
-  // Sidebar tab state - controls what is shown in main content
-  const [activeTab, setActiveTab] = useState<SidebarTab>('conversations');
 
   // Auth Context
   const { user, isLoading: isAuthLoading, logout } = useAuth();
@@ -53,11 +51,8 @@ function ChatApp() {
     activeConversation,
     createConversation,
     isLoading: isLoadingConversations,
-    saveStatus,
-    lastSavedAt,
   } = useConversations();
 
-  const { theme, setTheme } = useTheme();
   const toasts = useToasts();
   const { removeToast } = useToast();
 
@@ -75,12 +70,9 @@ function ChatApp() {
       }
     };
 
-    // Store in ref for retry button
     checkConnectivityRef.current = checkConnectivity;
-
     checkConnectivity();
 
-    // Check every 30 seconds
     const interval = setInterval(checkConnectivity, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -100,98 +92,107 @@ function ChatApp() {
     }
   }, [isLoadingConversations, activeConversation, createConversation]);
 
-  const handleNewConversation = () => {
-    createConversation();
-  };
+  const { isDark } = useTheme();
 
-  // Settings modal handlers
-  const handleSettingsClick = () => {
-    setIsSettingsModalOpen(true);
-  };
+  // Render main content based on active workspace section
+  const renderContent = (activeSection: WorkspaceSection) => {
+    if (activeSection === 'documents') {
+      return <DocumentsPageEmbedded />;
+    }
 
-  const handleSettingsModalClose = () => {
-    setIsSettingsModalOpen(false);
-  };
+    if (activeSection === 'tasks') {
+      return <AgentTaskDetail />;
+    }
 
-  // Render header with sidebar controls from AppShell
-  const renderHeader = (sidebarControls: SidebarControls) => (
-    <Header
-      theme={theme}
-      onThemeChange={setTheme}
-      isOllamaConnected={isOllamaConnected}
-      modelCount={availableModels.length}
-      saveIndicator={<SaveIndicator status={saveStatus} lastSavedAt={lastSavedAt} />}
-      showMobileMenu={true}
-      onToggleSidebar={sidebarControls.toggle}
-      isSidebarCollapsed={sidebarControls.isCollapsed}
-      hasSidebar={sidebarControls.hasSidebar}
-      selectedModel={selectedModel}
-      onModelChange={setSelectedModel}
-      showModelSelector={true}
-      onSettingsClick={handleSettingsClick}
-      showSettingsButton={true}
-    />
-  );
-
-  // Sidebar Content - receives controls from AppShell
-  const renderSidebar = (sidebarControls: SidebarControls) => (
-    <MainSidebar
-      isCollapsed={sidebarControls.isCollapsed}
-      onToggleCollapse={sidebarControls.toggle}
-      onNewConversation={handleNewConversation}
-      user={user}
-      isAuthLoading={isAuthLoading}
-      onLogout={logout}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-    />
-  );
-
-  // Main Content - switches between Chat and Documents based on active tab
-  const mainContent = activeTab === 'rag' ? (
-    // RAG Tab: Show Documents Page
-    <DocumentsPageEmbedded />
-  ) : isOllamaConnected === false ? (
-    <OllamaConnectionError
-      onRetry={handleRetry}
-      isRetrying={isRetrying}
-    />
-  ) : isLoadingConversations ? (
-    <div className="flex items-center justify-center h-full">
-      <div className="text-gray-400">Lade Unterhaltungen...</div>
-    </div>
-  ) : activeConversation ? (
-    <ChatProvider key={activeConversation.id} initialModel={selectedModel} selectedModel={selectedModel}>
+    // Chat section (default)
+    return (
       <div className="flex flex-col h-full">
-        {/* Storage Quota Alert - Show when approaching limits */}
-        <div className="shrink-0 p-4">
-          <StorageQuotaAlert />
+        {/* Slim header: ModelSelector + Connection Status */}
+        <div className={`
+          shrink-0 flex items-center justify-between
+          px-4 py-2 border-b
+          ${isDark ? 'border-white/[0.06]' : 'border-gray-200'}
+        `}>
+          {/* Left: Active conversation title */}
+          <div className={`text-sm font-medium truncate ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
+            {activeConversation?.title || 'Neue Unterhaltung'}
+          </div>
+
+          {/* Right: Model selector + connection dot */}
+          <div className="flex items-center gap-3">
+            {isOllamaConnected && (
+              <div className="hidden sm:block">
+                <ModelSelector
+                  value={selectedModel}
+                  onChange={setSelectedModel}
+                  disabled={!isOllamaConnected}
+                />
+              </div>
+            )}
+            <div className="flex items-center gap-1.5">
+              <div className={`w-1.5 h-1.5 rounded-full ${
+                isOllamaConnected === null ? 'bg-yellow-500' :
+                isOllamaConnected ? 'bg-green-500' : 'bg-red-500'
+              }`} />
+              <span className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
+                {isOllamaConnected ? `${availableModels.length} Modelle` : 'Offline'}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Main Chat Area */}
+        {/* Chat Content */}
         <div className="flex-1 overflow-hidden">
-          <ChatContainer />
+          {isOllamaConnected === false ? (
+            <OllamaConnectionError
+              onRetry={handleRetry}
+              isRetrying={isRetrying}
+            />
+          ) : isLoadingConversations ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-gray-400">Lade Unterhaltungen...</div>
+            </div>
+          ) : activeConversation ? (
+            <ChatProvider key={activeConversation.id} initialModel={selectedModel} selectedModel={selectedModel}>
+              <div className="flex flex-col h-full">
+                <div className="shrink-0 px-4 pt-2">
+                  <StorageQuotaAlert />
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <ChatContainer />
+                </div>
+              </div>
+            </ChatProvider>
+          ) : null}
         </div>
       </div>
-    </ChatProvider>
-  ) : null;
+    );
+  };
+
+  // Chat sidebar: ConversationSidebar already renders its own <Sidebar> wrapper
+  // so we just pass it directly - no extra wrapper needed
+  const chatSidebar = <ConversationSidebar />;
+  const tasksSidebar = <AgentTaskSidebar />;
 
   return (
     <>
-      <AppShell
-        header={renderHeader}
-        sidebar={renderSidebar}
+      <WorkspaceLayout
+        chatSidebar={chatSidebar}
+        tasksSidebar={tasksSidebar}
+        onSettingsClick={() => setIsSettingsModalOpen(true)}
+        userName={user?.name || user?.email}
+        onLogout={logout}
       >
-        {mainContent}
-      </AppShell>
+        {renderContent}
+      </WorkspaceLayout>
 
-      {/* Toast Notifications - Outside AppShell for proper z-index */}
+      {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
       {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsModalOpen}
-        onClose={handleSettingsModalClose}
+        onClose={() => setIsSettingsModalOpen(false)}
       />
     </>
   );
@@ -200,10 +201,8 @@ function ChatApp() {
 function AppRoutes() {
   return (
     <Routes>
-      {/* Public Login Route */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Protected Chat Route */}
       <Route
         path="/chat"
         element={
@@ -212,7 +211,9 @@ function AppRoutes() {
               <ConversationProvider>
                 <DocumentProvider>
                   <RAGProvider>
-                    <ChatApp />
+                    <AgentProvider>
+                      <ChatApp />
+                    </AgentProvider>
                   </RAGProvider>
                 </DocumentProvider>
               </ConversationProvider>
@@ -221,7 +222,6 @@ function AppRoutes() {
         }
       />
 
-      {/* Protected Documents Route - Full-screen Document Management */}
       <Route
         path="/documents"
         element={
@@ -235,7 +235,6 @@ function AppRoutes() {
         }
       />
 
-      {/* Protected Admin Routes */}
       <Route
         path="/admin"
         element={
@@ -261,7 +260,6 @@ function AppRoutes() {
         }
       />
 
-      {/* Protected Profile Route */}
       <Route
         path="/profile"
         element={
@@ -271,10 +269,7 @@ function AppRoutes() {
         }
       />
 
-      {/* Default redirect to chat */}
       <Route path="/" element={<Navigate to="/chat" replace />} />
-
-      {/* Catch-all redirect */}
       <Route path="*" element={<Navigate to="/chat" replace />} />
     </Routes>
   );

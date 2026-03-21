@@ -31,7 +31,7 @@ export function OllamaConnectionError({
 
       {/* Error Description */}
       <p className="text-gray-400 max-w-lg mb-6">
-        Vexora benötigt Ollama, um mit lokalen KI-Modellen zu kommunizieren.
+        Cor7ex benötigt Ollama, um mit lokalen KI-Modellen zu kommunizieren.
         Stelle sicher, dass Ollama installiert ist und läuft.
       </p>
 

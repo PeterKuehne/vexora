@@ -150,7 +150,7 @@ export function AdvancedSettings({ className = '' }: AdvancedSettingsProps) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `vexora-settings-${new Date().toISOString().split('T')[0]}.json`;
+      link.download = `cor7ex-settings-${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -208,17 +208,36 @@ export function AdvancedSettings({ className = '' }: AdvancedSettingsProps) {
   return (
     <div className={`space-y-6 ${className}`}>
       <div>
-        <h3 className="text-lg font-medium mb-2">Erweiterte Einstellungen</h3>
-        <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+        <h3
+          className={`
+            text-[13px] font-semibold uppercase tracking-wider mb-1
+            ${isDark ? 'text-gray-400' : 'text-gray-500'}
+          `}
+        >
+          Erweiterte Einstellungen
+        </h3>
+        <p className={`text-[13px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
           API-Verbindung, Datenübertragung und Tastenkürzel
         </p>
       </div>
 
       {/* API Configuration */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Server size={18} className={isDark ? 'text-gray-400' : 'text-gray-600'} />
-          <span className="font-medium">Ollama API URL</span>
+        <div
+          className={`
+            flex items-center gap-2 text-[13px] font-medium
+            ${isDark ? 'text-gray-300' : 'text-gray-700'}
+          `}
+        >
+          <div
+            className={`
+              w-7 h-7 rounded-lg flex items-center justify-center
+              ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-500'}
+            `}
+          >
+            <Server size={14} />
+          </div>
+          <span>Ollama API URL</span>
         </div>
 
         <div className="space-y-3">
@@ -230,23 +249,24 @@ export function AdvancedSettings({ className = '' }: AdvancedSettingsProps) {
                 onChange={(e) => handleApiUrlChange(e.target.value)}
                 placeholder="http://localhost:11434"
                 className={`
-                  w-full px-3 py-2 rounded-lg border transition-all
+                  w-full px-4 py-2.5 rounded-xl border text-[13px]
+                  transition-all duration-150
+                  focus:outline-none focus:ring-0
                   ${
                     isValidUrl
                       ? isDark
-                        ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 focus:border-blue-500'
-                        : 'border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500'
+                        ? 'border-white/[0.08] bg-white/[0.03] text-white placeholder-gray-600 focus:border-white/[0.15]'
+                        : 'border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:border-gray-400'
                       : isDark
-                        ? 'border-red-500 bg-gray-700 text-white'
-                        : 'border-red-500 bg-white text-gray-900'
+                        ? 'border-red-500/30 bg-red-500/5 text-white'
+                        : 'border-red-300 bg-red-50 text-gray-900'
                   }
-                  focus:ring-2 focus:ring-blue-500/20 focus:outline-none
                 `}
                 aria-label="Ollama API URL eingeben"
               />
               {!isValidUrl && (
-                <div className="flex items-center gap-1 mt-1 text-red-500 text-xs">
-                  <X size={12} />
+                <div className="flex items-center gap-1 mt-1.5 text-red-400 text-[11px]">
+                  <X size={11} />
                   <span>Ungültige URL (muss mit http:// oder https:// beginnen)</span>
                 </div>
               )}
@@ -256,14 +276,17 @@ export function AdvancedSettings({ className = '' }: AdvancedSettingsProps) {
               onClick={testApiConnection}
               disabled={!isValidUrl}
               className={`
-                px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                flex items-center gap-2
+                px-4 py-2.5 rounded-xl text-[13px] font-semibold
+                transition-all duration-150
+                flex items-center gap-2 shrink-0
                 ${
                   isValidUrl
                     ? isDark
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      ? 'bg-white text-gray-900 hover:bg-gray-100 shadow-lg shadow-white/5'
+                      : 'bg-gray-900 text-white hover:bg-gray-800 shadow-lg shadow-gray-900/20'
+                    : isDark
+                      ? 'bg-white/[0.04] text-gray-600 cursor-not-allowed'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }
               `}
             >
@@ -272,38 +295,63 @@ export function AdvancedSettings({ className = '' }: AdvancedSettingsProps) {
             </button>
           </div>
 
-          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+          <p className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
             Standard: http://localhost:11434 (lokale Ollama-Installation)
           </p>
         </div>
       </div>
 
-      <hr className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`} />
+      <hr className={isDark ? 'border-white/[0.06]' : 'border-gray-200/80'} />
 
       {/* Export/Import */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Download size={18} className={isDark ? 'text-gray-400' : 'text-gray-600'} />
-          <span className="font-medium">Einstellungen übertragen</span>
+        <div
+          className={`
+            flex items-center gap-2 text-[13px] font-medium
+            ${isDark ? 'text-gray-300' : 'text-gray-700'}
+          `}
+        >
+          <div
+            className={`
+              w-7 h-7 rounded-lg flex items-center justify-center
+              ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-500'}
+            `}
+          >
+            <Download size={14} />
+          </div>
+          <span>Einstellungen übertragen</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
             onClick={exportSettings}
             className={`
-              p-3 rounded-lg border transition-all text-left
-              ${
-                isDark
-                  ? 'border-gray-600 bg-gray-700 hover:border-gray-500 text-white'
-                  : 'border-gray-300 bg-gray-50 hover:border-gray-400 text-gray-900'
+              p-3.5 rounded-xl border transition-all duration-150 text-left group
+              ${isDark
+                ? 'border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.1]'
+                : 'border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300'
               }
             `}
           >
-            <div className="flex items-center gap-2 mb-2">
-              <Download size={16} />
-              <span className="font-medium">Exportieren</span>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div
+                className={`
+                  w-7 h-7 rounded-lg flex items-center justify-center
+                  ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-100 text-emerald-500'}
+                `}
+              >
+                <Download size={14} />
+              </div>
+              <span
+                className={`
+                  text-[13px] font-medium
+                  ${isDark ? 'text-gray-200' : 'text-gray-800'}
+                `}
+              >
+                Exportieren
+              </span>
             </div>
-            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            <p className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
               Speichert alle Einstellungen als JSON-Datei
             </p>
           </button>
@@ -311,19 +359,32 @@ export function AdvancedSettings({ className = '' }: AdvancedSettingsProps) {
           <button
             onClick={importSettings}
             className={`
-              p-3 rounded-lg border transition-all text-left
-              ${
-                isDark
-                  ? 'border-gray-600 bg-gray-700 hover:border-gray-500 text-white'
-                  : 'border-gray-300 bg-gray-50 hover:border-gray-400 text-gray-900'
+              p-3.5 rounded-xl border transition-all duration-150 text-left group
+              ${isDark
+                ? 'border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.05] hover:border-white/[0.1]'
+                : 'border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300'
               }
             `}
           >
-            <div className="flex items-center gap-2 mb-2">
-              <Upload size={16} />
-              <span className="font-medium">Importieren</span>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div
+                className={`
+                  w-7 h-7 rounded-lg flex items-center justify-center
+                  ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-100 text-emerald-500'}
+                `}
+              >
+                <Upload size={14} />
+              </div>
+              <span
+                className={`
+                  text-[13px] font-medium
+                  ${isDark ? 'text-gray-200' : 'text-gray-800'}
+                `}
+              >
+                Importieren
+              </span>
             </div>
-            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            <p className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
               Lädt Einstellungen aus JSON-Datei
             </p>
           </button>
@@ -339,27 +400,46 @@ export function AdvancedSettings({ className = '' }: AdvancedSettingsProps) {
         />
       </div>
 
-      <hr className={`border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`} />
+      <hr className={isDark ? 'border-white/[0.06]' : 'border-gray-200/80'} />
 
       {/* Keyboard Shortcuts */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Keyboard size={18} className={isDark ? 'text-gray-400' : 'text-gray-600'} />
-          <span className="font-medium">Tastenkürzel</span>
+        <div
+          className={`
+            flex items-center gap-2 text-[13px] font-medium
+            ${isDark ? 'text-gray-300' : 'text-gray-700'}
+          `}
+        >
+          <div
+            className={`
+              w-7 h-7 rounded-lg flex items-center justify-center
+              ${isDark ? 'bg-violet-500/10 text-violet-400' : 'bg-violet-50 text-violet-500'}
+            `}
+          >
+            <Keyboard size={14} />
+          </div>
+          <span>Tastenkürzel</span>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {KEYBOARD_SHORTCUTS.map((shortcut, index) => (
             <div
               key={index}
               className={`
-                flex items-center justify-between p-3 rounded-lg
-                ${isDark ? 'bg-gray-700' : 'bg-gray-50'}
+                flex items-center justify-between p-3 rounded-xl
+                ${isDark ? 'bg-white/[0.03]' : 'bg-gray-50'}
               `}
             >
               <div className="flex-1">
-                <div className="font-medium text-sm">{shortcut.action}</div>
-                <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                <div
+                  className={`
+                    text-[13px] font-medium
+                    ${isDark ? 'text-gray-200' : 'text-gray-800'}
+                  `}
+                >
+                  {shortcut.action}
+                </div>
+                <div className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
                   {shortcut.description}
                 </div>
               </div>
@@ -369,18 +449,17 @@ export function AdvancedSettings({ className = '' }: AdvancedSettingsProps) {
                   <span key={keyIndex} className="flex items-center gap-1">
                     <kbd
                       className={`
-                        px-2 py-1 text-xs font-mono rounded
-                        ${
-                          isDark
-                            ? 'bg-gray-600 text-gray-200 border border-gray-500'
-                            : 'bg-white text-gray-700 border border-gray-300'
+                        px-2 py-1 text-[11px] font-mono rounded-md
+                        ${isDark
+                          ? 'bg-white/[0.06] text-gray-300 border border-white/[0.08]'
+                          : 'bg-white text-gray-700 border border-gray-200'
                         }
                       `}
                     >
                       {key}
                     </kbd>
                     {keyIndex < shortcut.keys.length - 1 && (
-                      <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      <span className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
                         +
                       </span>
                     )}
@@ -391,16 +470,34 @@ export function AdvancedSettings({ className = '' }: AdvancedSettingsProps) {
           ))}
         </div>
 
-        <div className={`
-          flex items-start gap-2 p-3 rounded-lg
-          ${isDark ? 'bg-blue-900/20 border border-blue-700/30' : 'bg-blue-50 border border-blue-200'}
-        `}>
-          <Info size={16} className={`mt-0.5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-          <div className="text-sm">
-            <div className={`font-medium ${isDark ? 'text-blue-300' : 'text-blue-800'}`}>
+        <div
+          className={`
+            relative overflow-hidden flex items-start gap-2.5 p-3 rounded-xl
+            ${isDark
+              ? 'bg-violet-500/5 border border-violet-500/10'
+              : 'bg-violet-50 border border-violet-100'
+            }
+          `}
+        >
+          <div className={`absolute inset-0 opacity-30 ${isDark ? 'bg-gradient-to-br from-violet-500/5 via-transparent to-transparent' : ''}`} />
+          <div
+            className={`
+              relative w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5
+              ${isDark ? 'bg-violet-500/10 text-violet-400' : 'bg-violet-100 text-violet-500'}
+            `}
+          >
+            <Info size={12} />
+          </div>
+          <div className="relative text-[12px] leading-relaxed">
+            <div
+              className={`
+                font-medium
+                ${isDark ? 'text-gray-300' : 'text-gray-700'}
+              `}
+            >
               Hinweis zu Tastenkürzeln
             </div>
-            <div className={`mt-1 ${isDark ? 'text-blue-200' : 'text-blue-700'}`}>
+            <div className={`mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
               Auf macOS verwenden Sie ⌘ (Cmd) anstelle von Ctrl. Die meisten Shortcuts
               funktionieren automatisch plattformspezifisch.
             </div>

@@ -1,0 +1,56 @@
+supported_languages:
+  - en
+  - de
+
+global_regex_flags: 26
+
+recognizers:
+  - name: CreditCardRecognizer
+    supported_languages:
+      - language: en
+        context: [credit, card, visa, mastercard, cc, amex, discover, jcb, diners, maestro, instapayment]
+      - language: de
+        context: [kreditkarte, karte, visa, mastercard, cc, amex, kredit]
+    type: predefined
+
+  - name: DateRecognizer
+    supported_languages:
+      - en
+      - de
+    type: predefined
+
+  - name: EmailRecognizer
+    supported_languages:
+      - en
+      - de
+    type: predefined
+
+  - name: IbanRecognizer
+    supported_languages:
+      - en
+      - de
+    type: predefined
+
+  - name: IpRecognizer
+    supported_languages:
+      - en
+      - de
+    type: predefined
+
+  - name: PhoneRecognizer
+    supported_languages:
+      - en
+      - de
+    type: predefined
+
+  - name: UrlRecognizer
+    supported_languages:
+      - en
+      - de
+    type: predefined
+
+  - name: SpacyRecognizer
+    supported_languages:
+      - en
+      - de
+    type: predefined

@@ -1,5 +1,5 @@
 project_context:
-  name: "Vexora Enterprise Authentication & Authorization System"
+  name: "Cor7ex Enterprise Authentication & Authorization System"
   type: "enhancement"
   current_stack:
     frontend: "React 19 + TypeScript + Vite"

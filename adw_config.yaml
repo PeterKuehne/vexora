@@ -1,4 +1,4 @@
-project_name: Vexora Enterprise Authentication & Authorization System
+project_name: Cor7ex Enterprise Authentication & Authorization System
 description: 'Implementing: SSO Authentication, Benutzerverwaltung, Rollenbasierte Zugriffskontrolle (RBAC) (+9 more)'
 existing_functionality:
 - Single-User RAG-System ohne Authentifizierung

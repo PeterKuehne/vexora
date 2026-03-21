@@ -20,9 +20,9 @@ class DatabaseService {
       this.pool = new Pool({
         host: env.POSTGRES_HOST || 'localhost',
         port: env.POSTGRES_PORT || 5432,
-        database: env.POSTGRES_DB || 'vexora',
-        user: env.POSTGRES_USER || 'vexora',
-        password: env.POSTGRES_PASSWORD || 'vexora_dev_password',
+        database: env.POSTGRES_DB || 'cor7ex',
+        user: env.POSTGRES_USER || 'cor7ex',
+        password: env.POSTGRES_PASSWORD || 'cor7ex_dev_password',
         max: 20, // Maximum number of clients in the pool
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 2000,

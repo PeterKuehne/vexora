@@ -1,18 +1,18 @@
-# Vexora + Langfuse Infrastructure
+# Cor7ex + Langfuse Infrastructure
 
-Diese Dateien auf den Ubuntu-Server (192.168.178.23) kopieren und ausführen.
+Diese Dateien auf den Ubuntu-Server (192.168.2.38) kopieren und ausführen.
 
 ## Quick Start
 
 ```bash
 # 1. Dateien auf Ubuntu kopieren
-scp -r ubuntu-infra/* peter@192.168.178.23:~/vexora-infra/
+scp -r ubuntu-infra/* peter@192.168.2.38:~/cor7ex-infra/
 
 # 2. Auf Ubuntu einloggen
-ssh peter@192.168.178.23
+ssh peter@192.168.2.38
 
 # 3. In das Verzeichnis wechseln
-cd ~/vexora-infra
+cd ~/cor7ex-infra
 
 # 4. Setup-Script ausführen
 bash setup.sh
@@ -22,9 +22,9 @@ bash setup.sh
 
 | Service | URL | Beschreibung |
 |---------|-----|--------------|
-| Langfuse | http://192.168.178.23:3000 | LLM Observability Dashboard |
-| Weaviate | http://192.168.178.23:8080 | Vector Database für RAG |
-| PostgreSQL | 192.168.178.23:5432 | Shared Database |
+| Langfuse | http://192.168.2.38:3000 | LLM Observability Dashboard |
+| Weaviate | http://192.168.2.38:8080 | Vector Database für RAG |
+| PostgreSQL | 192.168.2.38:5432 | Shared Database |
 
 ## Passwörter
 
@@ -33,7 +33,7 @@ Alle Passwörter sind in `.env` definiert.
 **PostgreSQL Benutzer:**
 - `postgres` / `xgw15pmc` (Admin)
 - `langfuse` / `langfuse_db_xgw15pmc` (Langfuse DB)
-- `vexora` / `xgw15pmc` (Vexora DB)
+- `cor7ex` / `xgw15pmc` (Cor7ex DB)
 
 ## Container Management
 

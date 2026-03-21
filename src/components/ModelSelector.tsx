@@ -13,9 +13,9 @@ import {
   ListboxOptions,
   Transition,
 } from '@headlessui/react';
-import { ChevronDown, Check, Search, Cpu, HardDrive, X, AlertTriangle } from 'lucide-react';
+import { ChevronDown, Check, Search, Cpu, HardDrive, X, AlertTriangle, Cloud, Shield } from 'lucide-react';
 import { useTheme, useToast } from '../contexts';
-import { fetchModels } from '../lib/api';
+import { fetchModels, type CloudModel } from '../lib/api';
 
 // ============================================
 // Types
@@ -93,6 +93,7 @@ export function ModelSelector({
 
   // State
   const [models, setModels] = useState<Model[]>([]);
+  const [cloudModels, setCloudModels] = useState<CloudModel[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,6 +110,7 @@ export function ModelSelector({
     try {
       const response = await fetchModels();
       setModels(response.models);
+      setCloudModels(response.cloudModels || []);
 
       // If no model selected yet, select the default
       if (!value && response.defaultModel) {
@@ -135,7 +137,7 @@ export function ModelSelector({
       return;
     }
 
-    const isModelAvailable = models.some((m) => m.id === value);
+    const isModelAvailable = models.some((m) => m.id === value) || cloudModels.some((m) => m.id === value);
 
     if (!isModelAvailable) {
       // Mark as checked to prevent duplicate notifications
@@ -169,7 +171,7 @@ export function ModelSelector({
       setModelUnavailable(false);
       availabilityCheckedRef.current = value;
     }
-  }, [value, models, autoFallback, onChange, onModelUnavailable, addToast]);
+  }, [value, models, cloudModels, autoFallback, onChange, onModelUnavailable, addToast]);
 
   // Filter models based on search query
   const filteredModels = useMemo(() => {
@@ -187,10 +189,23 @@ export function ModelSelector({
     );
   }, [models, searchQuery]);
 
-  // Find currently selected model
+  // Filter cloud models based on search query
+  const filteredCloudModels = useMemo(() => {
+    if (!searchQuery.trim()) return cloudModels;
+    const query = searchQuery.toLowerCase();
+    return cloudModels.filter(
+      (m) => m.id.toLowerCase().includes(query) || m.name.toLowerCase().includes(query)
+    );
+  }, [cloudModels, searchQuery]);
+
+  // Find currently selected model (local or cloud)
   const selectedModel = useMemo(() => {
     return models.find((m) => m.id === value);
   }, [models, value]);
+
+  const selectedCloudModel = useMemo(() => {
+    return cloudModels.find((m) => m.id === value);
+  }, [cloudModels, value]);
 
   // Clear search when dropdown closes
   const handleChange = (modelId: string) => {
@@ -207,14 +222,14 @@ export function ModelSelector({
             <ListboxButton
               className={`
                 relative w-full min-w-[180px] cursor-pointer
-                rounded-lg py-2 pl-3 pr-10 text-left text-sm
-                transition-colors
-                focus:outline-none focus:ring-2 focus:ring-primary/50
+                rounded-xl py-2 pl-3 pr-10 text-left text-[13px]
+                transition-colors duration-200
+                focus:outline-none focus:ring-2 focus:ring-white/20
                 ${disabled || isLoading ? 'cursor-not-allowed opacity-60' : ''}
                 ${
                   isDark
-                    ? 'bg-white/5 text-white hover:bg-white/10 border border-white/10'
-                    : 'bg-black/5 text-gray-900 hover:bg-black/10 border border-black/10'
+                    ? 'bg-white/[0.03] text-gray-300 hover:bg-white/[0.06] border border-white/[0.08]'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200/80 shadow-sm'
                 }
               `.trim()}
               aria-label="KI-Modell auswählen"
@@ -222,6 +237,8 @@ export function ModelSelector({
               <span className="flex items-center gap-2 truncate">
                 {modelUnavailable ? (
                   <AlertTriangle size={14} className="text-yellow-500" />
+                ) : selectedCloudModel ? (
+                  <Cloud size={14} className="text-blue-400" />
                 ) : (
                   <Cpu size={14} className={isDark ? 'text-gray-400' : 'text-gray-500'} />
                 )}
@@ -229,10 +246,12 @@ export function ModelSelector({
                   <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>
                     Lade Modelle...
                   </span>
-                ) : modelUnavailable && !selectedModel ? (
+                ) : modelUnavailable && !selectedModel && !selectedCloudModel ? (
                   <span className="text-yellow-500">
                     Modell nicht verfügbar
                   </span>
+                ) : selectedCloudModel ? (
+                  selectedCloudModel.name
                 ) : selectedModel ? (
                   formatModelName(selectedModel)
                 ) : (
@@ -263,17 +282,17 @@ export function ModelSelector({
             >
               <ListboxOptions
                 className={`
-                  absolute z-50 mt-1 w-full min-w-[280px] overflow-hidden
-                  rounded-lg shadow-lg ring-1 ring-black/5
+                  absolute z-50 mt-1.5 w-full min-w-[280px] overflow-hidden
+                  rounded-xl shadow-xl
                   focus:outline-none
-                  ${isDark ? 'bg-[#1e1e1e]' : 'bg-white'}
+                  ${isDark ? 'bg-neutral-900 border border-white/[0.08]' : 'bg-white border border-gray-200/80 shadow-lg'}
                 `.trim()}
               >
                 {/* Search Input */}
                 <div
                   className={`
                     sticky top-0 p-2
-                    ${isDark ? 'bg-[#1e1e1e] border-b border-white/10' : 'bg-white border-b border-gray-200'}
+                    ${isDark ? 'bg-neutral-900 border-b border-white/[0.06]' : 'bg-white border-b border-gray-100'}
                   `}
                 >
                   <div className="relative">
@@ -290,12 +309,12 @@ export function ModelSelector({
                       placeholder="Modelle suchen..."
                       aria-label="Modelle durchsuchen"
                       className={`
-                        w-full py-1.5 pl-8 pr-8 text-sm rounded-md
-                        focus:outline-none focus:ring-1 focus:ring-primary/50
+                        w-full py-1.5 pl-8 pr-8 text-sm rounded-lg
+                        focus:outline-none focus:ring-1 focus:ring-white/20
                         ${
                           isDark
-                            ? 'bg-white/5 text-white placeholder-gray-500 border border-white/10'
-                            : 'bg-black/5 text-gray-900 placeholder-gray-400 border border-black/10'
+                            ? 'bg-white/[0.04] text-white placeholder-gray-500 border border-white/[0.06]'
+                            : 'bg-gray-50 text-gray-900 placeholder-gray-400 border border-gray-200/80'
                         }
                       `.trim()}
                       // Prevent listbox from closing when clicking input
@@ -340,7 +359,7 @@ export function ModelSelector({
 
                 {/* Model List */}
                 <div className="max-h-60 overflow-y-auto py-1">
-                  {filteredModels.length === 0 && !error ? (
+                  {filteredModels.length === 0 && filteredCloudModels.length === 0 && !error ? (
                     <div
                       className={`px-3 py-2 text-sm ${
                         isDark ? 'text-gray-400' : 'text-gray-500'
@@ -349,74 +368,149 @@ export function ModelSelector({
                       {searchQuery ? 'Keine Modelle gefunden' : 'Keine Modelle verfügbar'}
                     </div>
                   ) : (
-                    filteredModels.map((model) => (
-                      <ListboxOption
-                        key={model.id}
-                        value={model.id}
-                        className={({ focus, selected }) =>
-                          `
-                          relative cursor-pointer select-none py-2 pl-3 pr-10
-                          ${focus ? (isDark ? 'bg-white/10' : 'bg-black/5') : ''}
-                          ${selected ? (isDark ? 'bg-primary/20' : 'bg-primary/10') : ''}
-                        `.trim()
-                        }
-                      >
-                        {({ selected }) => (
-                          <>
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-2">
-                                <span
-                                  className={`font-medium ${
-                                    selected
-                                      ? 'text-primary'
-                                      : isDark
-                                        ? 'text-white'
-                                        : 'text-gray-900'
-                                  }`}
-                                >
-                                  {formatModelName(model)}
-                                </span>
-                                {model.isDefault && (
-                                  <span
-                                    className={`text-xs px-1.5 py-0.5 rounded ${
-                                      isDark
-                                        ? 'bg-primary/20 text-primary'
-                                        : 'bg-primary/10 text-primary'
-                                    }`}
-                                  >
-                                    Standard
-                                  </span>
-                                )}
-                              </div>
-                              {showDetails && (
-                                <div
-                                  className={`flex items-center gap-3 mt-0.5 text-xs ${
-                                    isDark ? 'text-gray-400' : 'text-gray-500'
-                                  }`}
-                                >
-                                  <span className="flex items-center gap-1">
-                                    <Cpu size={10} />
-                                    {model.parameterSize || model.family}
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <HardDrive size={10} />
-                                    {formatSize(model.sizeGB)}
-                                  </span>
-                                  {model.quantization && (
-                                    <span className="uppercase">{model.quantization}</span>
-                                  )}
-                                </div>
-                              )}
+                    <>
+                      {/* Local Models Section */}
+                      {filteredModels.length > 0 && (
+                        <>
+                          {filteredCloudModels.length > 0 && (
+                            <div className={`px-3 py-1 text-[10px] uppercase tracking-wider font-medium ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
+                              Lokale Modelle
                             </div>
-                            {selected && (
-                              <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-primary">
-                                <Check size={16} />
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </ListboxOption>
-                    ))
+                          )}
+                          {filteredModels.map((model) => (
+                            <ListboxOption
+                              key={model.id}
+                              value={model.id}
+                              className={({ focus, selected }) =>
+                                `
+                                relative cursor-pointer select-none py-2 pl-3 pr-10
+                                ${focus ? (isDark ? 'bg-white/10' : 'bg-black/5') : ''}
+                                ${selected ? (isDark ? 'bg-primary/20' : 'bg-primary/10') : ''}
+                              `.trim()
+                              }
+                            >
+                              {({ selected }) => (
+                                <>
+                                  <div className="flex flex-col">
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        className={`font-medium ${
+                                          selected
+                                            ? 'text-primary'
+                                            : isDark
+                                              ? 'text-white'
+                                              : 'text-gray-900'
+                                        }`}
+                                      >
+                                        {formatModelName(model)}
+                                      </span>
+                                      {model.isDefault && (
+                                        <span
+                                          className={`text-xs px-1.5 py-0.5 rounded ${
+                                            isDark
+                                              ? 'bg-primary/20 text-primary'
+                                              : 'bg-primary/10 text-primary'
+                                          }`}
+                                        >
+                                          Standard
+                                        </span>
+                                      )}
+                                    </div>
+                                    {showDetails && (
+                                      <div
+                                        className={`flex items-center gap-3 mt-0.5 text-xs ${
+                                          isDark ? 'text-gray-400' : 'text-gray-500'
+                                        }`}
+                                      >
+                                        <span className="flex items-center gap-1">
+                                          <Cpu size={10} />
+                                          {model.parameterSize || model.family}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                          <HardDrive size={10} />
+                                          {formatSize(model.sizeGB)}
+                                        </span>
+                                        {model.quantization && (
+                                          <span className="uppercase">{model.quantization}</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                  {selected && (
+                                    <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-primary">
+                                      <Check size={16} />
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </ListboxOption>
+                          ))}
+                        </>
+                      )}
+
+                      {/* Cloud Models Section */}
+                      {filteredCloudModels.length > 0 && (
+                        <>
+                          <div className={`px-3 pt-2 pb-1 text-[10px] uppercase tracking-wider font-medium flex items-center gap-1.5 ${isDark ? 'text-blue-400/60' : 'text-blue-500/60'}`}>
+                            <Cloud size={10} />
+                            Cloud-Modelle
+                          </div>
+                          <div className={`mx-3 mb-1 px-2 py-1 rounded text-[10px] flex items-center gap-1 ${isDark ? 'bg-blue-500/10 text-blue-300/60' : 'bg-blue-50 text-blue-500/70'}`}>
+                            <Shield size={9} />
+                            PII wird vor dem Senden maskiert
+                          </div>
+                          {filteredCloudModels.map((model) => (
+                            <ListboxOption
+                              key={model.id}
+                              value={model.id}
+                              className={({ focus, selected }) =>
+                                `
+                                relative cursor-pointer select-none py-2 pl-3 pr-10
+                                ${focus ? (isDark ? 'bg-white/10' : 'bg-black/5') : ''}
+                                ${selected ? (isDark ? 'bg-blue-500/20' : 'bg-blue-50') : ''}
+                              `.trim()
+                              }
+                            >
+                              {({ selected }) => (
+                                <>
+                                  <div className="flex flex-col">
+                                    <div className="flex items-center gap-2">
+                                      <Cloud size={12} className="text-blue-400" />
+                                      <span
+                                        className={`font-medium ${
+                                          selected
+                                            ? 'text-blue-400'
+                                            : isDark
+                                              ? 'text-white'
+                                              : 'text-gray-900'
+                                        }`}
+                                      >
+                                        {model.name}
+                                      </span>
+                                    </div>
+                                    {showDetails && (
+                                      <div className={`flex items-center gap-3 mt-0.5 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                        <span>{Math.round(model.contextWindow / 1000)}K Kontext</span>
+                                        {model.inputPricePerMTok && (
+                                          <span className="text-blue-400/70">
+                                            ~${((model.inputPricePerMTok * 1000 + (model.outputPricePerMTok || 0) * 500) / 1_000_000).toFixed(3)}/Query
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                  {selected && (
+                                    <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-blue-400">
+                                      <Check size={16} />
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </ListboxOption>
+                          ))}
+                        </>
+                      )}
+                    </>
                   )}
                 </div>
               </ListboxOptions>

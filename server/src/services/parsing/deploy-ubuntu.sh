@@ -1,10 +1,10 @@
 #!/bin/bash
 # Deploy Parser Service to Ubuntu Server
-# Target: 192.168.178.23:8002
+# Target: 192.168.2.38:8002
 
-UBUNTU_HOST="192.168.178.23"
+UBUNTU_HOST="192.168.2.38"
 UBUNTU_USER="peter"  # Adjust if different
-REMOTE_DIR="/opt/vexora/parser"
+REMOTE_DIR="/opt/cor7ex/parser"
 
 echo "📦 Deploying Parser Service to $UBUNTU_HOST..."
 
@@ -20,7 +20,7 @@ ssh $UBUNTU_USER@$UBUNTU_HOST "sudo mv /tmp/parser.service /etc/systemd/system/"
 
 # Setup on remote
 ssh $UBUNTU_USER@$UBUNTU_HOST << 'REMOTE_SCRIPT'
-cd /opt/vexora/parser
+cd /opt/cor7ex/parser
 
 # Create virtual environment if not exists
 if [ ! -d "venv" ]; then

@@ -199,7 +199,7 @@ async function main() {
   } else {
     console.log('\n=== Skipping Full Pipeline Test (Neo4j not available) ===');
     console.log('Make sure Neo4j is running on the Ubuntu server:');
-    console.log('  ssh ubuntu@192.168.178.23');
+    console.log('  ssh ubuntu@192.168.2.38');
     console.log('  cd /path/to/ubuntu-infra');
     console.log('  docker compose up -d neo4j');
   }

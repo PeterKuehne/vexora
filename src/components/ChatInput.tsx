@@ -3,9 +3,11 @@
  *
  * Text input with send button for chat messages.
  * Supports Enter to send, Shift+Enter for newlines.
+ * Refined Monochrome design with subtle borders and rounded-xl.
  */
 
 import { useState, useRef, useEffect, type KeyboardEvent, type FormEvent } from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 import { cn } from '../utils';
 import { SendButton } from './SendButton';
 
@@ -29,6 +31,7 @@ export function ChatInput({
   placeholder = 'Nachricht eingeben...',
   disabled = false,
 }: ChatInputProps) {
+  const { isDark } = useTheme();
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -72,7 +75,13 @@ export function ChatInput({
 
   return (
     <form onSubmit={handleSubmit} className="relative">
-      <div className="flex items-center gap-2 p-3 md:p-4 rounded-xl bg-surface border border-white/10 focus-within:border-white/10">
+      <div className={cn(
+        'flex items-center gap-2 p-3 md:p-4 rounded-xl',
+        'transition-colors duration-200',
+        isDark
+          ? 'bg-white/[0.03] border border-white/[0.08] focus-within:border-white/[0.15] focus-within:bg-white/[0.05] focus-within:ring-1 focus-within:ring-blue-500/20'
+          : 'bg-white border border-gray-200/80 focus-within:border-gray-300 focus-within:ring-1 focus-within:ring-blue-500/20 shadow-sm'
+      )}>
         <textarea
           ref={textareaRef}
           value={input}

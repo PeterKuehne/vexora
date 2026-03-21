@@ -5,10 +5,11 @@
  * - Clear visualization of who can access the document
  * - Classification level impact explanation
  * - TailwindCSS styling with theme support (MANDATORY)
- * - User-friendly permission summary
+ * - Refined layered card design with accent indicators
+ * - Classification color-coded header badge
  */
 
-import { Shield, Users, Eye, Lock, AlertTriangle } from 'lucide-react';
+import { Shield, Users, Eye, Lock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import type { ClassificationLevel } from './ClassificationDropdown';
@@ -28,6 +29,47 @@ interface PermissionRule {
   type: 'allowed' | 'restricted' | 'info';
 }
 
+const CLASSIFICATION_LABELS: Record<ClassificationLevel, string> = {
+  public: 'Öffentlich',
+  internal: 'Intern',
+  confidential: 'Vertraulich',
+  restricted: 'Eingeschränkt'
+};
+
+const VISIBILITY_LABELS: Record<VisibilityType, string> = {
+  only_me: 'Nur ich',
+  department: 'Abteilung',
+  all_users: 'Alle Benutzer',
+  specific_users: 'Bestimmte Benutzer'
+};
+
+const CLASSIFICATION_COLORS: Record<ClassificationLevel, {
+  badge: { dark: string; light: string };
+  icon: { dark: string; light: string };
+  accent: { dark: string; light: string };
+}> = {
+  public: {
+    badge: { dark: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20', light: 'bg-emerald-50 text-emerald-700 ring-emerald-200/60' },
+    icon: { dark: 'text-emerald-400', light: 'text-emerald-600' },
+    accent: { dark: 'bg-emerald-500', light: 'bg-emerald-500' }
+  },
+  internal: {
+    badge: { dark: 'bg-blue-500/10 text-blue-400 ring-blue-500/20', light: 'bg-blue-50 text-blue-700 ring-blue-200/60' },
+    icon: { dark: 'text-blue-400', light: 'text-blue-600' },
+    accent: { dark: 'bg-blue-500', light: 'bg-blue-500' }
+  },
+  confidential: {
+    badge: { dark: 'bg-amber-500/10 text-amber-400 ring-amber-500/20', light: 'bg-amber-50 text-amber-700 ring-amber-200/60' },
+    icon: { dark: 'text-amber-400', light: 'text-amber-600' },
+    accent: { dark: 'bg-amber-500', light: 'bg-amber-500' }
+  },
+  restricted: {
+    badge: { dark: 'bg-red-500/10 text-red-400 ring-red-500/20', light: 'bg-red-50 text-red-700 ring-red-200/60' },
+    icon: { dark: 'text-red-400', light: 'text-red-600' },
+    accent: { dark: 'bg-red-500', light: 'bg-red-500' }
+  }
+};
+
 export function PermissionPreview({
   classification,
   visibility,
@@ -38,6 +80,7 @@ export function PermissionPreview({
   const { user } = useAuth();
 
   const userDepartment = department || user?.department || 'Unbekannt';
+  const colors = CLASSIFICATION_COLORS[classification];
 
   // Generate permission rules based on settings
   const getPermissionRules = (): PermissionRule[] => {
@@ -58,7 +101,7 @@ export function PermissionPreview({
         rules.push({
           icon: Users,
           title: 'Abteilungsinterne Freigabe',
-          description: `Nur Mitarbeiter der Abteilung "${userDepartment}" können zugreifen`,
+          description: `Nur Mitarbeiter der Abteilung „${userDepartment}" können zugreifen`,
           type: 'info'
         });
         break;
@@ -66,7 +109,7 @@ export function PermissionPreview({
       case 'confidential':
         rules.push({
           icon: Shield,
-          title: 'Vertraulich - Manager+',
+          title: 'Vertraulich — Manager+',
           description: 'Nur Manager und Administratoren können zugreifen',
           type: 'restricted'
         });
@@ -75,7 +118,7 @@ export function PermissionPreview({
       case 'restricted':
         rules.push({
           icon: Lock,
-          title: 'Eingeschränkt - Nur Admins',
+          title: 'Eingeschränkt — Nur Admins',
           description: 'Nur Administratoren können zugreifen',
           type: 'restricted'
         });
@@ -98,7 +141,7 @@ export function PermissionPreview({
           rules.push({
             icon: AlertTriangle,
             title: 'Klassifizierung überschreibt Sichtbarkeit',
-            description: 'Da das Dokument als "Öffentlich" klassifiziert ist, können alle Benutzer darauf zugreifen',
+            description: 'Da das Dokument als „Öffentlich" klassifiziert ist, können alle Benutzer darauf zugreifen',
             type: 'info'
           });
         }
@@ -109,7 +152,7 @@ export function PermissionPreview({
           rules.push({
             icon: AlertTriangle,
             title: 'Klassifizierung schränkt Zugriff ein',
-            description: 'Trotz "Alle Benutzer" gilt die Klassifizierungseinschränkung',
+            description: 'Trotz „Alle Benutzer" gilt die Klassifizierungseinschränkung',
             type: 'info'
           });
         }
@@ -136,7 +179,7 @@ export function PermissionPreview({
 
     // Owner rule
     rules.push({
-      icon: Users,
+      icon: CheckCircle,
       title: 'Eigentümerrechte',
       description: 'Sie haben als Dokumenteigentümer immer vollen Zugriff',
       type: 'allowed'
@@ -147,14 +190,26 @@ export function PermissionPreview({
 
   const rules = getPermissionRules();
 
-  const getIconColor = (type: 'allowed' | 'restricted' | 'info') => {
+  const getRuleColors = (type: 'allowed' | 'restricted' | 'info') => {
     switch (type) {
       case 'allowed':
-        return 'text-green-600';
+        return {
+          icon: isDark ? 'text-emerald-400' : 'text-emerald-600',
+          bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50',
+          dot: isDark ? 'bg-emerald-400' : 'bg-emerald-500'
+        };
       case 'restricted':
-        return 'text-red-600';
+        return {
+          icon: isDark ? 'text-red-400' : 'text-red-600',
+          bg: isDark ? 'bg-red-500/10' : 'bg-red-50',
+          dot: isDark ? 'bg-red-400' : 'bg-red-500'
+        };
       case 'info':
-        return isDark ? 'text-blue-400' : 'text-blue-600';
+        return {
+          icon: isDark ? 'text-blue-400' : 'text-blue-600',
+          bg: isDark ? 'bg-blue-500/10' : 'bg-blue-50',
+          dot: isDark ? 'bg-blue-400' : 'bg-blue-500'
+        };
     }
   };
 
@@ -162,8 +217,8 @@ export function PermissionPreview({
     <div>
       <label
         className={`
-          block text-sm font-medium mb-3
-          ${isDark ? 'text-gray-200' : 'text-gray-800'}
+          block text-xs font-semibold uppercase tracking-wider mb-2.5
+          ${isDark ? 'text-gray-400' : 'text-gray-500'}
         `}
       >
         Berechtigungsvorschau
@@ -171,83 +226,87 @@ export function PermissionPreview({
 
       <div
         className={`
-          border rounded-lg p-4
+          rounded-xl overflow-hidden
           ${isDark
-            ? 'border-white/20 bg-surface-secondary/30'
-            : 'border-gray-300 bg-gray-50/50'
+            ? 'bg-white/[0.02] border border-white/[0.06]'
+            : 'bg-white border border-gray-200/80 shadow-sm'
           }
         `}
       >
-        <div
-          className={`
-            flex items-center mb-3 pb-3 border-b
-            ${isDark ? 'border-white/20' : 'border-gray-300'}
-          `}
-        >
-          <Shield
-            className={`
-              w-5 h-5 mr-2
-              ${classification === 'restricted'
-                ? 'text-red-600'
-                : classification === 'confidential'
-                  ? 'text-orange-600'
-                  : classification === 'internal'
-                    ? 'text-blue-600'
-                    : 'text-green-600'
-              }
-            `}
-          />
-          <div>
-            <div
-              className={`
-                font-medium
-                ${isDark ? 'text-gray-200' : 'text-gray-800'}
-              `}
-            >
-              Klassifizierung: {classification.charAt(0).toUpperCase() + classification.slice(1)}
+        {/* Header with classification accent */}
+        <div className={`
+          relative px-4 py-3 border-b
+          ${isDark ? 'border-white/[0.06]' : 'border-gray-100'}
+        `}>
+          {/* Top accent line */}
+          <div className={`
+            absolute top-0 left-0 right-0 h-0.5
+            ${isDark ? colors.accent.dark : colors.accent.light}
+          `} />
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Shield className={`
+                w-4 h-4
+                ${isDark ? colors.icon.dark : colors.icon.light}
+              `} />
+              <div>
+                <span className={`
+                  text-sm font-medium
+                  ${isDark ? 'text-gray-200' : 'text-gray-800'}
+                `}>
+                  {CLASSIFICATION_LABELS[classification]}
+                </span>
+                <span className={`
+                  text-xs ml-2
+                  ${isDark ? 'text-gray-600' : 'text-gray-400'}
+                `}>
+                  / {VISIBILITY_LABELS[visibility]}
+                </span>
+              </div>
             </div>
-            <div
-              className={`
-                text-sm
-                ${isDark ? 'text-gray-400' : 'text-gray-600'}
-              `}
-            >
-              Sichtbarkeit: {
-                visibility === 'only_me' ? 'Nur ich' :
-                visibility === 'department' ? 'Abteilung' :
-                visibility === 'all_users' ? 'Alle Benutzer' :
-                'Bestimmte Benutzer'
-              }
-            </div>
+
+            {/* Classification badge */}
+            <span className={`
+              text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md ring-1
+              ${isDark ? colors.badge.dark : colors.badge.light}
+            `}>
+              {classification}
+            </span>
           </div>
         </div>
 
-        <div className="space-y-3">
+        {/* Permission Rules */}
+        <div className="px-4 py-3 space-y-2.5">
           {rules.map((rule, index) => {
             const Icon = rule.icon;
+            const ruleColors = getRuleColors(rule.type);
+
             return (
-              <div key={index} className="flex items-start">
-                <Icon
-                  className={`
-                    w-4 h-4 mr-3 mt-0.5 flex-shrink-0
-                    ${getIconColor(rule.type)}
-                  `}
-                />
-                <div>
-                  <div
-                    className={`
-                      text-sm font-medium
-                      ${isDark ? 'text-gray-200' : 'text-gray-800'}
-                    `}
-                  >
+              <div
+                key={index}
+                className={`
+                  flex items-start gap-3 p-2.5 rounded-lg
+                  ${isDark ? 'bg-white/[0.02]' : 'bg-gray-50/50'}
+                `}
+              >
+                <div className={`
+                  p-1 rounded-md shrink-0 mt-0.5
+                  ${ruleColors.bg}
+                `}>
+                  <Icon className={`w-3 h-3 ${ruleColors.icon}`} />
+                </div>
+                <div className="min-w-0">
+                  <div className={`
+                    text-xs font-medium
+                    ${isDark ? 'text-gray-200' : 'text-gray-800'}
+                  `}>
                     {rule.title}
                   </div>
-                  <div
-                    className={`
-                      text-xs mt-0.5
-                      ${isDark ? 'text-gray-400' : 'text-gray-600'}
-                    `}
-                  >
+                  <div className={`
+                    text-[11px] mt-0.5 leading-relaxed
+                    ${isDark ? 'text-gray-500' : 'text-gray-500'}
+                  `}>
                     {rule.description}
                   </div>
                 </div>
@@ -256,19 +315,15 @@ export function PermissionPreview({
           })}
         </div>
 
-        {/* Summary */}
-        <div
-          className={`
-            mt-4 pt-3 border-t text-xs
-            ${isDark
-              ? 'border-gray-600 text-gray-400'
-              : 'border-gray-300 text-gray-600'
-            }
-          `}
-        >
-          <strong>Zusammenfassung:</strong> Dieses Dokument wird entsprechend der Klassifizierung "{classification}"
-          und PostgreSQL RLS-Richtlinien verwaltet. Die finale Zugriffskontrolle wird zur Laufzeit basierend auf
-          Benutzerrolle, Abteilung und spezifischen Berechtigungen durchgeführt.
+        {/* Summary footer */}
+        <div className={`
+          px-4 py-3 border-t text-[11px] leading-relaxed
+          ${isDark
+            ? 'border-white/[0.06] text-gray-600'
+            : 'border-gray-100 text-gray-400'
+          }
+        `}>
+          Zugriffskontrolle wird zur Laufzeit basierend auf Benutzerrolle, Abteilung und RLS-Richtlinien durchgeführt.
         </div>
       </div>
     </div>

@@ -18,6 +18,7 @@ import { Markdown } from './Markdown';
 import { TypingIndicator } from './TypingIndicator';
 import { RegenerateButtonIcon } from './RegenerateButton';
 import { CopyButtonIcon } from './CopyButton';
+import { TransparencyFooter } from './TransparencyFooter';
 import type { Message } from '../types';
 
 // ============================================
@@ -72,21 +73,21 @@ export function AIMessage({
     <div
       className={cn(
         'group flex flex-row gap-3',
-        compact ? 'p-2' : 'p-4',
+        compact ? 'p-2' : 'px-4 py-3',
         className
       )}
     >
       {/* Bot Avatar */}
       <div
         className={cn(
-          'flex-shrink-0 rounded-full flex items-center justify-center',
-          isDark ? 'bg-white/10' : 'bg-gray-200',
-          compact ? 'w-6 h-6' : 'w-8 h-8'
+          'flex-shrink-0 rounded-xl flex items-center justify-center',
+          isDark ? 'bg-white/[0.06]' : 'bg-gray-100',
+          compact ? 'w-6 h-6 rounded-lg' : 'w-8 h-8'
         )}
       >
         <Bot
-          size={compact ? 12 : 16}
-          className={isDark ? 'text-gray-300' : 'text-gray-600'}
+          size={compact ? 12 : 15}
+          className={isDark ? 'text-gray-400' : 'text-gray-500'}
         />
       </div>
 
@@ -98,9 +99,9 @@ export function AIMessage({
             'relative rounded-xl',
             compact ? 'px-3 py-2' : 'px-4 py-3',
             isDark
-              ? 'bg-surface text-gray-100'
-              : 'bg-gray-100 text-gray-900',
-            isError && 'border border-red-500/50'
+              ? 'bg-white/[0.03] text-gray-200 border border-white/[0.04]'
+              : 'bg-gray-50 text-gray-900 border border-gray-100',
+            isError && 'border-red-500/40'
           )}
         >
           {/* Copy Button */}
@@ -172,6 +173,15 @@ export function AIMessage({
               />
             )}
           </div>
+        )}
+
+        {/* Transparency Footer (AI Act Compliance) */}
+        {!isStreaming && hasContent && !compact && message.model && (
+          <TransparencyFooter
+            model={message.model}
+            isCloud={message.model?.startsWith('anthropic:')}
+            sourcesCount={message.sources?.length}
+          />
         )}
       </div>
     </div>

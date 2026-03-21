@@ -205,21 +205,35 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
     <div className={`space-y-8 ${className}`}>
       {/* Header */}
       <div>
-        <h3 className="text-lg font-medium mb-2">Modell-Einstellungen</h3>
-        <p
+        <h3
           className={`
-            text-sm
-            ${isDark ? 'text-gray-400' : 'text-gray-600'}
+            text-[13px] font-semibold uppercase tracking-wider mb-1
+            ${isDark ? 'text-gray-400' : 'text-gray-500'}
           `}
         >
+          Modell-Einstellungen
+        </h3>
+        <p className={`text-[13px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
           Standard-Modell, Generierungs-Parameter und System-Prompt
         </p>
       </div>
 
       {/* Model Profile Selector */}
       <div className="space-y-3">
-        <label className="block text-sm font-medium">
-          <Monitor className="w-4 h-4 inline mr-2" />
+        <label
+          className={`
+            flex items-center gap-2 text-[13px] font-medium
+            ${isDark ? 'text-gray-300' : 'text-gray-700'}
+          `}
+        >
+          <div
+            className={`
+              w-7 h-7 rounded-lg flex items-center justify-center
+              ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-500'}
+            `}
+          >
+            <Monitor size={14} />
+          </div>
           Model-Profil
         </label>
         <div className="space-y-2">
@@ -227,12 +241,13 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
             value={settings.modelProfile || 'custom'}
             onChange={(e) => handleProfileSelect(e.target.value)}
             className={`
-              w-full px-4 py-3 rounded-lg border transition-all duration-200
-              focus:ring-2 focus:ring-blue-500 focus:border-transparent
+              w-full px-4 py-2.5 rounded-xl border text-[13px]
+              transition-all duration-150
+              focus:outline-none focus:ring-0
               cursor-pointer
               ${isDark
-                ? 'bg-gray-700 border-gray-600 text-white'
-                : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-white/[0.03] border-white/[0.08] text-white focus:border-white/[0.15]'
+                : 'bg-white border-gray-200 text-gray-900 focus:border-gray-400'
               }
             `}
             aria-label="Model-Profil auswählen"
@@ -243,24 +258,30 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
               </option>
             ))}
           </select>
-          <p
-            className={`
-              text-xs
-              ${isDark ? 'text-gray-400' : 'text-gray-600'}
-            `}
-          >
+          <p className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
             {currentProfile.description}
           </p>
           {!isCustomProfile && (
             <div
               className={`
-                flex items-start gap-2 p-3 rounded-lg text-xs
-                ${isDark ? 'bg-green-900/20 text-green-300' : 'bg-green-50 text-green-700'}
+                relative overflow-hidden flex items-start gap-2.5 p-3 rounded-xl text-[12px]
+                ${isDark
+                  ? 'bg-blue-500/5 border border-blue-500/10 text-gray-400'
+                  : 'bg-blue-50 border border-blue-100 text-gray-600'
+                }
               `}
             >
-              <MemoryStick className="w-4 h-4 mt-0.5 shrink-0" />
-              <div>
-                <strong>Aktives Profil:</strong> {currentProfile.name}<br />
+              <div className={`absolute inset-0 opacity-30 ${isDark ? 'bg-gradient-to-br from-blue-500/5 via-transparent to-transparent' : ''}`} />
+              <div
+                className={`
+                  relative w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5
+                  ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-100 text-blue-500'}
+                `}
+              >
+                <MemoryStick size={12} />
+              </div>
+              <div className="relative">
+                <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>Aktives Profil:</strong> {currentProfile.name}<br />
                 LLM: {currentProfile.llmModel} • Temp: {currentProfile.temperature} • Max Tokens: {currentProfile.maxTokens}
               </div>
             </div>
@@ -285,9 +306,21 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
 
       {/* Default Model Selector */}
       <div className="space-y-3">
-        <label className="block text-sm font-medium">
-          <Cpu className="w-4 h-4 inline mr-2" />
-          Standard-Modell {!isCustomProfile && <span className="text-xs text-gray-500">(vom Profil)</span>}
+        <label
+          className={`
+            flex items-center gap-2 text-[13px] font-medium
+            ${isDark ? 'text-gray-300' : 'text-gray-700'}
+          `}
+        >
+          <div
+            className={`
+              w-7 h-7 rounded-lg flex items-center justify-center
+              ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-500'}
+            `}
+          >
+            <Cpu size={14} />
+          </div>
+          Standard-Modell {!isCustomProfile && <span className="text-[11px] text-gray-500">(vom Profil)</span>}
         </label>
         <div className="space-y-2">
           <ModelSelector
@@ -298,12 +331,7 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
             autoLoad={true}
             className="w-full"
           />
-          <p
-            className={`
-              text-xs
-              ${isDark ? 'text-gray-400' : 'text-gray-600'}
-            `}
-          >
+          <p className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
             Das Standard-Modell wird für neue Unterhaltungen verwendet
           </p>
         </div>
@@ -311,18 +339,30 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
 
       {/* Embedding Model Selector */}
       <div className="space-y-3">
-        <label className="block text-sm font-medium">
-          <Database className="w-4 h-4 inline mr-2" />
+        <label
+          className={`
+            flex items-center gap-2 text-[13px] font-medium
+            ${isDark ? 'text-gray-300' : 'text-gray-700'}
+          `}
+        >
+          <div
+            className={`
+              w-7 h-7 rounded-lg flex items-center justify-center
+              ${isDark ? 'bg-violet-500/10 text-violet-400' : 'bg-violet-50 text-violet-500'}
+            `}
+          >
+            <Database size={14} />
+          </div>
           Embedding-Modell (RAG)
         </label>
         <div className="space-y-2">
           {isLoadingEmbedding ? (
             <div
               className={`
-                px-4 py-3 rounded-lg border text-sm
+                px-4 py-2.5 rounded-xl border text-[13px]
                 ${isDark
-                  ? 'bg-gray-700 border-gray-600 text-gray-400'
-                  : 'bg-gray-100 border-gray-300 text-gray-500'
+                  ? 'bg-white/[0.03] border-white/[0.06] text-gray-500'
+                  : 'bg-gray-50 border-gray-200 text-gray-500'
                 }
               `}
             >
@@ -331,9 +371,9 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
           ) : embeddingError ? (
             <div
               className={`
-                px-4 py-3 rounded-lg border text-sm
+                px-4 py-2.5 rounded-xl border text-[13px]
                 ${isDark
-                  ? 'bg-red-900/20 border-red-800 text-red-400'
+                  ? 'bg-red-500/5 border-red-500/20 text-red-400'
                   : 'bg-red-50 border-red-200 text-red-600'
                 }
               `}
@@ -343,10 +383,10 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
           ) : embeddingModels.length === 0 ? (
             <div
               className={`
-                px-4 py-3 rounded-lg border text-sm
+                px-4 py-2.5 rounded-xl border text-[13px]
                 ${isDark
-                  ? 'bg-yellow-900/20 border-yellow-800 text-yellow-400'
-                  : 'bg-yellow-50 border-yellow-200 text-yellow-600'
+                  ? 'bg-white/[0.03] border-white/[0.06] text-gray-400'
+                  : 'bg-gray-50 border-gray-200 text-gray-600'
                 }
               `}
             >
@@ -358,12 +398,13 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
               value={settings.embeddingModel || ''}
               onChange={(e) => handleEmbeddingModelSelect(e.target.value)}
               className={`
-                w-full px-4 py-3 rounded-lg border transition-all duration-200
-                focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                w-full px-4 py-2.5 rounded-xl border text-[13px]
+                transition-all duration-150
+                focus:outline-none focus:ring-0
                 cursor-pointer
                 ${isDark
-                  ? 'bg-gray-700 border-gray-600 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                  ? 'bg-white/[0.03] border-white/[0.08] text-white focus:border-white/[0.15]'
+                  : 'bg-white border-gray-200 text-gray-900 focus:border-gray-400'
                 }
               `}
               aria-label="Embedding-Modell auswählen"
@@ -375,23 +416,29 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
               ))}
             </select>
           )}
-          <p
-            className={`
-              text-xs
-              ${isDark ? 'text-gray-400' : 'text-gray-600'}
-            `}
-          >
+          <p className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
             Das Embedding-Modell wird für die semantische Dokumentensuche verwendet
           </p>
           <div
             className={`
-              flex items-start gap-2 p-3 rounded-lg text-xs
-              ${isDark ? 'bg-orange-900/20 text-orange-300' : 'bg-orange-50 text-orange-700'}
+              relative overflow-hidden flex items-start gap-2.5 p-3 rounded-xl text-[12px]
+              ${isDark
+                ? 'bg-amber-500/5 border border-amber-500/10 text-gray-500'
+                : 'bg-amber-50 border border-amber-100 text-gray-500'
+              }
             `}
           >
-            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-            <div>
-              <strong>Hinweis:</strong> Bei Änderung des Embedding-Modells müssen alle Dokumente
+            <div className={`absolute inset-0 opacity-30 ${isDark ? 'bg-gradient-to-br from-amber-500/5 via-transparent to-transparent' : ''}`} />
+            <div
+              className={`
+                relative w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5
+                ${isDark ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-100 text-amber-500'}
+              `}
+            >
+              <AlertTriangle size={12} />
+            </div>
+            <div className="relative">
+              <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>Hinweis:</strong> Bei Änderung des Embedding-Modells müssen alle Dokumente
               neu indiziert werden, damit die semantische Suche korrekt funktioniert.
             </div>
           </div>
@@ -412,13 +459,25 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
 
       {/* Hybrid Search Balance Slider */}
       <div className="space-y-3">
-        <label className="block text-sm font-medium">
-          <Scale className="w-4 h-4 inline mr-2" />
+        <label
+          className={`
+            flex items-center gap-2 text-[13px] font-medium
+            ${isDark ? 'text-gray-300' : 'text-gray-700'}
+          `}
+        >
+          <div
+            className={`
+              w-7 h-7 rounded-lg flex items-center justify-center
+              ${isDark ? 'bg-violet-500/10 text-violet-400' : 'bg-violet-50 text-violet-500'}
+            `}
+          >
+            <Scale size={14} />
+          </div>
           Hybrid Search Balance
         </label>
         <div className="space-y-3">
           <div className="flex items-center gap-4">
-            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            <span className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
               Keyword
             </span>
             <input
@@ -433,35 +492,36 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
                 info(`Hybrid Search Balance: ${value === 0 ? 'Keyword (BM25)' : value === 1 ? 'Semantisch (Vector)' : `${Math.round(value * 100)}% Semantisch`}`);
               }}
               className={`
-                flex-1 h-2 rounded-lg appearance-none cursor-pointer
+                flex-1 h-1.5 rounded-lg appearance-none cursor-pointer
                 ${isDark
-                  ? 'bg-gray-700 [&::-webkit-slider-thumb]:bg-purple-500'
-                  : 'bg-gray-200 [&::-webkit-slider-thumb]:bg-purple-600'
+                  ? 'bg-white/[0.10] [&::-webkit-slider-thumb]:bg-violet-400'
+                  : 'bg-gray-200 [&::-webkit-slider-thumb]:bg-violet-500'
                 }
                 [&::-webkit-slider-thumb]:appearance-none
-                [&::-webkit-slider-thumb]:h-5
-                [&::-webkit-slider-thumb]:w-5
+                [&::-webkit-slider-thumb]:h-4
+                [&::-webkit-slider-thumb]:w-4
                 [&::-webkit-slider-thumb]:rounded-full
                 [&::-webkit-slider-thumb]:transition-all
                 [&::-webkit-slider-thumb]:hover:scale-110
-                [&::-moz-range-thumb]:bg-purple-500
+                [&::-webkit-slider-thumb]:shadow-sm
+                [&::-moz-range-thumb]:bg-violet-400
                 [&::-moz-range-thumb]:border-none
-                [&::-moz-range-thumb]:h-5
-                [&::-moz-range-thumb]:w-5
+                [&::-moz-range-thumb]:h-4
+                [&::-moz-range-thumb]:w-4
                 [&::-moz-range-thumb]:rounded-full
                 [&::-moz-range-thumb]:cursor-pointer
               `}
               aria-label="Hybrid Search Balance zwischen Keyword und Semantischer Suche"
             />
-            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            <span className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
               Semantic
             </span>
             <div
               className={`
-                min-w-[60px] px-3 py-2 rounded-lg text-center text-sm font-mono
+                min-w-[52px] px-2.5 py-1.5 rounded-lg text-center text-[13px] font-mono
                 ${isDark
-                  ? 'bg-gray-700 text-white'
-                  : 'bg-gray-100 text-gray-900'
+                  ? 'bg-white/[0.03] border border-white/[0.06] text-white'
+                  : 'bg-gray-50 border border-gray-200 text-gray-900'
                 }
               `}
             >
@@ -470,13 +530,24 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
           </div>
           <div
             className={`
-              flex items-start gap-2 p-3 rounded-lg text-xs
-              ${isDark ? 'bg-purple-900/20 text-purple-300' : 'bg-purple-50 text-purple-700'}
+              relative overflow-hidden flex items-start gap-2.5 p-3 rounded-xl text-[12px]
+              ${isDark
+                ? 'bg-violet-500/5 border border-violet-500/10 text-gray-500'
+                : 'bg-violet-50 border border-violet-100 text-gray-500'
+              }
             `}
           >
-            <Info className="w-4 h-4 mt-0.5 shrink-0" />
-            <div>
-              <strong>Hybrid Search Balance:</strong><br />
+            <div className={`absolute inset-0 opacity-30 ${isDark ? 'bg-gradient-to-br from-violet-500/5 via-transparent to-transparent' : ''}`} />
+            <div
+              className={`
+                relative w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5
+                ${isDark ? 'bg-violet-500/10 text-violet-400' : 'bg-violet-100 text-violet-500'}
+              `}
+            >
+              <Info size={12} />
+            </div>
+            <div className="relative">
+              <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>Hybrid Search Balance:</strong><br />
               • 0% (Keyword): Exakte Wort-Übereinstimmung (BM25)<br />
               • 50% (Empfohlen): Ausgewogene Hybrid-Suche<br />
               • 100% (Semantic): Bedeutungsbasierte Vektor-Suche
@@ -487,13 +558,25 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
 
       {/* Top-K Chunks Slider */}
       <div className="space-y-3">
-        <label className="block text-sm font-medium">
-          <Layers className="w-4 h-4 inline mr-2" />
+        <label
+          className={`
+            flex items-center gap-2 text-[13px] font-medium
+            ${isDark ? 'text-gray-300' : 'text-gray-700'}
+          `}
+        >
+          <div
+            className={`
+              w-7 h-7 rounded-lg flex items-center justify-center
+              ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-500'}
+            `}
+          >
+            <Layers size={14} />
+          </div>
           Top-K Chunks (RAG)
         </label>
         <div className="space-y-3">
           <div className="flex items-center gap-4">
-            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            <span className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
               1
             </span>
             <input
@@ -508,35 +591,36 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
                 info(`Top-K Chunks: ${value} ${value === 1 ? 'Chunk' : 'Chunks'} werden für RAG abgerufen`);
               }}
               className={`
-                flex-1 h-2 rounded-lg appearance-none cursor-pointer
+                flex-1 h-1.5 rounded-lg appearance-none cursor-pointer
                 ${isDark
-                  ? 'bg-gray-700 [&::-webkit-slider-thumb]:bg-cyan-500'
-                  : 'bg-gray-200 [&::-webkit-slider-thumb]:bg-cyan-600'
+                  ? 'bg-white/[0.10] [&::-webkit-slider-thumb]:bg-emerald-400'
+                  : 'bg-gray-200 [&::-webkit-slider-thumb]:bg-emerald-500'
                 }
                 [&::-webkit-slider-thumb]:appearance-none
-                [&::-webkit-slider-thumb]:h-5
-                [&::-webkit-slider-thumb]:w-5
+                [&::-webkit-slider-thumb]:h-4
+                [&::-webkit-slider-thumb]:w-4
                 [&::-webkit-slider-thumb]:rounded-full
                 [&::-webkit-slider-thumb]:transition-all
                 [&::-webkit-slider-thumb]:hover:scale-110
-                [&::-moz-range-thumb]:bg-cyan-500
+                [&::-webkit-slider-thumb]:shadow-sm
+                [&::-moz-range-thumb]:bg-emerald-400
                 [&::-moz-range-thumb]:border-none
-                [&::-moz-range-thumb]:h-5
-                [&::-moz-range-thumb]:w-5
+                [&::-moz-range-thumb]:h-4
+                [&::-moz-range-thumb]:w-4
                 [&::-moz-range-thumb]:rounded-full
                 [&::-moz-range-thumb]:cursor-pointer
               `}
               aria-label="Anzahl der Top-K Chunks für RAG-Suche"
             />
-            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            <span className={`text-[11px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
               10
             </span>
             <div
               className={`
-                min-w-[60px] px-3 py-2 rounded-lg text-center text-sm font-mono
+                min-w-[52px] px-2.5 py-1.5 rounded-lg text-center text-[13px] font-mono
                 ${isDark
-                  ? 'bg-gray-700 text-white'
-                  : 'bg-gray-100 text-gray-900'
+                  ? 'bg-white/[0.03] border border-white/[0.06] text-white'
+                  : 'bg-gray-50 border border-gray-200 text-gray-900'
                 }
               `}
             >
@@ -545,13 +629,24 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
           </div>
           <div
             className={`
-              flex items-start gap-2 p-3 rounded-lg text-xs
-              ${isDark ? 'bg-cyan-900/20 text-cyan-300' : 'bg-cyan-50 text-cyan-700'}
+              relative overflow-hidden flex items-start gap-2.5 p-3 rounded-xl text-[12px]
+              ${isDark
+                ? 'bg-emerald-500/5 border border-emerald-500/10 text-gray-500'
+                : 'bg-emerald-50 border border-emerald-100 text-gray-500'
+              }
             `}
           >
-            <Info className="w-4 h-4 mt-0.5 shrink-0" />
-            <div>
-              <strong>Top-K Chunks:</strong> Anzahl der relevantesten Dokumentabschnitte für RAG.<br />
+            <div className={`absolute inset-0 opacity-30 ${isDark ? 'bg-gradient-to-br from-emerald-500/5 via-transparent to-transparent' : ''}`} />
+            <div
+              className={`
+                relative w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5
+                ${isDark ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-100 text-emerald-500'}
+              `}
+            >
+              <Info size={12} />
+            </div>
+            <div className="relative">
+              <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>Top-K Chunks:</strong> Anzahl der relevantesten Dokumentabschnitte für RAG.<br />
               • Weniger Chunks (1-3): Schnellere Antworten, fokussierter Kontext<br />
               • Mehr Chunks (5-10): Mehr Kontext, aber längere Antwortzeit
             </div>
@@ -561,8 +656,20 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
 
       {/* Temperature Slider */}
       <div className="space-y-3">
-        <label className="block text-sm font-medium">
-          <Thermometer className="w-4 h-4 inline mr-2" />
+        <label
+          className={`
+            flex items-center gap-2 text-[13px] font-medium
+            ${isDark ? 'text-gray-300' : 'text-gray-700'}
+          `}
+        >
+          <div
+            className={`
+              w-7 h-7 rounded-lg flex items-center justify-center
+              ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-500'}
+            `}
+          >
+            <Thermometer size={14} />
+          </div>
           Temperatur
         </label>
         <div className="space-y-3">
@@ -575,21 +682,22 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
               value={temperature}
               onChange={(e) => handleTemperatureChange(parseFloat(e.target.value))}
               className={`
-                flex-1 h-2 rounded-lg appearance-none cursor-pointer
+                flex-1 h-1.5 rounded-lg appearance-none cursor-pointer
                 ${isDark
-                  ? 'bg-gray-700 [&::-webkit-slider-thumb]:bg-blue-500'
-                  : 'bg-gray-200 [&::-webkit-slider-thumb]:bg-blue-600'
+                  ? 'bg-white/[0.10] [&::-webkit-slider-thumb]:bg-blue-400'
+                  : 'bg-gray-200 [&::-webkit-slider-thumb]:bg-blue-500'
                 }
                 [&::-webkit-slider-thumb]:appearance-none
-                [&::-webkit-slider-thumb]:h-5
-                [&::-webkit-slider-thumb]:w-5
+                [&::-webkit-slider-thumb]:h-4
+                [&::-webkit-slider-thumb]:w-4
                 [&::-webkit-slider-thumb]:rounded-full
                 [&::-webkit-slider-thumb]:transition-all
                 [&::-webkit-slider-thumb]:hover:scale-110
-                [&::-moz-range-thumb]:bg-blue-500
+                [&::-webkit-slider-thumb]:shadow-sm
+                [&::-moz-range-thumb]:bg-blue-400
                 [&::-moz-range-thumb]:border-none
-                [&::-moz-range-thumb]:h-5
-                [&::-moz-range-thumb]:w-5
+                [&::-moz-range-thumb]:h-4
+                [&::-moz-range-thumb]:w-4
                 [&::-moz-range-thumb]:rounded-full
                 [&::-moz-range-thumb]:cursor-pointer
               `}
@@ -597,33 +705,44 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
             />
             <div
               className={`
-                min-w-[60px] px-3 py-2 rounded-lg text-center text-sm font-mono
+                min-w-[52px] px-2.5 py-1.5 rounded-lg text-center text-[13px] font-mono
                 ${isDark
-                  ? 'bg-gray-700 text-white'
-                  : 'bg-gray-100 text-gray-900'
+                  ? 'bg-white/[0.03] border border-white/[0.06] text-white'
+                  : 'bg-gray-50 border border-gray-200 text-gray-900'
                 }
               `}
             >
               {temperature.toFixed(1)}
             </div>
           </div>
-          <div className="flex justify-between text-xs">
-            <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+          <div className="flex justify-between text-[11px]">
+            <span className={isDark ? 'text-gray-600' : 'text-gray-400'}>
               0.0 (Deterministisch)
             </span>
-            <span className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+            <span className={isDark ? 'text-gray-600' : 'text-gray-400'}>
               2.0 (Sehr kreativ)
             </span>
           </div>
           <div
             className={`
-              flex items-start gap-2 p-3 rounded-lg text-xs
-              ${isDark ? 'bg-blue-900/20 text-blue-300' : 'bg-blue-50 text-blue-700'}
+              relative overflow-hidden flex items-start gap-2.5 p-3 rounded-xl text-[12px]
+              ${isDark
+                ? 'bg-blue-500/5 border border-blue-500/10 text-gray-500'
+                : 'bg-blue-50 border border-blue-100 text-gray-500'
+              }
             `}
           >
-            <Info className="w-4 h-4 mt-0.5 shrink-0" />
-            <div>
-              <strong>Temperatur-Werte:</strong><br />
+            <div className={`absolute inset-0 opacity-30 ${isDark ? 'bg-gradient-to-br from-blue-500/5 via-transparent to-transparent' : ''}`} />
+            <div
+              className={`
+                relative w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5
+                ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-100 text-blue-500'}
+              `}
+            >
+              <Info size={12} />
+            </div>
+            <div className="relative">
+              <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>Temperatur-Werte:</strong><br />
               • 0.0-0.3: Präzise, vorhersagbare Antworten<br />
               • 0.4-0.8: Ausgewogene Kreativität (empfohlen)<br />
               • 0.9-2.0: Sehr kreative, unvorhersagbare Antworten
@@ -634,8 +753,20 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
 
       {/* Max Tokens Input */}
       <div className="space-y-3">
-        <label className="block text-sm font-medium">
-          <Hash className="w-4 h-4 inline mr-2" />
+        <label
+          className={`
+            flex items-center gap-2 text-[13px] font-medium
+            ${isDark ? 'text-gray-300' : 'text-gray-700'}
+          `}
+        >
+          <div
+            className={`
+              w-7 h-7 rounded-lg flex items-center justify-center
+              ${isDark ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-500'}
+            `}
+          >
+            <Hash size={14} />
+          </div>
           Maximale Tokens
         </label>
         <div className="space-y-2">
@@ -648,29 +779,33 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
               value={maxTokens}
               onChange={(e) => handleMaxTokensChange(parseInt(e.target.value) || 4096)}
               className={`
-                flex-1 px-4 py-3 rounded-lg border transition-all duration-200
-                focus:ring-2 focus:ring-blue-500 focus:border-transparent
-                font-mono text-sm
+                flex-1 px-4 py-2.5 rounded-xl border text-[13px]
+                transition-all duration-150
+                focus:outline-none focus:ring-0
+                font-mono
                 ${isDark
-                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                  ? 'bg-white/[0.03] border-white/[0.08] text-white placeholder-gray-600 focus:border-white/[0.15]'
+                  : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-gray-400'
                 }
               `}
               placeholder="4096"
               aria-label="Maximale Anzahl Tokens für Antworten"
             />
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               {[1024, 2048, 4096, 8192].map((value) => (
                 <button
                   key={value}
                   onClick={() => handleMaxTokensChange(value)}
                   className={`
-                    px-3 py-2 text-xs rounded-lg transition-colors
+                    px-2.5 py-1.5 text-[11px] font-mono rounded-lg
+                    transition-all duration-150
                     ${maxTokens === value
-                      ? 'bg-blue-600 text-white'
+                      ? isDark
+                        ? 'bg-white text-gray-900'
+                        : 'bg-gray-900 text-white'
                       : isDark
-                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        ? 'bg-white/[0.03] text-gray-500 hover:text-white hover:bg-white/[0.06] border border-white/[0.06]'
+                        : 'bg-gray-50 text-gray-500 hover:text-gray-900 hover:bg-gray-100 border border-gray-200'
                     }
                   `}
                   aria-label={`Max Tokens auf ${value} setzen`}
@@ -680,24 +815,31 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
               ))}
             </div>
           </div>
-          <p
-            className={`
-              text-xs
-              ${isDark ? 'text-gray-400' : 'text-gray-600'}
-            `}
-          >
+          <p className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
             Begrenzt die Länge der generierten Antworten (1 Token ≈ 0,75 Wörter)
           </p>
         </div>
       </div>
 
       {/* Divider */}
-      <hr className={`${isDark ? 'border-gray-700' : 'border-gray-200'}`} />
+      <hr className={isDark ? 'border-white/[0.06]' : 'border-gray-200/80'} />
 
       {/* System Prompt Textarea */}
       <div className="space-y-3">
-        <label className="block text-sm font-medium">
-          <MessageSquare className="w-4 h-4 inline mr-2" />
+        <label
+          className={`
+            flex items-center gap-2 text-[13px] font-medium
+            ${isDark ? 'text-gray-300' : 'text-gray-700'}
+          `}
+        >
+          <div
+            className={`
+              w-7 h-7 rounded-lg flex items-center justify-center
+              ${isDark ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-500'}
+            `}
+          >
+            <MessageSquare size={14} />
+          </div>
           System-Prompt
         </label>
         <div className="space-y-3">
@@ -707,40 +849,52 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
             placeholder="Geben Sie hier einen System-Prompt ein, um das Verhalten der KI zu beeinflussen..."
             rows={6}
             className={`
-              w-full px-4 py-3 rounded-lg border transition-all duration-200
-              focus:ring-2 focus:ring-blue-500 focus:border-transparent
-              resize-vertical
+              w-full px-4 py-3 rounded-xl border text-[13px]
+              transition-all duration-150
+              focus:outline-none focus:ring-0
+              resize-vertical leading-relaxed
               ${isDark
-                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
-                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+                ? 'bg-white/[0.03] border-white/[0.08] text-white placeholder-gray-600 focus:border-white/[0.15]'
+                : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-gray-400'
               }
             `}
             aria-label="System-Prompt für KI-Verhalten"
           />
           <div
             className={`
-              flex items-start gap-2 p-3 rounded-lg text-xs
-              ${isDark ? 'bg-yellow-900/20 text-yellow-300' : 'bg-yellow-50 text-yellow-700'}
+              relative overflow-hidden flex items-start gap-2.5 p-3 rounded-xl text-[12px]
+              ${isDark
+                ? 'bg-amber-500/5 border border-amber-500/10 text-gray-500'
+                : 'bg-amber-50 border border-amber-100 text-gray-500'
+              }
             `}
           >
-            <Info className="w-4 h-4 mt-0.5 shrink-0" />
-            <div>
-              <strong>System-Prompt:</strong> Definiert das Grundverhalten und die Rolle der KI.
+            <div className={`absolute inset-0 opacity-30 ${isDark ? 'bg-gradient-to-br from-amber-500/5 via-transparent to-transparent' : ''}`} />
+            <div
+              className={`
+                relative w-6 h-6 rounded-md flex items-center justify-center shrink-0 mt-0.5
+                ${isDark ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-100 text-amber-500'}
+              `}
+            >
+              <Info size={12} />
+            </div>
+            <div className="relative">
+              <strong className={isDark ? 'text-gray-300' : 'text-gray-700'}>System-Prompt:</strong> Definiert das Grundverhalten und die Rolle der KI.
               Beispiele: "Du bist ein hilfreicher Assistent für Programmierung" oder
               "Antworte immer sehr kurz und präzise". Leer lassen für Standard-Verhalten.
             </div>
           </div>
           {settings.systemPrompt && settings.systemPrompt.trim() && (
             <div className="flex items-center gap-2">
-              <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <span className={`text-[11px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
                 {settings.systemPrompt.length} Zeichen
               </span>
               <button
                 onClick={() => handleSystemPromptChange('')}
                 className={`
-                  text-xs px-2 py-1 rounded transition-colors
+                  text-[11px] px-2 py-1 rounded-lg transition-all duration-150
                   ${isDark
-                    ? 'text-red-400 hover:bg-red-900/20'
+                    ? 'text-red-400 hover:bg-red-500/10'
                     : 'text-red-600 hover:bg-red-50'
                   }
                 `}

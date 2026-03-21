@@ -8,7 +8,7 @@
  * - Uses Qwen3-safe sampling params (no greedy decoding / temperature:0)
  */
 
-import { ollamaService } from '../OllamaService.js'
+import { llmRouter } from '../llm/index.js'
 import type { ChatMessage } from '../../validation/index.js'
 
 // Pronoun / reference patterns that strongly indicate an unresolved reference.
@@ -96,20 +96,23 @@ export class QueryRewriter {
         })),
       ]
 
-      const response = await ollamaService.chat({
-        messages: rewriteMessages,
-        model,
-        think: false, // Disable Qwen3 thinking mode — avoids empty responses
-        options: {
-          num_predict: 150,
-          temperature: 0.7, // Qwen3 forbids temperature:0 (greedy decoding)
-          top_p: 0.8,
-          top_k: 20,
+      // Use LLMRouter but force local model for query rewriting (no cloud needed)
+      const rewriteModel = model.startsWith('anthropic:') ? 'qwen3:8b' : model;
+
+      const response = await llmRouter.chat(
+        rewriteMessages,
+        rewriteModel,
+        {
+          think: false,
+          numPredict: 150,
+          temperature: 0.7,
+          topP: 0.8,
+          topK: 20,
         },
-      })
+      )
 
       // Clean any residual think tags (safety net)
-      const rewritten = cleanResponse(response.message.content)
+      const rewritten = cleanResponse(response.content)
 
       // Sanity check: if the LLM returned something empty or way too long, fall back
       if (!rewritten || rewritten.length > 500) {

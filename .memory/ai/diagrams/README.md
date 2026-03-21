@@ -1,6 +1,6 @@
-# Vexora - Comprehensive Event Flow Diagrams
+# Cor7ex - Comprehensive Event Flow Diagrams
 
-This directory contains exhaustive event flow diagrams documenting every interaction, data flow, and system process in the Vexora RAG-powered chat application.
+This directory contains exhaustive event flow diagrams documenting every interaction, data flow, and system process in the Cor7ex RAG-powered chat application.
 
 ## Flow Inventory
 
@@ -121,7 +121,7 @@ This directory contains exhaustive event flow diagrams documenting every interac
 
 ## Infrastructure
 
-### Ubuntu Server (192.168.178.23)
+### Ubuntu Server (192.168.2.38)
 - PostgreSQL :5432 (pgvector, RLS)
 - Weaviate :8080 (hybrid search, DocumentChunksV2)
 - Neo4j :7687 (knowledge graph)

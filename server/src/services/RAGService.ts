@@ -9,6 +9,7 @@
 import { vectorService, type VectorSearchResponse } from './VectorService.js'
 import { vectorServiceV2, type VectorSearchResponseV2 } from './VectorServiceV2.js'
 import { ollamaService } from './OllamaService.js'
+import { llmRouter } from './llm/index.js'
 import { documentService } from './DocumentService.js'
 import { type ChatMessage } from '../validation/index.js'
 import { LoggerService } from './LoggerService.js'
@@ -24,7 +25,7 @@ import { InputGuardrails, OutputGuardrails } from './guardrails/Guardrails.js'
 import { DatabaseService } from './DatabaseService.js'
 
 // V2 configuration
-const USE_V2_SEARCH = process.env.RAG_VERSION === 'v2' || process.env.CHUNKING_VERSION === 'v2'
+const USE_V2_SEARCH = true
 
 // Hybrid-Alpha: 0 = pure BM25/keyword, 1 = pure vector/semantic
 // Default 0.3 = 70% keyword, 30% semantic (optimized for German technical texts)
@@ -528,16 +529,16 @@ class RAGService {
       // Phase 5: Start LLM generation span
       const llmSpanId = traceId ? this.tracingService.startSpan(traceId, 'llm_generation') : '';
 
-      const response = await ollamaService.chat({
-        messages: ragMessages,
+      const llmResponse = await llmRouter.chat(
+        ragMessages.map(m => ({ role: m.role as 'system' | 'user' | 'assistant', content: m.content })),
         model,
-      })
+      )
 
       // Phase 5: End LLM generation span
       if (traceId && llmSpanId) {
         this.tracingService.endSpan(traceId, llmSpanId, {
           model,
-          responseLength: response.message.content.length,
+          responseLength: llmResponse.content.length,
         });
       }
 
@@ -556,7 +557,7 @@ class RAGService {
       const outputGuardrailsSpanId = traceId ? this.tracingService.startSpan(traceId, 'guardrails_output') : '';
       const contextTexts = searchResults.results.map(r => r.chunk.content);
       const outputValidation = await this.outputGuardrails.validate(
-        response.message.content,
+        llmResponse.content,
         contextTexts
       );
 
@@ -915,11 +916,11 @@ class RAGService {
         ...messages,
       ]
 
-      // Step 4: Get streaming response from LLM
-      const ollamaResponse = await ollamaService.chatStream({
-        messages: ragMessages,
+      // Step 4: Get streaming response from LLM (via LLMRouter for provider flexibility)
+      const ollamaResponse = await llmRouter.chatStreamRaw(
+        ragMessages.map(m => ({ role: m.role as 'system' | 'user' | 'assistant', content: m.content })),
         model,
-      })
+      )
 
       // Step 5: Extract sources for citation
       const sources: RAGSource[] = searchResults.results.map((result) => ({

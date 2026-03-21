@@ -1,6 +1,6 @@
--- Vexora Authentication Migration: 001_auth_tables.sql
+-- Cor7ex Authentication Migration: 001_auth_tables.sql
 -- Creates users and refresh_tokens tables for Enterprise Authentication
--- Run: psql -h localhost -U postgres -d vexora -f 001_auth_tables.sql
+-- Run: psql -h localhost -U postgres -d cor7ex -f 001_auth_tables.sql
 
 -- ============================================================================
 -- USERS TABLE

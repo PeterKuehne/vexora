@@ -27,9 +27,9 @@ export const env = {
   // PostgreSQL
   POSTGRES_HOST: process.env.POSTGRES_HOST ?? 'localhost',
   POSTGRES_PORT: parseInt(process.env.POSTGRES_PORT ?? '5432', 10),
-  POSTGRES_DB: process.env.POSTGRES_DB ?? 'vexora',
-  POSTGRES_USER: process.env.POSTGRES_USER ?? 'vexora',
-  POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD ?? 'vexora_dev_password',
+  POSTGRES_DB: process.env.POSTGRES_DB ?? 'cor7ex',
+  POSTGRES_USER: process.env.POSTGRES_USER ?? 'cor7ex',
+  POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD ?? 'cor7ex_dev_password',
 
   // Weaviate
   WEAVIATE_URL: process.env.WEAVIATE_URL ?? 'http://localhost:8080',
@@ -38,6 +38,15 @@ export const env = {
   JWT_SECRET: process.env.JWT_SECRET ?? 'your-super-secret-jwt-key-change-in-production',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN ?? '15m',
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN ?? '30d',
+
+  // LLM Providers
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? '',
+
+  // PII Guard (Presidio)
+  PII_GUARD_ENABLED: process.env.PII_GUARD_ENABLED !== 'false',
+  PRESIDIO_ANALYZER_URL: process.env.PRESIDIO_ANALYZER_URL ?? 'http://192.168.2.38:8003',
+  PRESIDIO_ANONYMIZER_URL: process.env.PRESIDIO_ANONYMIZER_URL ?? 'http://192.168.2.38:8004',
+  PII_MIN_CONFIDENCE: parseFloat(process.env.PII_MIN_CONFIDENCE ?? '0.7'),
 
   // Security
   FRONTEND_URL: process.env.FRONTEND_URL ?? (process.env.NODE_ENV === 'production'

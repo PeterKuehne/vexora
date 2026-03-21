@@ -2,7 +2,7 @@ import { RerankerService } from '../services/rag/RerankerService.js';
 
 // Create new instance with correct config
 const rerankerService = new RerankerService({
-  serviceUrl: 'http://192.168.178.23:8001',
+  serviceUrl: 'http://192.168.2.38:8001',
   enabled: true,
   topK: 5,
   timeout: 10000,

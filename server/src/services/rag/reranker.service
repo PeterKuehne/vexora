@@ -1,15 +1,15 @@
 [Unit]
-Description=Vexora Reranker Service (BGE-reranker-v2-m3)
+Description=Cor7ex Reranker Service (BGE-reranker-v2-m3)
 After=network.target
 
 [Service]
 Type=simple
 User=peter
-WorkingDirectory=/opt/vexora/reranker
-Environment="PATH=/opt/vexora/reranker/venv/bin"
+WorkingDirectory=/opt/cor7ex/reranker
+Environment="PATH=/opt/cor7ex/reranker/venv/bin"
 Environment="RERANKER_MODEL=BAAI/bge-reranker-v2-m3"
 Environment="RERANKER_TOP_K=5"
-ExecStart=/opt/vexora/reranker/venv/bin/uvicorn reranker_service:app --host 0.0.0.0 --port 8001
+ExecStart=/opt/cor7ex/reranker/venv/bin/uvicorn reranker_service:app --host 0.0.0.0 --port 8001
 Restart=always
 RestartSec=10
 

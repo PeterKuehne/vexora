@@ -1,7 +1,7 @@
 # Tech Stack Versions & Best Practices 2026
 
 **Last Updated:** 2026-01-20
-**Purpose:** Current versions and breaking changes for Vexora Hybrid RAG implementation
+**Purpose:** Current versions and breaking changes for Cor7ex Hybrid RAG implementation
 
 ---
 
@@ -132,8 +132,8 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
-      POSTGRES_DB: vexora_rag
-      POSTGRES_USER: vexora
+      POSTGRES_DB: cor7ex_rag
+      POSTGRES_USER: cor7ex
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"

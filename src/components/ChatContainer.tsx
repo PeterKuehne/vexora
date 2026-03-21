@@ -171,7 +171,7 @@ export function ChatContainer({ className }: ChatContainerProps) {
           <ChatAreaInputWrapper hint="Enter zum Senden, Shift+Enter für neue Zeile">
             {/* Show RAG toggle only in manual mode */}
             {ragMode === 'manual' && (
-              <div className="mb-3">
+              <div className="animate-stagger-4 mb-3">
                 <RAGToggle
                   enabled={isRAGEnabled}
                   onChange={setRAGEnabled}
@@ -229,13 +229,13 @@ export function ChatContainer({ className }: ChatContainerProps) {
           }}
           className={`
             absolute bottom-24 left-1/2 -translate-x-1/2 z-50
-            w-12 h-12 rounded-full shadow-lg
+            w-10 h-10 rounded-xl shadow-lg
             flex items-center justify-center
             transition-all duration-200 ease-out
-            hover:scale-110 hover:shadow-xl
+            hover:scale-105 hover:shadow-xl
             ${isDark
-              ? 'bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-sm'
-              : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200'
+              ? 'bg-white/[0.08] hover:bg-white/[0.14] text-gray-300 border border-white/[0.1] backdrop-blur-sm'
+              : 'bg-white hover:bg-gray-50 text-gray-600 border border-gray-200/80 shadow-sm'
             }
           `.trim()}
           aria-label="Zum Ende scrollen"

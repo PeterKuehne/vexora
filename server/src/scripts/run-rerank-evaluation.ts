@@ -29,7 +29,7 @@ async function runRerankEvaluation() {
     console.log('\n🔄 Initializing Reranker Service...');
     try {
       await rerankerService.initialize();
-      const healthResponse = await fetch('http://192.168.178.23:8001/health');
+      const healthResponse = await fetch('http://192.168.2.38:8001/health');
       const health = await healthResponse.json();
       console.log(`   Status: ${health.status}`);
       console.log(`   Model: ${health.model}`);
@@ -41,7 +41,7 @@ async function runRerankEvaluation() {
       }
     } catch (error) {
       console.error('❌ Reranker service not available!');
-      console.error('   Make sure it is running at http://192.168.178.23:8001');
+      console.error('   Make sure it is running at http://192.168.2.38:8001');
       console.error('   Error:', error);
       process.exit(1);
     }

@@ -136,9 +136,10 @@ export const ChatArea = forwardRef<ChatAreaRef, ChatAreaProps>(function ChatArea
       {inputArea && (
         <div
           className={`
+            animate-stagger-5
             shrink-0
             border-t
-            ${isDark ? 'border-white/10' : 'border-gray-200'}
+            ${isDark ? 'border-white/[0.06]' : 'border-gray-200/80'}
           `.trim()}
         >
           {inputArea}
@@ -158,7 +159,7 @@ export interface ChatAreaMessagesProps {
 
 export function ChatAreaMessages({ children, className = '' }: ChatAreaMessagesProps) {
   return (
-    <div className={`py-4 ${className}`}>
+    <div className={`py-4 max-w-4xl mx-auto w-full ${className}`}>
       {children}
     </div>
   );
@@ -236,7 +237,7 @@ export function ChatAreaInputWrapper({ children, hint, className = '' }: ChatAre
   const { isDark } = useTheme();
 
   return (
-    <div className={`p-4 ${className}`}>
+    <div className={`p-4 max-w-4xl mx-auto w-full ${className}`}>
       {children}
       {hint && (
         <p

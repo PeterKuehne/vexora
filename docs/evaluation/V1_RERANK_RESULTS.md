@@ -30,7 +30,7 @@
 | Parameter | Wert |
 |-----------|------|
 | **Modell** | BGE-reranker-v2-m3 (BAAI) |
-| **Server** | Ubuntu 192.168.178.23:8001 |
+| **Server** | Ubuntu 192.168.2.38:8001 |
 | **Framework** | FastAPI + sentence-transformers |
 | **Timeout** | 30 Sekunden |
 | **Top-K** | 5 (nach Reranking) |

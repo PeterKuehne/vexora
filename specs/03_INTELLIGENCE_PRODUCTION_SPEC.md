@@ -111,7 +111,7 @@ version: '3.8'
 services:
   neo4j:
     image: neo4j:5.26-community  # LTS version - supported until Nov 2028
-    container_name: vexora-neo4j
+    container_name: cor7ex-neo4j
     ports:
       - "7474:7474"  # HTTP Browser
       - "7687:7687"  # Bolt Protocol
@@ -2367,7 +2367,7 @@ CREATE INDEX idx_relationships_target ON entity_relationships(target_entity_id);
 
 ### Phase 4: Knowledge Graph
 
-- [x] Set up Neo4j 5.26 LTS (Docker) ✓ Deployed on Ubuntu 192.168.178.23
+- [x] Set up Neo4j 5.26 LTS (Docker) ✓ Deployed on Ubuntu 192.168.2.38
 - [x] Verify APOC 5.26.x plugin loaded ✓ Verified
 - [x] Create types: `server/src/types/graph.ts` ✓
 - [x] Implement `EntityExtractor` ✓ server/src/services/graph/EntityExtractor.ts

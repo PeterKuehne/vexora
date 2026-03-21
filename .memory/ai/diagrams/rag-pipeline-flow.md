@@ -1,7 +1,7 @@
 # RAG Pipeline Flow
 
 ## Overview
-Complete Retrieval-Augmented Generation pipeline for the Vexora project, covering the full query lifecycle from user input through guardrails, query routing, hybrid search, reranking, document expansion, optional graph enrichment, LLM generation, and output validation with end-to-end tracing.
+Complete Retrieval-Augmented Generation pipeline for the Cor7ex project, covering the full query lifecycle from user input through guardrails, query routing, hybrid search, reranking, document expansion, optional graph enrichment, LLM generation, and output validation with end-to-end tracing.
 
 ## Trigger Points
 - User sends a chat message with RAG enabled (manual, automatic, or always mode)

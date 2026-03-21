@@ -53,3 +53,18 @@ export {
   type InputAreaProps,
   type InputAreaCompactProps,
 } from './InputArea';
+
+// Workspace Layout (Phase 1: Hive Mind)
+export {
+  WorkspaceLayout,
+  type WorkspaceLayoutProps,
+} from './WorkspaceLayout';
+
+export {
+  IconRail,
+  type WorkspaceSection,
+} from './IconRail';
+
+export {
+  WorkspaceSidebar,
+} from './WorkspaceSidebar';

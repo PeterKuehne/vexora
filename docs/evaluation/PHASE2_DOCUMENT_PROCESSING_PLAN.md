@@ -10,7 +10,7 @@
 
 - [x] Types erstellen (`parsing.ts`, `chunking.ts`)
 - [x] Parser Microservice erstellen (FastAPI + Docling)
-- [x] Parser Service auf Ubuntu deployen (192.168.178.23:8002)
+- [x] Parser Service auf Ubuntu deployen (192.168.2.38:8002)
 - [x] SemanticChunker implementieren (Embedding-basierte Breakpoints)
 - [x] TableChunker implementieren (Tabellen-aware Chunking)
 - [x] HierarchicalIndexer implementieren (Parent-Child Beziehungen)
@@ -24,7 +24,7 @@
 ## Architektur
 
 ```
-Mac (Dev)                      Ubuntu Server (192.168.178.23)
+Mac (Dev)                      Ubuntu Server (192.168.2.38)
 ─────────                      ──────────────────────────────
 Node.js Backend ──HTTP──→ Parser Service (Port 8002)
                          Reranker Service (Port 8001)
@@ -107,20 +107,20 @@ Siehe [V2_SEMANTIC_CHUNKING_RESULTS.md](./V2_SEMANTIC_CHUNKING_RESULTS.md)
 
 ```bash
 # Parser Service (Port 8002)
-ssh peter@192.168.178.23
-cd /opt/vexora/parser
+ssh peter@192.168.2.38
+cd /opt/cor7ex/parser
 sudo systemctl start parser
 sudo systemctl status parser
 
 # Health Check
-curl http://192.168.178.23:8002/health
+curl http://192.168.2.38:8002/health
 ```
 
 ## Environment Variables
 
 ```bash
 # Parser Service
-PARSER_SERVICE_URL=http://192.168.178.23:8002
+PARSER_SERVICE_URL=http://192.168.2.38:8002
 PARSER_TIMEOUT=300000
 
 # Chunking

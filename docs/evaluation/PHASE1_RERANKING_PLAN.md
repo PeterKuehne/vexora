@@ -9,14 +9,14 @@
 - [x] RerankerService.ts für Node.js Integration
 - [x] RAGService erweitern mit Reranking-Option
 - [x] Environment Variables hinzufügen
-- [x] Reranker Service auf Ubuntu deployen (192.168.178.23:8001)
+- [x] Reranker Service auf Ubuntu deployen (192.168.2.38:8001)
 - [x] Evaluation V1 vs V1+Rerank ausführen
 - [x] Ergebnisse dokumentieren → siehe V1_RERANK_RESULTS.md
 
 ## Architektur
 
 ```
-Mac (Dev)                    Ubuntu Server (192.168.178.23)
+Mac (Dev)                    Ubuntu Server (192.168.2.38)
 ─────────                    ──────────────────────────────
 Node.js Backend ──HTTP──→ Reranker Service (Port 8001)
                           PostgreSQL (Port 5432)
@@ -52,8 +52,8 @@ cd server/src/services/rag
 ./deploy-ubuntu.sh
 
 # Oder manuell auf Ubuntu:
-ssh peter@192.168.178.23
-cd /opt/vexora/reranker
+ssh peter@192.168.2.38
+cd /opt/cor7ex/reranker
 sudo systemctl start reranker
 sudo systemctl status reranker
 ```

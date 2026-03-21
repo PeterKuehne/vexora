@@ -1,8 +1,8 @@
-# Vexora
+# Cor7ex
 
 Modern, minimalistic chat interface for local LLMs powered by Ollama. Claude-inspired design with conversation management, streaming responses, and markdown support.
 
-![Vexora Interface](docs/screenshot.png)
+![Cor7ex Interface](docs/screenshot.png)
 
 ## Features
 
@@ -20,7 +20,7 @@ Modern, minimalistic chat interface for local LLMs powered by Ollama. Claude-ins
 
 ### Ollama Installation
 
-Vexora requires **Ollama** to run AI models locally.
+Cor7ex requires **Ollama** to run AI models locally.
 
 1. **Install Ollama:**
    - **macOS/Linux:** `curl -fsSL https://ollama.ai/install.sh | sh`
@@ -49,7 +49,7 @@ Vexora requires **Ollama** to run AI models locally.
 1. **Clone the repository:**
    ```bash
    git clone <repository-url>
-   cd vexora
+   cd cor7ex
    ```
 
 2. **Install dependencies:**
@@ -72,7 +72,7 @@ Vexora requires **Ollama** to run AI models locally.
 ### Getting Started
 
 1. **Ensure Ollama is running** with `ollama serve`
-2. **Open Vexora** in your browser
+2. **Open Cor7ex** in your browser
 3. **Click "New Chat"** to start a conversation
 4. **Type your message** and press Enter or click Send
 
@@ -115,7 +115,7 @@ Vexora requires **Ollama** to run AI models locally.
 ### Project Structure
 
 ```
-vexora/
+cor7ex/
 ├── src/                    # React frontend
 │   ├── components/         # Reusable UI components
 │   ├── contexts/          # React contexts (theme, conversations)

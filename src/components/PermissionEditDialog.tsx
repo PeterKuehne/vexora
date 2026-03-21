@@ -1,5 +1,5 @@
 /**
- * PermissionEditDialog - Modal for editing document permissions
+ * PermissionEditDialog - Refined modal for editing document permissions
  *
  * Features:
  * - Edit classification, visibility, and specific users
@@ -7,10 +7,13 @@
  * - Live permission preview
  * - TailwindCSS styling with theme support (MANDATORY)
  * - Only owner or admin can edit permissions
+ * - Separate backdrop div pattern (matching UploadModal)
+ * - ESC key to close, click-outside to close
  */
 
-import { useState } from 'react';
-import { X, Settings, Save } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { X, Shield, Save } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ClassificationDropdown, type ClassificationLevel } from './ClassificationDropdown';
@@ -43,16 +46,13 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
     specificUsers: document.metadata?.specificUsers || []
   });
 
-  // Check if user can edit this document (owner, admin, or manager as fallback for legacy documents)
+  // Check if user can edit this document
   const canEdit = user && (
     user.id === document.metadata?.owner_id ||
     user.role === 'Admin' ||
-    (user.role === 'Manager' && !document.metadata?.owner_id) // Fallback for legacy documents without owner_id
+    (user.role === 'Manager' && !document.metadata?.owner_id)
   );
 
-  /**
-   * Handle save permissions
-   */
   const handleSave = async () => {
     if (!canEdit) return;
 
@@ -68,51 +68,74 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
     }
   };
 
-  /**
-   * Handle cancel/close
-   */
-  const handleCancel = () => {
-    // Reset to original permissions
+  const handleCancel = useCallback(() => {
     setPermissions({
       classification: (document.metadata?.classification as ClassificationLevel) || 'internal',
       visibility: (document.metadata?.visibility as VisibilityType) || 'department',
       specificUsers: document.metadata?.specificUsers || []
     });
     onClose();
-  };
+  }, [document.metadata, onClose]);
 
-  // Don't render if not open
+  // Handle ESC key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen && !isSaving) {
+        handleCancel();
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isOpen, isSaving, handleCancel]);
+
+  // Prevent body scroll when open
+  useEffect(() => {
+    if (isOpen) {
+      globalThis.document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      globalThis.document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  // Show access denied if user cannot edit
+  // Access denied state
   if (!canEdit) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    return createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        {/* Backdrop — separate div */}
+        <div
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          onClick={onClose}
+        />
+
+        {/* Dialog */}
         <div
           className={`
-            max-w-md w-full mx-4 p-6 rounded-xl shadow-xl
-            ${isDark ? 'bg-surface' : 'bg-white'}
+            relative max-w-md w-full mx-4 p-6 rounded-2xl shadow-2xl animate-scaleIn
+            ${isDark ? 'bg-neutral-900 border border-white/[0.08]' : 'bg-white border border-gray-200/80'}
           `}
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <h3 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Zugriff verweigert
             </h3>
             <button
               onClick={onClose}
               className={`
-                p-1 rounded-lg transition-colors
+                p-1.5 rounded-xl transition-colors
                 ${isDark
-                  ? 'hover:bg-white/10 text-gray-400'
-                  : 'hover:bg-gray-100 text-gray-600'
+                  ? 'hover:bg-white/5 text-gray-500'
+                  : 'hover:bg-gray-100 text-gray-300'
                 }
               `}
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          <p className={`mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+          <p className={`mb-6 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
             Sie können nur die Berechtigungen von Dokumenten bearbeiten, die Sie selbst hochgeladen haben, oder wenn Sie Administrator sind.
           </p>
 
@@ -120,10 +143,10 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
             <button
               onClick={onClose}
               className={`
-                px-4 py-2 rounded-lg font-medium transition-colors
+                px-4 py-2 rounded-xl text-sm font-medium transition-colors
                 ${isDark
-                  ? 'bg-surface-secondary hover:bg-white/10 text-gray-200'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  ? 'bg-white/5 hover:bg-white/10 text-gray-300'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                 }
               `}
             >
@@ -131,33 +154,49 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      globalThis.document.body
     );
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop — separate div (same pattern as UploadModal) */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={() => !isSaving && handleCancel()}
+      />
+
+      {/* Modal — needs 'relative' to stack above the absolute backdrop */}
       <div
         className={`
-          max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto
-          rounded-xl shadow-xl
-          ${isDark ? 'bg-surface' : 'bg-white'}
+          relative w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto scrollbar-thin
+          rounded-2xl shadow-2xl animate-scaleIn
+          ${isDark ? 'bg-neutral-900 border border-white/[0.08]' : 'bg-white border border-gray-200/80'}
         `}
       >
         {/* Header */}
         <div
           className={`
-            flex items-center justify-between p-6 border-b
-            ${isDark ? 'border-white/10' : 'border-gray-200'}
+            sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b
+            ${isDark
+              ? 'bg-neutral-900/95 backdrop-blur-md border-white/[0.06]'
+              : 'bg-white/95 backdrop-blur-md border-gray-100'
+            }
           `}
         >
           <div className="flex items-center gap-3">
-            <Settings className={`w-6 h-6 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+            <div className={`
+              p-2 rounded-xl
+              ${isDark ? 'bg-white/5' : 'bg-gray-50'}
+            `}>
+              <Shield size={18} className={isDark ? 'text-gray-300' : 'text-gray-600'} />
+            </div>
             <div>
-              <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              <h3 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Berechtigungen bearbeiten
               </h3>
-              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className={`text-xs truncate max-w-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                 {document.originalName}
               </p>
             </div>
@@ -165,14 +204,14 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
           <button
             onClick={handleCancel}
             className={`
-              p-2 rounded-lg transition-colors
+              p-2 rounded-xl transition-colors
               ${isDark
-                ? 'hover:bg-white/10 text-gray-400'
-                : 'hover:bg-gray-100 text-gray-600'
+                ? 'hover:bg-white/5 text-gray-500 hover:text-gray-300'
+                : 'hover:bg-gray-100 text-gray-300 hover:text-gray-500'
               }
             `}
           >
-            <X className="w-5 h-5" />
+            <X size={18} />
           </button>
         </div>
 
@@ -181,7 +220,6 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Permission Configuration */}
             <div className="space-y-6">
-              {/* Classification Dropdown */}
               <ClassificationDropdown
                 value={permissions.classification}
                 onChange={(classification) =>
@@ -190,7 +228,6 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
                 disabled={isSaving}
               />
 
-              {/* Visibility Selector */}
               <VisibilitySelector
                 visibility={permissions.visibility}
                 onVisibilityChange={(visibility) =>
@@ -218,23 +255,23 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
         {/* Footer */}
         <div
           className={`
-            flex justify-end gap-3 p-6 border-t
-            ${isDark ? 'border-white/10' : 'border-gray-200'}
+            sticky bottom-0 flex justify-end gap-2.5 px-6 py-4 border-t
+            ${isDark
+              ? 'bg-neutral-900/95 backdrop-blur-md border-white/[0.06]'
+              : 'bg-white/95 backdrop-blur-md border-gray-100'
+            }
           `}
         >
           <button
             onClick={handleCancel}
             disabled={isSaving}
             className={`
-              px-4 py-2 text-sm font-medium rounded-lg
+              px-4 py-2 text-sm font-medium rounded-xl
               transition-colors duration-150
-              ${isSaving
-                ? 'opacity-50 cursor-not-allowed'
-                : ''
-              }
+              ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}
               ${isDark
-                ? 'text-gray-300 border border-white/20 hover:bg-white/10'
-                : 'text-gray-700 border border-gray-300 hover:bg-gray-50'
+                ? 'bg-white/5 text-gray-300 hover:bg-white/10'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }
             `}
           >
@@ -245,31 +282,34 @@ export function PermissionEditDialog({ document, isOpen, onClose, onSave }: Perm
             onClick={handleSave}
             disabled={isSaving}
             className={`
-              px-6 py-2 text-sm font-medium rounded-lg
+              px-5 py-2 text-sm font-semibold rounded-xl
               flex items-center gap-2
-              transition-colors duration-150
+              transition-all duration-150
               ${isSaving
-                ? 'opacity-50 cursor-not-allowed bg-gray-400 text-white'
-                : isDark
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-blue-500 text-white hover:bg-blue-600'
+                ? 'opacity-50 cursor-not-allowed'
+                : ''
+              }
+              ${isDark
+                ? 'bg-white text-gray-900 hover:bg-gray-100 shadow-sm shadow-white/5'
+                : 'bg-gray-900 text-white hover:bg-gray-800 shadow-sm shadow-gray-900/10'
               }
             `}
           >
             {isSaving ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Wird gespeichert...
+                <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                Speichern...
               </>
             ) : (
               <>
-                <Save className="w-4 h-4" />
-                Berechtigungen speichern
+                <Save className="w-3.5 h-3.5" />
+                Speichern
               </>
             )}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    globalThis.document.body
   );
 }

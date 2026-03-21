@@ -57,7 +57,7 @@ describe('SettingsStorage', () => {
       };
 
       localStorageMock.setItem(
-        'vexora-settings',
+        'cor7ex-settings',
         JSON.stringify({
           value: {
             version: 1,
@@ -74,7 +74,7 @@ describe('SettingsStorage', () => {
 
     it('should sanitize invalid values to defaults', () => {
       localStorageMock.setItem(
-        'vexora-settings',
+        'cor7ex-settings',
         JSON.stringify({
           value: {
             version: 1,
@@ -95,7 +95,7 @@ describe('SettingsStorage', () => {
 
     it('should handle old format without version', () => {
       localStorageMock.setItem(
-        'vexora-settings',
+        'cor7ex-settings',
         JSON.stringify({
           value: {
             theme: 'light',
@@ -132,7 +132,7 @@ describe('SettingsStorage', () => {
     it('should include schema version when saving', () => {
       settingsStorage.saveSettings(DEFAULT_SETTINGS);
 
-      const stored = localStorageMock.getItem('vexora-settings');
+      const stored = localStorageMock.getItem('cor7ex-settings');
       expect(stored).toBeTruthy();
 
       const parsed = JSON.parse(stored!);
@@ -250,7 +250,7 @@ describe('SettingsStorage', () => {
   describe('type validation', () => {
     it('should validate theme values', () => {
       localStorageMock.setItem(
-        'vexora-settings',
+        'cor7ex-settings',
         JSON.stringify({
           value: {
             version: 1,
@@ -268,7 +268,7 @@ describe('SettingsStorage', () => {
 
       for (const size of validSizes) {
         localStorageMock.setItem(
-          'vexora-settings',
+          'cor7ex-settings',
           JSON.stringify({
             value: {
               version: 1,
@@ -284,7 +284,7 @@ describe('SettingsStorage', () => {
 
     it('should default empty model to default', () => {
       localStorageMock.setItem(
-        'vexora-settings',
+        'cor7ex-settings',
         JSON.stringify({
           value: {
             version: 1,

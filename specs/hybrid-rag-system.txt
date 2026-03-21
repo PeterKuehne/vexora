@@ -1,10 +1,10 @@
-PROJECT: Vexora Hybrid RAG System
+PROJECT: Cor7ex Hybrid RAG System
 
 ================================================================================
 CURRENT STATE
 ================================================================================
 
-Vexora is an existing AI chat application with the following functionality:
+Cor7ex is an existing AI chat application with the following functionality:
 
 - Users can have conversations with Ollama-powered LLMs (currently supports Qwen and other models)
 - Real-time streaming responses from LLM
@@ -36,7 +36,7 @@ FEATURES TO IMPLEMENT
 ================================================================================
 
 MAIN GOAL:
-Add Retrieval-Augmented Generation (RAG) capabilities to Vexora so users can chat with their own documents and structured data.
+Add Retrieval-Augmented Generation (RAG) capabilities to Cor7ex so users can chat with their own documents and structured data.
 
 ---
 

@@ -127,7 +127,7 @@ export function getStorageBreakdown(): StorageBreakdown {
   let conversationCount = 0;
 
   keys.forEach((key) => {
-    const fullKey = `vexora-${key}`;
+    const fullKey = `cor7ex-${key}`;
     const value = localStorage.getItem(fullKey);
     if (!value) return;
 

@@ -1,5 +1,5 @@
 /**
- * API Client for Vexora Backend
+ * API Client for Cor7ex Backend
  *
  * Handles communication with the Express backend,
  * including SSE streaming for chat responses.
@@ -378,11 +378,22 @@ export interface APIModel {
   isDefault: boolean;
 }
 
+export interface CloudModel {
+  id: string;
+  name: string;
+  provider: string;
+  isCloud: boolean;
+  contextWindow: number;
+  inputPricePerMTok?: number;
+  outputPricePerMTok?: number;
+}
+
 /**
- * Fetch available models from the backend
+ * Fetch available models from the backend (Ollama + Cloud)
  */
 export async function fetchModels(): Promise<{
   models: APIModel[];
+  cloudModels: CloudModel[];
   defaultModel: string;
 }> {
   // Import httpClient dynamically to avoid circular dependencies
@@ -391,6 +402,7 @@ export async function fetchModels(): Promise<{
   // Use httpClient for automatic token management
   return api.get<{
     models: APIModel[];
+    cloudModels: CloudModel[];
     defaultModel: string;
   }>(`${env.API_URL}/api/models`, {
     skipAuth: true // Models endpoint doesn't require auth
@@ -1252,4 +1264,98 @@ export async function resetSystemSettings(): Promise<SystemSettingsResponse> {
   const { api } = await import('./httpClient');
 
   return api.post<SystemSettingsResponse>(`${env.API_URL}/api/admin/settings/reset`);
+}
+
+// ============================================
+// Conversation API (Phase 1: Hive Mind)
+// ============================================
+
+export interface APIConversation {
+  id: string;
+  userId: string;
+  tenantId?: string | null;
+  title: string | null;
+  model: string | null;
+  isPinned: boolean;
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string;
+  messageCount?: number;
+  lastMessage?: string;
+}
+
+export interface APIMessage {
+  id: string;
+  conversationId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  model?: string | null;
+  tokenCount?: number | null;
+  sources?: any | null;
+  thinkingContent?: string | null;
+  createdAt: string;
+}
+
+export async function fetchConversations(options?: {
+  limit?: number;
+  offset?: number;
+  includeArchived?: boolean;
+}): Promise<{ conversations: APIConversation[]; total: number }> {
+  const { api } = await import('./httpClient');
+  const params = new URLSearchParams();
+  if (options?.limit) params.set('limit', String(options.limit));
+  if (options?.offset) params.set('offset', String(options.offset));
+  if (options?.includeArchived) params.set('includeArchived', 'true');
+
+  return api.get<{ conversations: APIConversation[]; total: number }>(
+    `${env.API_URL}/api/conversations?${params.toString()}`
+  );
+}
+
+export async function createAPIConversation(input?: {
+  title?: string;
+  model?: string;
+}): Promise<{ conversation: APIConversation }> {
+  const { api } = await import('./httpClient');
+  return api.post<{ conversation: APIConversation }>(
+    `${env.API_URL}/api/conversations`,
+    input || {}
+  );
+}
+
+export async function fetchConversationWithMessages(id: string): Promise<{
+  conversation: APIConversation;
+  messages: APIMessage[];
+}> {
+  const { api } = await import('./httpClient');
+  return api.get<{ conversation: APIConversation; messages: APIMessage[] }>(
+    `${env.API_URL}/api/conversations/${id}`
+  );
+}
+
+export async function updateAPIConversation(
+  id: string,
+  updates: { title?: string; isPinned?: boolean; isArchived?: boolean; model?: string }
+): Promise<{ conversation: APIConversation }> {
+  const { api } = await import('./httpClient');
+  return api.patch<{ conversation: APIConversation }>(
+    `${env.API_URL}/api/conversations/${id}`,
+    updates
+  );
+}
+
+export async function deleteAPIConversation(id: string): Promise<void> {
+  const { api } = await import('./httpClient');
+  await api.delete(`${env.API_URL}/api/conversations/${id}`);
+}
+
+export async function addAPIMessage(
+  conversationId: string,
+  message: { role: string; content: string; model?: string; tokenCount?: number; sources?: any; thinkingContent?: string }
+): Promise<{ message: APIMessage }> {
+  const { api } = await import('./httpClient');
+  return api.post<{ message: APIMessage }>(
+    `${env.API_URL}/api/conversations/${conversationId}/messages`,
+    message
+  );
 }

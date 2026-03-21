@@ -183,7 +183,7 @@ $$ LANGUAGE plpgsql;
 -- In production, this should be created through the OAuth flow
 INSERT INTO users (email, name, role, department, provider, provider_id)
 VALUES (
-    'admin@vexora.local',
+    'admin@cor7ex.local',
     'System Administrator',
     'Admin',
     'IT',

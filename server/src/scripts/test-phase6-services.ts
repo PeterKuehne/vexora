@@ -19,7 +19,7 @@ async function testRedisCache() {
   if (!cache.isAvailable()) {
     console.log('❌ Redis not available - skipping cache tests');
     console.log('   Make sure Redis is running on the Ubuntu server:');
-    console.log('   ssh peter@192.168.178.23');
+    console.log('   ssh peter@192.168.2.38');
     console.log('   cd ubuntu-infra && docker compose up -d redis');
     return false;
   }

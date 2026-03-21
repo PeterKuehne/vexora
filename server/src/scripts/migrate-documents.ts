@@ -21,9 +21,9 @@ const WEAVIATE_URL = process.env.WEAVIATE_URL || 'http://localhost:8080';
 const POSTGRES_CONFIG = {
   host: process.env.POSTGRES_HOST || 'localhost',
   port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'vexora',
-  user: process.env.POSTGRES_USER || 'vexora',
-  password: process.env.POSTGRES_PASSWORD || 'vexora_dev_password',
+  database: process.env.POSTGRES_DB || 'cor7ex',
+  user: process.env.POSTGRES_USER || 'cor7ex',
+  password: process.env.POSTGRES_PASSWORD || 'cor7ex_dev_password',
 };
 const UPLOADS_DIR = './uploads';
 

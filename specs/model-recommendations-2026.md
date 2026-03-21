@@ -1,4 +1,4 @@
-# Model Recommendations for Vexora RAG System (2026)
+# Model Recommendations for Cor7ex RAG System (2026)
 
 **Based on:** Artificial Analysis Intelligence Index + MTEB Leaderboard
 **Last Updated:** 2026-01-20
@@ -21,7 +21,7 @@
 
 ---
 
-## 🎯 Recommendations for Vexora (Local Ollama Setup)
+## 🎯 Recommendations for Cor7ex (Local Ollama Setup)
 
 ### Option 1: Best Quality (Requires 32GB+ VRAM)
 ```yaml
@@ -93,7 +93,7 @@ Reranker: Qwen3-Reranker-0.6B
 | Voyage-3-large | 63.8 | 1024 | 32K | $$ | Built for RAG |
 | Voyage-3.5-lite | 66.1 | 512 | 16K | $ | Best cost/performance |
 
-**Not suitable for Vexora:** Requires API calls, not local
+**Not suitable for Cor7ex:** Requires API calls, not local
 
 ### Open Source Models (Ollama Compatible)
 
@@ -111,7 +111,7 @@ Reranker: Qwen3-Reranker-0.6B
 
 ---
 
-## 🎯 Final Recommendation for Vexora
+## 🎯 Final Recommendation for Cor7ex
 
 ### Production Setup (16GB VRAM System)
 
@@ -226,7 +226,7 @@ Based on benchmarks:
 ## ⚡ Quick Start Commands
 
 ```bash
-# Install all models for Vexora RAG
+# Install all models for Cor7ex RAG
 ollama pull qwen3:8b
 ollama pull nomic-embed-text-v2-moe
 ollama pull dengcao/Qwen3-Reranker-4B:Q5_K_M

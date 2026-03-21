@@ -1,4 +1,3 @@
-import { extractText } from 'unpdf';
 import fs from 'fs/promises';
 import path from 'path';
 import { z } from 'zod';
@@ -96,8 +95,6 @@ export const documentUploadSchema = z.object({
 
 export type DocumentUploadRequest = z.infer<typeof documentUploadSchema>;
 
-// Environment config for chunking version
-const CHUNKING_VERSION = (process.env.CHUNKING_VERSION || 'v2') as 'v1' | 'v2';
 
 class DocumentService {
   private readonly uploadDir = './uploads';
@@ -164,31 +161,14 @@ class DocumentService {
 
       const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      // Try V2 processing with parser service
-      if (CHUNKING_VERSION === 'v2') {
-        const v2Result = await this.processDocumentV2(
-          documentId,
-          fileBuffer,
-          validatedMetadata,
-          format,
-          permissionMetadata
-        );
-        if (v2Result.success) {
-          return v2Result;
-        }
-        // Fall back to V1 for PDF if V2 fails
-        console.log('⚠️  V2 processing failed, falling back to V1');
-      }
-
-      // V1 fallback (PDF only)
-      if (format !== 'pdf') {
-        return {
-          success: false,
-          error: `Format ${format} erfordert V2 Verarbeitung, aber Parser-Service nicht verfügbar`,
-        };
-      }
-
-      return this.processPDFv1(documentId, fileBuffer, validatedMetadata, permissionMetadata);
+      // Process document with V2 pipeline (parser service + semantic chunking)
+      return await this.processDocumentV2(
+        documentId,
+        fileBuffer,
+        validatedMetadata,
+        format,
+        permissionMetadata
+      );
     } catch (error) {
       LoggerService.logError(error instanceof Error ? error : new Error('Document processing failed'), {
         fileName: metadata.originalName,
@@ -244,38 +224,14 @@ class DocumentService {
 
     // Step 3: Store in V2 Weaviate collection
     // IMPORTANT: Pass the PostgreSQL documentId to ensure consistency for permission filtering
-    try {
-      await vectorServiceV2.storeChunks(chunkingResult.chunks, {
-        documentId, // Use the PostgreSQL document ID, not the parser-generated ID
-        filename: metadata.filename,
-        originalName: metadata.originalName,
-        pageCount: parsedDoc.metadata.pageCount,
-      });
-    } catch (vectorError) {
-      console.warn(`⚠️  Failed to store in V2 vector database: ${vectorError}`);
-      // Continue - will also store in V1 for compatibility
-    }
+    await vectorServiceV2.storeChunks(chunkingResult.chunks, {
+      documentId, // Use the PostgreSQL document ID, not the parser-generated ID
+      filename: metadata.filename,
+      originalName: metadata.originalName,
+      pageCount: parsedDoc.metadata.pageCount,
+    });
 
-    // Step 4: Also store in V1 for backward compatibility (parallel operation)
-    try {
-      const legacyDoc: DocumentMetadata = {
-        id: documentId,
-        filename: metadata.filename,
-        originalName: metadata.originalName,
-        size: metadata.size,
-        type: format as DocumentType,
-        uploadedAt: new Date().toISOString(),
-        pages: parsedDoc.metadata.pageCount,
-        text: parsedDoc.fullText,
-        category: metadata.category ?? 'Allgemein',
-        tags: metadata.tags ?? [],
-      };
-      await vectorService.storeDocument(legacyDoc);
-    } catch (v1Error) {
-      console.warn(`⚠️  Failed to store in V1 vector database: ${v1Error}`);
-    }
-
-    // Step 5: Store in PostgreSQL
+    // Step 4: Store in PostgreSQL
     const totalTokens = chunkingResult.chunks.reduce((sum, c) => sum + c.tokenCount, 0);
 
     await databaseService.query(
@@ -377,102 +333,7 @@ class DocumentService {
   }
 
   /**
-   * V1 Processing: Legacy PDF-only with unpdf
-   */
-  private async processPDFv1(
-    documentId: string,
-    fileBuffer: Buffer,
-    metadata: DocumentUploadRequest,
-    permissionMetadata?: {
-      ownerId?: string;
-      department?: string;
-      classification?: string;
-      allowedRoles?: string[];
-      allowedUsers?: string[];
-    }
-  ): Promise<ProcessingResult> {
-    console.log(`📄 Processing document V1 (legacy): ${metadata.originalName}`);
-
-    const uint8Data = new Uint8Array(fileBuffer);
-    const { text, totalPages } = await extractText(uint8Data, { mergePages: true });
-
-    const document: DocumentMetadata = {
-      id: documentId,
-      filename: metadata.filename,
-      originalName: metadata.originalName,
-      size: metadata.size,
-      type: 'pdf',
-      uploadedAt: new Date().toISOString(),
-      pages: totalPages,
-      text: text.trim(),
-      category: metadata.category ?? 'Allgemein',
-      tags: metadata.tags ?? [],
-      chunkingVersion: 'v1',
-    };
-
-    let chunkCount = 0;
-    try {
-      await vectorService.storeDocument(document);
-      chunkCount = Math.ceil(text.length / 512);
-    } catch (vectorError) {
-      console.warn(`⚠️  Failed to store in vector database: ${vectorError}`);
-    }
-
-    await databaseService.query(
-      `INSERT INTO documents (
-        id, filename, file_type, file_size, upload_date,
-        processed_date, status, chunk_count, category, tags,
-        owner_id, department, classification, allowed_roles, allowed_users,
-        chunking_version
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
-      [
-        documentId,
-        metadata.originalName,
-        'pdf',
-        metadata.size,
-        new Date(),
-        new Date(),
-        'completed',
-        chunkCount,
-        metadata.category ?? 'Allgemein',
-        metadata.tags ?? [],
-        permissionMetadata?.ownerId || null,
-        permissionMetadata?.department || null,
-        permissionMetadata?.classification || 'internal',
-        permissionMetadata?.allowedRoles || null,
-        permissionMetadata?.allowedUsers || null,
-        'v1',
-      ]
-    );
-
-    // Extract entities for Knowledge Graph (Phase 4) - V1 processing
-    try {
-      await graphService.initialize();
-      if (graphService.isReady()) {
-        console.log(`🔗 Extracting entities for document ${documentId} (V1)...`);
-        // Convert V1 text to block format for entity extraction
-        const textBlocks = [{ id: `${documentId}_full`, content: text }];
-        const graphResult = await graphService.processDocument(documentId, textBlocks);
-        console.log(`✅ Graph: ${graphResult.stats.entitiesExtracted} entities, ${graphResult.stats.relationshipsExtracted} relationships`);
-      }
-    } catch (graphError) {
-      console.warn(`⚠️  Entity extraction failed (non-critical): ${graphError}`);
-    }
-
-    LoggerService.logDocument('upload', {
-      documentId,
-      userId: permissionMetadata?.ownerId,
-      fileName: metadata.originalName,
-      fileSize: metadata.size,
-      department: permissionMetadata?.department,
-      classification: permissionMetadata?.classification || 'internal'
-    });
-
-    return { success: true, document };
-  }
-
-  /**
-   * Process uploaded PDF file (backward compatible alias)
+   * Process uploaded PDF file (alias for processDocument)
    */
   async processPDF(filePath: string, metadata: DocumentUploadRequest, permissionMetadata?: {
     ownerId?: string;
@@ -755,13 +616,6 @@ class DocumentService {
    */
   getSupportedFormats(): string[] {
     return ['pdf', 'docx', 'pptx', 'xlsx', 'html', 'md', 'txt'];
-  }
-
-  /**
-   * Check if V2 chunking is enabled
-   */
-  isV2Enabled(): boolean {
-    return CHUNKING_VERSION === 'v2';
   }
 
   /**
