@@ -13,6 +13,7 @@ import { listSkillsTool } from './list-skills.js';
 import { loadSkillTool } from './load-skill.js';
 import { createSkillTool } from './create-skill.js';
 import { updateSkillTool } from './update-skill.js';
+import { runSkillTestTool } from './run-skill-test.js';
 
 /**
  * Register all built-in tools with the ToolRegistry
@@ -28,6 +29,7 @@ export function registerBuiltinTools(): void {
   toolRegistry.register(loadSkillTool);
   toolRegistry.register(createSkillTool);
   toolRegistry.register(updateSkillTool);
+  toolRegistry.register(runSkillTestTool);
 
   console.log(`[AgentSystem] ${toolRegistry.size} built-in tools registered`);
 }
