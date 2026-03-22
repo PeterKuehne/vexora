@@ -152,19 +152,10 @@ export class AgentExecutor {
                 },
               });
             }
-          } else if (step.text) {
-            // Final answer step (no tool calls)
-            await agentPersistence.createStep({
-              taskId: task.id,
-              stepNumber,
-              thought: undefined,
-              toolName: undefined,
-              toolInput: undefined,
-              toolOutput: step.text.substring(0, 1000),
-              tokensUsed: (step.usage?.inputTokens || 0) + (step.usage?.outputTokens || 0),
-              durationMs,
-            });
           }
+          // Final answer step (no tool calls, only text) is NOT persisted as a
+          // separate step — the text is already stored as task.result.answer
+          // to avoid duplication in the UI.
 
           // Emit step:complete
           emitSSE({
