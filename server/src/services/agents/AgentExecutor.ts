@@ -46,6 +46,8 @@ export class AgentExecutor extends EventEmitter {
       model?: string;
       conversationId?: string;
       signal?: AbortSignal;
+      systemPrompt?: string;      // Override default buildSystemPrompt()
+      allowedTools?: string[];     // Whitelist tools for this execution
     }
   ): Promise<AgentTask> {
     const model = options?.model || this.config.defaultModel;
@@ -69,17 +71,25 @@ export class AgentExecutor extends EventEmitter {
     try {
       await agentPersistence.updateTaskStatus(task.id, 'running');
 
-      // Build available tools for this user
-      const availableTools = toolRegistry.getAvailableTools(context);
+      // Build available tools for this user (optionally filtered by allowedTools whitelist)
+      let availableTools = toolRegistry.getAvailableTools(context);
+      if (options?.allowedTools) {
+        const allowed = new Set(options.allowedTools);
+        availableTools = availableTools.filter(t => allowed.has(t.name));
+      }
       const { provider } = llmRouter.parseModel(model);
       const isAnthropic = provider === 'anthropic';
 
-      // Build tool options based on provider
-      const anthropicTools = isAnthropic ? toolRegistry.getAnthropicTools(context) : undefined;
-      const ollamaTools = !isAnthropic ? toolRegistry.getOllamaTools(context) : undefined;
+      // Build tool options based on provider (using filtered tools)
+      const anthropicTools = isAnthropic
+        ? availableTools.map(t => ({ name: t.name, description: t.description, input_schema: t.parameters }))
+        : undefined;
+      const ollamaTools = !isAnthropic
+        ? availableTools.map(t => ({ type: 'function' as const, function: { name: t.name, description: t.description, parameters: t.parameters } }))
+        : undefined;
 
-      // Build system prompt
-      const systemPrompt = this.buildSystemPrompt(availableTools.map(t => t.name));
+      // Build system prompt (use override if provided)
+      const systemPrompt = options?.systemPrompt || await this.buildSystemPrompt(availableTools.map(t => t.name), context);
 
       // Initialize message history
       const messages: ChatMessage[] = [
@@ -355,10 +365,15 @@ export class AgentExecutor extends EventEmitter {
   }
 
   /**
-   * Build the system prompt with available tools
+   * Build the system prompt with available tools and skill descriptions
+   *
+   * Progressive Disclosure Level 1: Skill names + descriptions are always
+   * injected so the agent knows what's available without calling list_skills.
    */
-  private buildSystemPrompt(toolNames: string[]): string {
-    return `You are an agent with access to tools. You MUST use the tools to answer questions.
+  private async buildSystemPrompt(toolNames: string[], context: AgentUserContext): Promise<string> {
+    const hasSkills = toolNames.includes('load_skill');
+
+    let prompt = `You are an agent with access to tools. You MUST use the tools to answer questions.
 
 Available tools: ${toolNames.join(', ')}
 
@@ -368,13 +383,50 @@ CRITICAL RULES:
 - If the tools return no results, respond with: "Ich habe keine Informationen zu dieser Anfrage in der Wissensdatenbank gefunden."
 - Do NOT invent, guess, or hallucinate information that was not returned by the tools
 - Cite sources (document name, page number) in your answer
-- Answer in German (Deutsch)
+- Answer in German (Deutsch)`;
+
+    if (hasSkills) {
+      // Progressive Disclosure Level 1: inject skill descriptions
+      let skillSummary = '';
+      try {
+        const { skillRegistry } = await import('../skills/SkillRegistry.js');
+        const { skills } = await skillRegistry.getSkills(
+          { userId: context.userId, userRole: context.userRole, department: context.department },
+          { limit: 20 }
+        );
+        if (skills.length > 0) {
+          skillSummary = skills
+            .map(s => `- ${s.name} [${s.slug}]: ${s.description || '(keine Beschreibung)'}`)
+            .join('\n');
+        }
+      } catch {
+        // Skills not available yet (e.g., table not created)
+      }
+
+      prompt += `
+
+SKILLS (pre-built workflows):
+${skillSummary || '(keine Skills verfügbar)'}
+
+When a skill matches the user's request:
+1. Call load_skill with the skill's slug to get the full instructions
+2. Follow the instructions step by step using the recommended tools
+3. The skill instructions will tell you exactly what to do
+
+If no skill matches, use the tools directly (rag_search, read_chunk, etc.)`;
+    }
+
+    prompt += `
 
 WORKFLOW:
-1. Call rag_search with relevant keywords from the user's question
-2. If needed, use read_chunk for more details on a specific result
-3. Formulate your answer ONLY based on actual tool results
-4. If no relevant documents were found, say so - do not make up an answer`;
+1. Check if a skill from the list above matches the user's request
+2. If yes: call load_skill(slug) and follow the returned instructions
+3. If no: call rag_search with relevant keywords from the user's question
+4. If needed, use read_chunk for more details on a specific result
+5. Formulate your answer ONLY based on actual tool results
+6. If no relevant documents were found, say so - do not make up an answer`;
+
+    return prompt;
   }
 
   /**

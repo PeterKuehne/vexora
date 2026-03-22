@@ -38,7 +38,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: 'chat', icon: MessageSquare, label: 'Chat' },
   { id: 'tasks', icon: Bot, label: 'Tasks' },
-  { id: 'skills', icon: Zap, label: 'Skills', disabled: true, tooltip: 'Kommt bald' },
+  { id: 'skills', icon: Zap, label: 'Skills' },
   { id: 'documents', icon: FileText, label: 'Dokumente' },
   { id: 'knowledge', icon: Link2, label: 'Wissen', disabled: true, tooltip: 'Kommt bald' },
 ];
@@ -55,7 +55,7 @@ export function IconRail({
   return (
     <div
       className={`
-        w-12 shrink-0 flex flex-col items-center py-2
+        w-14 shrink-0 flex flex-col items-center py-3
         border-r
         ${isDark ? 'bg-[#0a0a0b] border-white/[0.06]' : 'bg-gray-50 border-gray-200'}
       `}
@@ -73,7 +73,7 @@ export function IconRail({
               disabled={item.disabled}
               title={item.disabled ? item.tooltip : item.label}
               className={`
-                relative w-9 h-9 flex items-center justify-center rounded-lg
+                relative w-10 h-10 flex items-center justify-center rounded-lg
                 transition-all duration-150
                 ${item.disabled
                   ? isDark
@@ -89,7 +89,7 @@ export function IconRail({
                 }
               `}
             >
-              <Icon size={18} strokeWidth={isActive ? 2 : 1.5} />
+              <Icon size={20} strokeWidth={isActive ? 2 : 1.5} />
               {/* Active indicator */}
               {isActive && (
                 <span
@@ -107,14 +107,14 @@ export function IconRail({
       {/* System Section */}
       <div className="flex flex-col items-center gap-1 mt-auto">
         {/* Divider */}
-        <div className={`w-6 h-px my-1 ${isDark ? 'bg-white/[0.06]' : 'bg-gray-200'}`} />
+        <div className={`w-7 h-px my-1.5 ${isDark ? 'bg-white/[0.06]' : 'bg-gray-200'}`} />
 
         {/* Settings */}
         <button
           onClick={onSettingsClick}
           title="Einstellungen"
           className={`
-            w-9 h-9 flex items-center justify-center rounded-lg
+            w-10 h-10 flex items-center justify-center rounded-lg
             transition-colors duration-150
             ${isDark
               ? 'text-white/50 hover:text-white/80 hover:bg-white/[0.05]'
@@ -122,7 +122,7 @@ export function IconRail({
             }
           `}
         >
-          <Settings size={18} strokeWidth={1.5} />
+          <Settings size={20} strokeWidth={1.5} />
         </button>
 
         {/* User */}
@@ -130,7 +130,7 @@ export function IconRail({
           <button
             title={userName || 'Profil'}
             className={`
-              w-9 h-9 flex items-center justify-center rounded-lg
+              w-10 h-10 flex items-center justify-center rounded-lg
               transition-colors duration-150
               ${isDark
                 ? 'text-white/50 hover:text-white/80 hover:bg-white/[0.05]'
@@ -138,7 +138,7 @@ export function IconRail({
               }
             `}
           >
-            <User size={18} strokeWidth={1.5} />
+            <User size={20} strokeWidth={1.5} />
           </button>
 
           {/* Dropdown */}

@@ -1,0 +1,12 @@
+{
+  "slug": "document-summary",
+  "name": "Dokument-Zusammenfassung",
+  "description": "Fasst Dokumente aus der Wissensdatenbank zusammen. Nutze diesen Skill wenn der User sagt 'fasse zusammen', 'Zusammenfassung', 'Überblick geben', oder nach einer Zusammenfassung zu einem Thema fragt.",
+  "category": "zusammenfassung",
+  "tags": ["zusammenfassung", "dokumente", "recherche"],
+  "definition": {
+    "version": "1.0.0",
+    "tools": ["rag_search", "read_chunk"],
+    "content": "# Dokument-Zusammenfassung\n\nErstelle eine strukturierte Zusammenfassung basierend auf Dokumenten aus der Wissensdatenbank.\n\n## Instruktionen\n\n### Schritt 1: Thema identifizieren\nExtrahiere das Kernthema aus der Frage des Users.\n\n### Schritt 2: Dokumente durchsuchen\nNutze `rag_search` mit verschiedenen Suchbegriffen:\n1. Exakte Begriffe aus der Frage\n2. Synonyme und verwandte Begriffe\n3. Übergeordnete Themenbegriffe\n\nFühre mindestens 2 verschiedene Suchen durch um breite Abdeckung zu gewährleisten.\n\n### Schritt 3: Details lesen\nNutze `read_chunk` für die relevantesten Treffer, um den vollständigen Kontext zu erhalten.\n\n### Schritt 4: Zusammenfassung erstellen\nStrukturiere die Zusammenfassung wie folgt:\n\n**Kurz (wenn User 'kurz' oder 'knapp' sagt):**\n- 2-3 Absätze, nur Kernaussagen\n\n**Standard:**\n- Einleitung mit Kernaussage\n- 3-5 Hauptpunkte mit Details\n- Fazit\n\n**Ausführlich (wenn User 'ausführlich' oder 'detailliert' sagt):**\n- Vollständige Analyse aller gefundenen Informationen\n- Unterpunkte und Zusammenhänge\n- Quellenverweise pro Abschnitt\n\n## Wichtige Regeln\n- IMMER Quellen zitieren (Dokumentname, Seitenzahl)\n- NUR Informationen aus den gefundenen Dokumenten verwenden\n- Wenn keine relevanten Dokumente gefunden werden, das klar kommunizieren\n- Widersprüche zwischen Dokumenten aufzeigen"
+  }
+}

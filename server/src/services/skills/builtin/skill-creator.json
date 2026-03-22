@@ -1,0 +1,12 @@
+{
+  "slug": "skill-creator",
+  "name": "Skill Creator",
+  "description": "Erstellt neue Skills basierend auf einer Zielbeschreibung. Nutze diesen Skill wenn der User sagt 'erstelle einen Skill', 'neuen Skill anlegen', oder einen wiederholbaren Workflow beschreibt.",
+  "category": "meta",
+  "tags": ["meta", "automatisierung", "skill-erstellung"],
+  "definition": {
+    "version": "1.0.0",
+    "tools": ["rag_search"],
+    "content": "# Skill Creator\n\nDu erstellst eine neue Skill-Definition basierend auf der Zielbeschreibung des Users.\n\n## Instruktionen\n\n### Schritt 1: Ziel verstehen\nFrage den User nach dem Ziel, falls nicht klar. Kläre:\n- Was soll der Skill tun?\n- Welche Dokumente/Daten sind relevant?\n- Wie detailliert soll das Ergebnis sein?\n\n### Schritt 2: Wissensdatenbank durchsuchen\nNutze `rag_search` um relevante Dokumente zum Thema zu finden. Das hilft dir, den Skill-Context sinnvoll zu gestalten.\n\n### Schritt 3: Skill-Definition generieren\nErstelle eine JSON-Definition im folgenden Format:\n\n```json\n{\n  \"content\": \"# Skill-Name\\n\\n## Instruktionen\\n\\n### Schritt 1: ...\\nBeschreibung...\\n\\n### Schritt 2: ...\\nBeschreibung...\",\n  \"tools\": [\"rag_search\", \"read_chunk\"],\n  \"version\": \"1.0.0\"\n}\n```\n\n## Wichtige Regeln\n- Der `content` muss klare, nummerierte Schritte enthalten\n- Nutze Markdown-Formatierung (Überschriften, Listen, Code-Blöcke)\n- Tools müssen aus der verfügbaren Liste stammen: rag_search, read_chunk, graph_query, sql_query, create_document, send_notification\n- Schreibe die Instruktionen so, dass ein Agent sie Schritt für Schritt befolgen kann\n- Inkludiere Fehlerbehandlung (Was wenn keine Ergebnisse gefunden werden?)\n\n## Ausgabe\nGib die komplette JSON-Definition in einem ```json Code-Block aus. Erkläre kurz, was der Skill tut und welche Inputs der User bereitstellen muss."
+  }
+}

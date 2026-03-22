@@ -35,8 +35,10 @@ import processingRoutes from './routes/processing.js'
 import conversationRoutes from './routes/conversations.js'
 import usageRoutes from './routes/usage.js'
 import agentRoutes from './routes/agents.js'
+import skillRoutes from './routes/skills.js'
 import { llmRouter, PIIGuard } from './services/llm/index.js'
 import { initializeAgentSystem } from './services/agents/index.js'
+import { initializeSkillSystem } from './services/skills/index.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -107,6 +109,7 @@ app.use('/api/processing', processingRoutes)
 app.use('/api/conversations', conversationRoutes)
 app.use('/api/admin/usage', adminRateLimiter, usageRoutes)
 app.use('/api/agents', generalRateLimiter, agentRoutes)
+app.use('/api/skills', generalRateLimiter, skillRoutes)
 
 // ============================================
 // Health & Root
@@ -249,6 +252,14 @@ httpServer.on('listening', async () => {
     console.log('✅ Agent system initialized')
   } catch (error) {
     console.warn('⚠️  Agent system initialization failed:', error)
+  }
+
+  // Initialize Skill System
+  try {
+    await initializeSkillSystem()
+    console.log('✅ Skill system initialized')
+  } catch (error) {
+    console.warn('⚠️  Skill system initialization failed:', error)
   }
 })
 

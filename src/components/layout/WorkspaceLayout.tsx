@@ -15,6 +15,8 @@ export interface WorkspaceLayoutProps {
   chatSidebar?: ReactNode;
   /** Content for the tasks sidebar (agent task list) */
   tasksSidebar?: ReactNode;
+  /** Content for the skills sidebar (skill list) */
+  skillsSidebar?: ReactNode;
   /** Main content area */
   children: ReactNode | ((activeSection: WorkspaceSection) => ReactNode);
   /** Settings click handler */
@@ -32,6 +34,7 @@ export interface WorkspaceLayoutProps {
 export function WorkspaceLayout({
   chatSidebar,
   tasksSidebar,
+  skillsSidebar,
   children,
   onSettingsClick,
   userName,
@@ -77,6 +80,7 @@ export function WorkspaceLayout({
         activeSection={activeSection}
         chatSidebar={chatSidebar}
         tasksSidebar={tasksSidebar}
+        skillsSidebar={skillsSidebar}
         isCollapsed={isSidebarCollapsed}
       />
 

@@ -4,7 +4,6 @@ import {
   ChatContainer,
   OllamaConnectionError,
   SettingsModal,
-  StorageQuotaAlert,
   ToastContainer,
   ProtectedRoute,
   ErrorBoundary,
@@ -33,6 +32,9 @@ import {
   useToasts,
 } from './contexts';
 import { AgentProvider, useAgent } from './contexts/AgentContext';
+import { SkillProvider } from './contexts/SkillContext';
+import { SkillSidebar } from './components/SkillSidebar';
+import { SkillDetail } from './components/SkillDetail';
 
 function ChatApp() {
   const [isOllamaConnected, setIsOllamaConnected] = useState<boolean | null>(null);
@@ -104,40 +106,35 @@ function ChatApp() {
       return <AgentTaskDetail />;
     }
 
+    if (activeSection === 'skills') {
+      return <SkillDetail />;
+    }
+
     // Chat section (default)
     return (
       <div className="flex flex-col h-full">
-        {/* Slim header: ModelSelector + Connection Status */}
+        {/* Slim header matching Tasks section style */}
         <div className={`
           shrink-0 flex items-center justify-between
-          px-4 py-2 border-b
+          px-4 py-3 border-b
           ${isDark ? 'border-white/[0.06]' : 'border-gray-200'}
         `}>
-          {/* Left: Active conversation title */}
-          <div className={`text-sm font-medium truncate ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
+          <div className={`text-sm truncate ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
             {activeConversation?.title || 'Neue Unterhaltung'}
           </div>
 
-          {/* Right: Model selector + connection dot */}
           <div className="flex items-center gap-3">
             {isOllamaConnected && (
-              <div className="hidden sm:block">
-                <ModelSelector
-                  value={selectedModel}
-                  onChange={setSelectedModel}
-                  disabled={!isOllamaConnected}
-                />
-              </div>
+              <ModelSelector
+                value={selectedModel}
+                onChange={setSelectedModel}
+                disabled={!isOllamaConnected}
+              />
             )}
-            <div className="flex items-center gap-1.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${
-                isOllamaConnected === null ? 'bg-yellow-500' :
-                isOllamaConnected ? 'bg-green-500' : 'bg-red-500'
-              }`} />
-              <span className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
-                {isOllamaConnected ? `${availableModels.length} Modelle` : 'Offline'}
-              </span>
-            </div>
+            <div className={`w-1.5 h-1.5 rounded-full ${
+              isOllamaConnected === null ? 'bg-yellow-500' :
+              isOllamaConnected ? 'bg-green-500' : 'bg-red-500'
+            }`} title={isOllamaConnected ? 'Verbunden' : 'Offline'} />
           </div>
         </div>
 
@@ -149,19 +146,12 @@ function ChatApp() {
               isRetrying={isRetrying}
             />
           ) : isLoadingConversations ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-gray-400">Lade Unterhaltungen...</div>
+            <div className={`flex items-center justify-center h-full ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
+              Lade Unterhaltungen...
             </div>
           ) : activeConversation ? (
             <ChatProvider key={activeConversation.id} initialModel={selectedModel} selectedModel={selectedModel}>
-              <div className="flex flex-col h-full">
-                <div className="shrink-0 px-4 pt-2">
-                  <StorageQuotaAlert />
-                </div>
-                <div className="flex-1 overflow-hidden">
-                  <ChatContainer />
-                </div>
-              </div>
+              <ChatContainer />
             </ChatProvider>
           ) : null}
         </div>
@@ -173,12 +163,14 @@ function ChatApp() {
   // so we just pass it directly - no extra wrapper needed
   const chatSidebar = <ConversationSidebar />;
   const tasksSidebar = <AgentTaskSidebar />;
+  const skillsSidebar = <SkillSidebar />;
 
   return (
     <>
       <WorkspaceLayout
         chatSidebar={chatSidebar}
         tasksSidebar={tasksSidebar}
+        skillsSidebar={skillsSidebar}
         onSettingsClick={() => setIsSettingsModalOpen(true)}
         userName={user?.name || user?.email}
         onLogout={logout}
@@ -212,7 +204,9 @@ function AppRoutes() {
                 <DocumentProvider>
                   <RAGProvider>
                     <AgentProvider>
-                      <ChatApp />
+                      <SkillProvider>
+                        <ChatApp />
+                      </SkillProvider>
                     </AgentProvider>
                   </RAGProvider>
                 </DocumentProvider>

@@ -1,0 +1,12 @@
+{
+  "slug": "research-report",
+  "name": "Recherche-Report",
+  "description": "Erstellt umfassende Recherche-Reports mit Dokumenten- und Graph-Analyse. Nutze diesen Skill wenn der User sagt 'Recherche', 'Report erstellen', 'recherchiere zu', 'analysiere das Thema', oder eine tiefgehende Analyse zu einem Thema wünscht.",
+  "category": "recherche",
+  "tags": ["recherche", "report", "analyse", "graph"],
+  "definition": {
+    "version": "1.0.0",
+    "tools": ["rag_search", "read_chunk", "graph_query"],
+    "content": "# Recherche-Report\n\nErstelle einen umfassenden Recherche-Report der Dokumentensuche mit Graph-Analyse kombiniert.\n\n## Instruktionen\n\n### Phase 1: Breite Dokumentenrecherche\n1. Nutze `rag_search` mit dem Hauptthema\n2. Nutze `rag_search` mit verwandten Begriffen und Synonymen\n3. Nutze `rag_search` mit spezifischen Fachbegriffen zum Thema\n4. Nutze `read_chunk` für die Top-Treffer um vollständigen Kontext zu erhalten\n\n### Phase 2: Graph-Analyse\n1. Nutze `graph_query` um Entitäten zum Thema zu finden\n2. Identifiziere Beziehungen und Verbindungen zwischen Entitäten\n3. Suche nach Clustern und Mustern\n\n### Phase 3: Report erstellen\nStrukturiere den Report wie folgt:\n\n#### 1. Executive Summary\n- 2-3 Sätze Kernaussage\n- Wichtigste Erkenntnis\n\n#### 2. Haupterkenntnisse\n- Nummerierte Liste der wichtigsten Findings\n- Jeweils mit Quellenangabe\n\n#### 3. Detailanalyse\n- Thematisch gegliederte Abschnitte\n- Jeder Abschnitt mit Belegen aus den Dokumenten\n\n#### 4. Verbindungen und Zusammenhänge\n- Erkenntnisse aus der Graph-Analyse\n- Wie hängen die gefundenen Informationen zusammen?\n\n#### 5. Fazit und Empfehlungen\n- Zusammenfassung der Analyse\n- Konkrete nächste Schritte oder Empfehlungen\n\n## Qualitätskriterien\n- Mindestens 3 verschiedene Suchläufe durchführen\n- Mindestens 1 Graph-Query\n- Jede Aussage mit Quelle belegen\n- Widersprüche klar benennen\n- Lücken in der Datenlage aufzeigen\n\n## Bei 'schnell' (wenn User Eile hat)\n- Phase 1: Nur 1-2 Suchläufe\n- Phase 2: Optional\n- Phase 3: Nur Executive Summary + Haupterkenntnisse"
+  }
+}

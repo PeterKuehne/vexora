@@ -57,3 +57,6 @@ export type { RAGContextType } from './RAGContext';
 
 export { AgentProvider, useAgent } from './AgentContext';
 export type { AgentTask, AgentStep, AgentTaskStatus } from './AgentContext';
+
+export { SkillProvider, useSkill } from './SkillContext';
+export type { Skill, SkillDefinition, SkillScope } from './SkillContext';

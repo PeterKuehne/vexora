@@ -9,6 +9,8 @@ import { readChunkTool } from './read-chunk.js';
 import { sqlQueryTool } from './sql-query.js';
 import { createDocumentTool } from './create-document.js';
 import { sendNotificationTool } from './send-notification.js';
+import { listSkillsTool } from './list-skills.js';
+import { loadSkillTool } from './load-skill.js';
 
 /**
  * Register all built-in tools with the ToolRegistry
@@ -20,6 +22,8 @@ export function registerBuiltinTools(): void {
   toolRegistry.register(sqlQueryTool);
   toolRegistry.register(createDocumentTool);
   toolRegistry.register(sendNotificationTool);
+  toolRegistry.register(listSkillsTool);
+  toolRegistry.register(loadSkillTool);
 
   console.log(`[AgentSystem] ${toolRegistry.size} built-in tools registered`);
 }

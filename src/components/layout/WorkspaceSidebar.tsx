@@ -20,6 +20,8 @@ interface WorkspaceSidebarProps {
   chatSidebar?: ReactNode;
   /** Content for the tasks section sidebar */
   tasksSidebar?: ReactNode;
+  /** Content for the skills section sidebar */
+  skillsSidebar?: ReactNode;
   /** Whether the sidebar is collapsed */
   isCollapsed?: boolean;
 }
@@ -28,6 +30,7 @@ export function WorkspaceSidebar({
   activeSection,
   chatSidebar,
   tasksSidebar,
+  skillsSidebar,
   isCollapsed = false,
 }: WorkspaceSidebarProps) {
   const { isDark } = useTheme();
@@ -42,6 +45,7 @@ export function WorkspaceSidebar({
       case 'tasks':
         return tasksSidebar || null;
       case 'skills':
+        return skillsSidebar || null;
       case 'knowledge':
         return (
           <div className="flex items-center justify-center h-full">
@@ -60,6 +64,8 @@ export function WorkspaceSidebar({
     <div
       className={`
         w-[280px] shrink-0 flex flex-col h-full overflow-hidden
+        border-r
+        ${isDark ? 'border-white/[0.06]' : 'border-gray-200'}
       `}
     >
       {renderContent()}
