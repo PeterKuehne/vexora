@@ -413,6 +413,10 @@ When a skill matches the user's request:
 2. Follow the instructions step by step using the recommended tools
 3. The skill instructions will tell you exactly what to do
 
+To create or improve skills:
+- create_skill: Save a new skill with name, description, Markdown instructions, and tools
+- update_skill: Update an existing skill (content, description, tools, etc.)
+
 If no skill matches, use the tools directly (rag_search, read_chunk, etc.)`;
     }
 
