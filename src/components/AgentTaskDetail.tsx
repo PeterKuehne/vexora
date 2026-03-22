@@ -315,7 +315,7 @@ export function AgentTaskDetail() {
               Agent Task starten
             </h3>
             <p className="text-sm leading-relaxed">
-              Der Agent durchsucht deine Dokumente, nutzt die Wissensdatenbank und kann mehrstufige Aufgaben ausfuehren.
+              Der Agent durchsucht deine Dokumente, nutzt Skills und kann mehrstufige Aufgaben ausführen.
             </p>
           </div>
         </div>
@@ -415,14 +415,6 @@ export function AgentTaskDetail() {
         </div>
       </div>
 
-      {/* Bottom input */}
-      {isTerminal && (
-        <div className={cn('shrink-0 border-t', isDark ? 'border-white/[0.06]' : 'border-gray-200/80')}>
-          <div className="p-4 max-w-4xl mx-auto w-full">
-            <ChatInput onSend={handleSend} placeholder="Neuen Agent-Task starten..." />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

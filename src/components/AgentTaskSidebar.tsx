@@ -6,7 +6,7 @@
 
 import { useAgent, type AgentTaskStatus } from '../contexts/AgentContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Bot, CheckCircle2, XCircle, Loader2, Ban, Clock } from 'lucide-react';
+import { Bot, CheckCircle2, XCircle, Loader2, Ban, Clock, Plus } from 'lucide-react';
 
 const STATUS_CONFIG: Record<AgentTaskStatus, {
   label: string;
@@ -52,9 +52,16 @@ export function AgentTaskSidebar() {
               Agent Tasks
             </span>
           </div>
-          <span className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
-            {tasks.length}
-          </span>
+          <button
+            onClick={() => setActiveTaskId(null)}
+            title="Neuer Task"
+            className={`
+              p-1 rounded-md transition-colors
+              ${isDark ? 'text-white/40 hover:text-white/70 hover:bg-white/[0.05]' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}
+            `}
+          >
+            <Plus size={16} />
+          </button>
         </div>
       </div>
 
