@@ -1,13 +1,13 @@
 /**
- * AgentExecutor - Multi-step agent using Vercel AI SDK 6
+ * AgentExecutor - Multi-turn agent conversations using Vercel AI SDK 6
  *
- * Replaces the manual ReAct loop with AI SDK's native `generateText` + `maxSteps`.
- * Keeps: cancellation, DB persistence, system prompt building, SSE event types.
- * Removes: EventEmitter, manual tool-format switching, nudging logic.
+ * Supports multi-turn conversations: execute() starts a new task,
+ * continueTask() handles follow-up messages with full conversation history.
+ * Each turn runs generateText() with tools and persists messages + steps to DB.
  */
 
 import { generateText, stepCountIs, type StepResult } from 'ai';
-import { resolveModel, getProviderOptions, parseModelString } from './ai-provider.js';
+import { resolveModel, getProviderOptions } from './ai-provider.js';
 import { toolRegistry } from './ToolRegistry.js';
 import { agentPersistence } from './AgentPersistence.js';
 import type {
@@ -20,7 +20,6 @@ import { DEFAULT_AGENT_CONFIG as defaultConfig } from './types.js';
 
 /**
  * Callback type for SSE event emission.
- * Set by the route handler before calling execute().
  */
 export type SSEEmitter = (event: AgentSSEEvent) => void;
 
@@ -33,7 +32,7 @@ export class AgentExecutor {
   }
 
   /**
-   * Execute an agent task using AI SDK generateText with maxSteps
+   * Start a new agent task (first turn)
    */
   async execute(
     query: string,
@@ -65,24 +64,99 @@ export class AgentExecutor {
       data: { taskId: task.id },
     });
 
-    let stepNumber = 0;
+    // Save first user message
+    await agentPersistence.createMessage(task.id, 1, 'user', query);
+
+    // Run the turn
+    return this.runTurn(task, model, 1, emitSSE, signal, context, options);
+  }
+
+  /**
+   * Continue an existing task with a follow-up message
+   */
+  async continueTask(
+    taskId: string,
+    userMessage: string,
+    context: AgentUserContext,
+    options?: {
+      emitSSE?: SSEEmitter;
+    }
+  ): Promise<AgentTask> {
+    const emitSSE = options?.emitSSE || (() => {});
+
+    // Verify task exists and is awaiting input
+    const task = await agentPersistence.getTaskById(taskId);
+    if (!task) {
+      throw new Error(`Task ${taskId} nicht gefunden`);
+    }
+    if (task.status !== 'awaiting_input') {
+      throw new Error(`Task ${taskId} erwartet keine Eingabe (Status: ${task.status})`);
+    }
+    if (this.activeControllers.has(taskId)) {
+      throw new Error(`Task ${taskId} läuft bereits`);
+    }
+
+    const abortController = new AbortController();
+    this.activeControllers.set(taskId, abortController);
+
+    // Determine next turn
+    const currentTurn = await agentPersistence.getMaxTurnNumber(taskId);
+    const nextTurn = currentTurn + 1;
+
+    console.log(`[AgentExecutor] Continuing task ${taskId}, turn ${nextTurn}: "${userMessage.substring(0, 80)}..."`);
+
+    // Save user message
+    await agentPersistence.createMessage(taskId, nextTurn, 'user', userMessage);
+
+    emitSSE({
+      event: 'task:start',
+      data: { taskId },
+    });
+
+    // Run the turn
+    return this.runTurn(task, task.model, nextTurn, emitSSE, abortController.signal, context);
+  }
+
+  /**
+   * Core turn execution — shared by execute() and continueTask()
+   */
+  private async runTurn(
+    task: AgentTask,
+    model: string,
+    turnNumber: number,
+    emitSSE: SSEEmitter,
+    signal: AbortSignal,
+    context: AgentUserContext,
+    options?: {
+      systemPrompt?: string;
+      allowedTools?: string[];
+    }
+  ): Promise<AgentTask> {
+    let stepNumber = task.totalSteps; // Continue step numbering across turns
 
     try {
       await agentPersistence.updateTaskStatus(task.id, 'running');
 
-      // Build tools in AI SDK format
+      // Build tools
       const tools = toolRegistry.getAISDKTools(context, options?.allowedTools);
       const toolNames = Object.keys(tools);
 
       // Build system prompt
       const systemPrompt = options?.systemPrompt || await this.buildSystemPrompt(toolNames, context);
 
+      // Build message history from all previous messages
+      const allMessages = await agentPersistence.getMessages(task.id);
+      const messages = allMessages.map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
+
       const stepStartTimes: Map<number, number> = new Map();
 
       const result = await generateText({
         model: resolveModel(model),
         system: systemPrompt,
-        prompt: query,
+        messages,
         tools,
         stopWhen: stepCountIs(this.config.maxIterations),
         abortSignal: signal,
@@ -95,9 +169,8 @@ export class AgentExecutor {
           const stepStart = stepStartTimes.get(stepNumber) || Date.now();
           const durationMs = Date.now() - stepStart;
 
-          console.log(`[AgentExecutor] Step ${stepNumber}: toolCalls=${step.toolCalls?.length || 0}, text=${(step.text || '').substring(0, 100) || '(empty)'}`);
+          console.log(`[AgentExecutor] Turn ${turnNumber}, Step ${stepNumber}: toolCalls=${step.toolCalls?.length || 0}, text=${(step.text || '').substring(0, 100) || '(empty)'}`);
 
-          // Emit step:start
           emitSSE({
             event: 'step:start',
             data: { taskId: task.id, stepNumber },
@@ -108,7 +181,6 @@ export class AgentExecutor {
               const tc = step.toolCalls[i]!;
               const tr = step.toolResults?.[i];
 
-              // Emit tool_start
               emitSSE({
                 event: 'step:tool_start',
                 data: {
@@ -127,10 +199,10 @@ export class AgentExecutor {
                 ? toolOutput.substring(0, this.config.maxToolOutputLength) + '\n\n(Ausgabe gekürzt...)'
                 : toolOutput;
 
-              // Persist step
               await agentPersistence.createStep({
                 taskId: task.id,
                 stepNumber,
+                turnNumber,
                 thought: step.text || undefined,
                 toolName: tc.toolName,
                 toolInput: tc.input as Record<string, unknown>,
@@ -139,7 +211,6 @@ export class AgentExecutor {
                 durationMs,
               });
 
-              // Emit tool_complete
               emitSSE({
                 event: 'step:tool_complete',
                 data: {
@@ -153,11 +224,7 @@ export class AgentExecutor {
               });
             }
           }
-          // Final answer step (no tool calls, only text) is NOT persisted as a
-          // separate step — the text is already stored as task.result.answer
-          // to avoid duplication in the UI.
 
-          // Emit step:complete
           emitSSE({
             event: 'step:complete',
             data: {
@@ -168,22 +235,23 @@ export class AgentExecutor {
             },
           });
 
-          // Track start time for next step
           stepStartTimes.set(stepNumber + 1, Date.now());
         },
       });
 
-      // Calculate totals from result
-      const finalAnswer = result.text || 'Maximale Anzahl an Schritten erreicht.';
-      const totalInputTokens = result.usage?.inputTokens || 0;
-      const totalOutputTokens = result.usage?.outputTokens || 0;
+      const finalAnswer = result.text || '';
+      const turnInputTokens = result.usage?.inputTokens || 0;
+      const turnOutputTokens = result.usage?.outputTokens || 0;
 
-      // Complete task
-      await agentPersistence.updateTaskStatus(task.id, 'completed', {
+      // Save assistant message
+      await agentPersistence.createMessage(task.id, turnNumber, 'assistant', finalAnswer);
+
+      // Set status to awaiting_input (conversation continues)
+      await agentPersistence.updateTaskStatus(task.id, 'awaiting_input', {
         result: { answer: finalAnswer },
         totalSteps: stepNumber,
-        inputTokens: totalInputTokens,
-        outputTokens: totalOutputTokens,
+        inputTokens: turnInputTokens,
+        outputTokens: turnOutputTokens,
       });
 
       emitSSE({
@@ -192,24 +260,25 @@ export class AgentExecutor {
           taskId: task.id,
           result: finalAnswer,
           totalSteps: stepNumber,
-          inputTokens: totalInputTokens,
-          outputTokens: totalOutputTokens,
+          inputTokens: turnInputTokens,
+          outputTokens: turnOutputTokens,
+          nextStatus: 'awaiting_input',
+          turnNumber,
         },
       });
 
       this.activeControllers.delete(task.id);
       return {
         ...task,
-        status: 'completed',
+        status: 'awaiting_input',
         result: { answer: finalAnswer },
         totalSteps: stepNumber,
-        inputTokens: totalInputTokens,
-        outputTokens: totalOutputTokens,
+        inputTokens: task.inputTokens + turnInputTokens,
+        outputTokens: task.outputTokens + turnOutputTokens,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      // Check if this was a cancellation
       if (signal.aborted) {
         await agentPersistence.updateTaskStatus(task.id, 'cancelled', {
           totalSteps: stepNumber,
@@ -233,6 +302,13 @@ export class AgentExecutor {
       this.activeControllers.delete(task.id);
       return { ...task, status: 'failed', error: errorMessage };
     }
+  }
+
+  /**
+   * Complete a task (end the conversation)
+   */
+  async completeTask(taskId: string): Promise<void> {
+    await agentPersistence.updateTaskStatus(taskId, 'completed');
   }
 
   /**
@@ -264,14 +340,12 @@ export class AgentExecutor {
 
   /**
    * Build the system prompt with available tools and skill descriptions
-   *
-   * Progressive Disclosure Level 1: Skill names + descriptions are always
-   * injected so the agent knows what's available without calling list_skills.
    */
   private async buildSystemPrompt(toolNames: string[], context: AgentUserContext): Promise<string> {
     const hasSkills = toolNames.includes('load_skill');
 
     let prompt = `You are an agent with access to tools. You MUST use the tools to answer questions.
+This is a multi-turn conversation. The user can send follow-up messages after you respond.
 
 Available tools: ${toolNames.join(', ')}
 
@@ -284,7 +358,6 @@ CRITICAL RULES:
 - Answer in German (Deutsch)`;
 
     if (hasSkills) {
-      // Progressive Disclosure Level 1: inject skill descriptions
       let skillSummary = '';
       try {
         const { skillRegistry } = await import('../skills/SkillRegistry.js');
@@ -298,7 +371,7 @@ CRITICAL RULES:
             .join('\n');
         }
       } catch {
-        // Skills not available yet (e.g., table not created)
+        // Skills not available yet
       }
 
       prompt += `

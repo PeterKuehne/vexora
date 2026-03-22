@@ -1,8 +1,8 @@
 /**
- * Agent Routes - API endpoints for the Agent Framework
+ * Agent Routes - API endpoints for multi-turn agent conversations
  *
  * SSE streaming for real-time step updates, task management, cancellation.
- * Migrated to use direct SSE emission via callback (no EventEmitter).
+ * Supports multi-turn: POST /run starts, POST /tasks/:id/message continues.
  */
 
 import { Router, type Request, type Response } from 'express';
@@ -27,10 +27,58 @@ function getUserContext(req: AuthenticatedRequest): AgentUserContext {
 }
 
 /**
- * POST /api/agents/run - Start an agent task, returns SSE stream
- *
- * NOT wrapped in asyncHandler because this is a long-lived SSE connection.
- * We manage the response lifecycle manually.
+ * Helper: Set up SSE response with keepalive and cleanup
+ */
+function setupSSE(res: Response): {
+  emitSSE: (event: AgentSSEEvent) => void;
+  cleanup: () => void;
+  isDisconnected: () => boolean;
+} {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  let clientDisconnected = false;
+
+  const keepAliveInterval = setInterval(() => {
+    if (!clientDisconnected) {
+      res.write(`event: keepalive\ndata: {}\n\n`);
+    }
+  }, 15000);
+
+  const cleanup = () => {
+    clearInterval(keepAliveInterval);
+  };
+
+  res.on('close', () => {
+    clientDisconnected = true;
+    cleanup();
+  });
+
+  const emitSSE = (event: AgentSSEEvent) => {
+    if (clientDisconnected) return;
+
+    res.write(`event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`);
+
+    if (
+      event.event === 'task:complete' ||
+      event.event === 'task:error' ||
+      event.event === 'task:cancelled'
+    ) {
+      cleanup();
+      if (!clientDisconnected) {
+        res.end();
+      }
+    }
+  };
+
+  return { emitSSE, cleanup, isDisconnected: () => clientDisconnected };
+}
+
+/**
+ * POST /api/agents/run - Start a new agent conversation (first turn)
  */
 router.post('/run', authenticateToken, (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
@@ -49,71 +97,75 @@ router.post('/run', authenticateToken, (req: Request, res: Response) => {
     return;
   }
 
-  // Set up SSE
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders();
+  const { emitSSE, cleanup, isDisconnected } = setupSSE(res);
 
-  let clientDisconnected = false;
-
-  // SSE keepalive every 15 seconds
-  const keepAliveInterval = setInterval(() => {
-    if (!clientDisconnected) {
-      res.write(`event: keepalive\ndata: {}\n\n`);
-    }
-  }, 15000);
-
-  const cleanup = () => {
-    clearInterval(keepAliveInterval);
-  };
-
-  // Handle client disconnect
-  res.on('close', () => {
-    clientDisconnected = true;
-    cleanup();
-  });
-
-  // SSE emitter callback — passed to AgentExecutor
-  const emitSSE = (event: AgentSSEEvent) => {
-    if (clientDisconnected) return;
-
-    res.write(`event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`);
-
-    // Close stream on terminal events
-    if (
-      event.event === 'task:complete' ||
-      event.event === 'task:error' ||
-      event.event === 'task:cancelled'
-    ) {
-      cleanup();
-      if (!clientDisconnected) {
-        res.end();
-      }
-    }
-  };
-
-  // Determine effective model - fall back to Ollama if no Anthropic key
   const effectiveModel = model || (
     process.env.ANTHROPIC_API_KEY
       ? 'anthropic:claude-sonnet-4-6'
       : process.env.OLLAMA_DEFAULT_MODEL || 'qwen3:8b'
   );
 
-  // Execute the agent task (fire-and-forget, events come via SSE callback)
   agentExecutor.execute(query.trim(), context, {
     model: effectiveModel,
     conversationId,
     emitSSE,
   }).catch(error => {
     console.error('[AgentRoute] Execution error:', error);
-    if (!clientDisconnected) {
+    if (!isDisconnected()) {
       res.write(`event: task:error\ndata: ${JSON.stringify({ error: String(error) })}\n\n`);
       cleanup();
       res.end();
     }
   });
+});
+
+/**
+ * POST /api/agents/tasks/:id/message - Send a follow-up message (continue conversation)
+ */
+router.post('/tasks/:id/message', authenticateToken, (req: Request, res: Response) => {
+  const authReq = req as AuthenticatedRequest;
+  const taskId = req.params.id!;
+  const { message } = req.body;
+
+  if (!message || typeof message !== 'string' || message.trim().length === 0) {
+    res.status(400).json({ error: 'message ist erforderlich' });
+    return;
+  }
+
+  let context: AgentUserContext;
+  try {
+    context = getUserContext(authReq);
+  } catch {
+    res.status(401).json({ error: 'Nicht authentifiziert' });
+    return;
+  }
+
+  const { emitSSE, cleanup, isDisconnected } = setupSSE(res);
+
+  agentExecutor.continueTask(taskId, message.trim(), context, {
+    emitSSE,
+  }).catch(error => {
+    console.error('[AgentRoute] Continue error:', error);
+    if (!isDisconnected()) {
+      res.write(`event: task:error\ndata: ${JSON.stringify({ error: String(error) })}\n\n`);
+      cleanup();
+      res.end();
+    }
+  });
+});
+
+/**
+ * POST /api/agents/tasks/:id/complete - End the conversation
+ */
+router.post('/tasks/:id/complete', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const taskId = req.params.id!;
+    await agentExecutor.completeTask(taskId);
+    res.json({ status: 'completed', taskId });
+  } catch (error) {
+    console.error('[AgentRoute] Complete error:', error);
+    res.status(500).json({ error: 'Fehler beim Abschließen' });
+  }
 });
 
 /**
@@ -146,7 +198,7 @@ router.get('/tasks', authenticateToken, async (req: Request, res: Response) => {
 });
 
 /**
- * GET /api/agents/tasks/:id - Get task details with all steps
+ * GET /api/agents/tasks/:id - Get task details with steps and messages
  */
 router.get('/tasks/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
@@ -186,27 +238,19 @@ router.post('/tasks/:id/cancel', authenticateToken, async (req: Request, res: Re
 });
 
 /**
- * GET /api/agents/tasks/:id/stream - Reconnect stream for a running task
- *
- * If the task is still running, we can't replay the live stream (no EventEmitter).
- * Instead, return the task data so the frontend can poll or reconnect.
- * If the task is finished, return task + steps as JSON.
+ * GET /api/agents/tasks/:id/stream - Get task data (for reconnect/polling)
  */
 router.get('/tasks/:id/stream', authenticateToken, async (req: Request, res: Response) => {
-  const authReq = req as AuthenticatedRequest;
-  const taskId = req.params.id!;
-
   try {
+    const authReq = req as AuthenticatedRequest;
     const context = getUserContext(authReq);
-    const result = await agentPersistence.getTaskWithSteps(context, taskId);
+    const result = await agentPersistence.getTaskWithSteps(context, req.params.id!);
 
     if (!result) {
       res.status(404).json({ error: 'Task nicht gefunden' });
       return;
     }
 
-    // Always return task data — frontend handles display
-    // For running tasks, the frontend can poll this endpoint
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: 'Fehler' });

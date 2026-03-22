@@ -18,6 +18,7 @@ export type {
   AgentTaskStatus,
   ToolResult,
   ToolCall,
+  AgentMessage,
 } from './types.js';
 
 import { registerBuiltinTools } from './tools/index.js';

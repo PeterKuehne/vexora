@@ -1,8 +1,8 @@
 /**
- * AgentContext - State management for Agent Tasks
+ * AgentContext - State management for multi-turn Agent Conversations
  *
  * Manages task state, SSE streaming, and provides
- * startTask(), cancelTask() actions.
+ * startTask(), sendMessage(), cancelTask(), completeTask() actions.
  */
 
 import {
@@ -21,18 +21,25 @@ import { env } from '../lib/env';
 // Types
 // ============================================
 
-export type AgentTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type AgentTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'awaiting_input';
 
 export type StepStatus = 'thinking' | 'tool_running' | 'complete';
 
 export interface AgentStep {
   stepNumber: number;
+  turnNumber?: number;
   status: StepStatus;
   thought?: string;
   toolName?: string;
   toolInput?: Record<string, unknown>;
   toolOutput?: string;
   duration?: number;
+}
+
+export interface AgentMessage {
+  turnNumber: number;
+  role: 'user' | 'assistant';
+  content: string;
 }
 
 export interface AgentTask {
@@ -46,6 +53,7 @@ export interface AgentTask {
   inputTokens: number;
   outputTokens: number;
   steps: AgentStep[];
+  messages: AgentMessage[];
   createdAt: string;
   completedAt?: string;
 }
@@ -55,7 +63,9 @@ interface AgentContextValue {
   activeTaskId: string | null;
   isLoading: boolean;
   startTask: (query: string, model?: string, conversationId?: string) => Promise<string | null>;
+  sendMessage: (taskId: string, message: string) => Promise<void>;
   cancelTask: (taskId: string) => Promise<void>;
+  completeTask: (taskId: string) => Promise<void>;
   loadTasks: () => Promise<void>;
   getTaskDetail: (taskId: string) => Promise<AgentTask | null>;
   setActiveTaskId: (id: string | null) => void;
@@ -82,6 +92,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       setTasks(data.tasks.map((t: any) => ({
         ...t,
         steps: [],
+        messages: [],
         createdAt: t.createdAt || t.created_at,
         completedAt: t.completedAt || t.completed_at,
       })));
@@ -92,7 +103,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Get task detail with steps
+  // Get task detail with steps and messages
   const getTaskDetail = useCallback(async (taskId: string): Promise<AgentTask | null> => {
     if (taskId.startsWith('temp-')) return null;
     try {
@@ -100,8 +111,9 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
       const task: AgentTask = {
         ...data.task,
-        steps: data.steps.map((s: any) => ({
+        steps: (data.steps || []).map((s: any) => ({
           stepNumber: s.step_number || s.stepNumber,
+          turnNumber: s.turn_number || s.turnNumber || 1,
           status: 'complete' as const,
           thought: s.thought,
           toolName: s.tool_name || s.toolName,
@@ -109,11 +121,15 @@ export function AgentProvider({ children }: { children: ReactNode }) {
           toolOutput: s.tool_output || s.toolOutput,
           duration: s.duration_ms || s.durationMs,
         })),
+        messages: (data.messages || []).map((m: any) => ({
+          turnNumber: m.turn_number || m.turnNumber,
+          role: m.role,
+          content: m.content,
+        })),
         createdAt: data.task.createdAt || data.task.created_at,
         completedAt: data.task.completedAt || data.task.completed_at,
       };
 
-      // Update in local state
       setTasks(prev => prev.map(t => t.id === taskId ? task : t));
       return task;
     } catch (error) {
@@ -122,7 +138,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Handle incoming SSE events - updates task state
+  // Handle incoming SSE events
   const handleSSEEvent = useCallback((event: string, data: any, localTaskId: string) => {
     const taskId = data.taskId || localTaskId;
 
@@ -143,7 +159,6 @@ export function AgentProvider({ children }: { children: ReactNode }) {
           return { ...task, id: data.taskId || task.id, status: 'running' as const };
 
         case 'step:start':
-          // Agent starts thinking for this step
           return {
             ...task,
             status: 'running' as const,
@@ -151,14 +166,12 @@ export function AgentProvider({ children }: { children: ReactNode }) {
           };
 
         case 'step:thinking':
-          // Agent produced a thought
           return {
             ...task,
             steps: upsertStep({ stepNumber: data.stepNumber, status: 'thinking', thought: data.thought }),
           };
 
         case 'step:tool_start':
-          // Agent is calling a tool
           return {
             ...task,
             steps: upsertStep({
@@ -170,7 +183,6 @@ export function AgentProvider({ children }: { children: ReactNode }) {
           };
 
         case 'step:tool_complete':
-          // Tool finished
           return {
             ...task,
             steps: upsertStep({
@@ -195,16 +207,30 @@ export function AgentProvider({ children }: { children: ReactNode }) {
             }),
           };
 
-        case 'task:complete':
+        case 'task:complete': {
+          const nextStatus = (data.nextStatus || 'completed') as AgentTaskStatus;
+          const newMessages = [...task.messages];
+
+          // Add assistant message for this turn
+          if (data.result && data.turnNumber) {
+            newMessages.push({
+              turnNumber: data.turnNumber,
+              role: 'assistant',
+              content: data.result,
+            });
+          }
+
           return {
             ...task,
-            status: 'completed' as const,
+            status: nextStatus,
             result: data.result ? { answer: data.result } : task.result,
             totalSteps: data.totalSteps || task.totalSteps,
-            inputTokens: data.inputTokens || task.inputTokens,
-            outputTokens: data.outputTokens || task.outputTokens,
-            completedAt: new Date().toISOString(),
+            inputTokens: (data.inputTokens || 0) + task.inputTokens,
+            outputTokens: (data.outputTokens || 0) + task.outputTokens,
+            messages: newMessages,
+            completedAt: nextStatus === 'completed' ? new Date().toISOString() : task.completedAt,
           };
+        }
 
         case 'task:error':
           return {
@@ -227,13 +253,78 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  // Start a new agent task
+  /**
+   * Process an SSE stream from the server
+   */
+  const processSSEStream = useCallback(async (
+    response: globalThis.Response,
+    taskId: string,
+  ) => {
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+    activeReaderRef.current = reader;
+
+    const decoder = new TextDecoder();
+    let realTaskId: string | null = null;
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        let currentEvent = '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.substring(7).trim();
+          } else if (line.startsWith('data: ') && currentEvent) {
+            if (currentEvent === 'keepalive') {
+              currentEvent = '';
+              continue;
+            }
+            try {
+              const data = JSON.parse(line.substring(6));
+
+              if (data.taskId && !realTaskId) {
+                realTaskId = data.taskId;
+                setTasks(prev => prev.map(t =>
+                  t.id === taskId ? { ...t, id: realTaskId! } : t
+                ));
+                setActiveTaskId(realTaskId);
+              }
+
+              handleSSEEvent(currentEvent, data, realTaskId || taskId);
+            } catch {
+              // Skip invalid JSON
+            }
+            currentEvent = '';
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[AgentContext] SSE stream error:', error);
+      setTasks(prev => prev.map(t =>
+        (t.id === taskId || t.id === realTaskId)
+          ? { ...t, status: 'failed' as const, error: String(error) }
+          : t
+      ));
+    } finally {
+      if (activeReaderRef.current === reader) {
+        activeReaderRef.current = null;
+      }
+    }
+  }, [handleSSEEvent]);
+
+  // Start a new agent task (first turn)
   const startTask = useCallback(async (
     query: string,
     model?: string,
     conversationId?: string
   ): Promise<string | null> => {
-    // Create a placeholder task
     const tempId = `temp-${Date.now()}`;
     const newTask: AgentTask = {
       id: tempId,
@@ -244,6 +335,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       inputTokens: 0,
       outputTokens: 0,
       steps: [],
+      messages: [{ turnNumber: 1, role: 'user', content: query }],
       createdAt: new Date().toISOString(),
     };
 
@@ -251,19 +343,15 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     setActiveTaskId(tempId);
 
     try {
-      // Cancel any previous stream
       if (activeReaderRef.current) {
         activeReaderRef.current.cancel().catch(() => {});
         activeReaderRef.current = null;
       }
 
-      // Start SSE stream via fetch (POST with body, cookies for auth)
       const response = await fetch(`${env.API_URL}/api/agents/run`, {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, model, conversationId }),
       });
 
@@ -272,68 +360,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
         throw new Error(`Agent request failed (${response.status}): ${errText}`);
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response body');
-      activeReaderRef.current = reader;
-
-      const decoder = new TextDecoder();
-      let realTaskId: string | null = null;
-      let buffer = '';
-
-      // Process SSE stream (runs async in background)
-      (async () => {
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || '';
-
-            let currentEvent = '';
-            for (const line of lines) {
-              if (line.startsWith('event: ')) {
-                currentEvent = line.substring(7).trim();
-              } else if (line.startsWith('data: ') && currentEvent) {
-                if (currentEvent === 'keepalive') {
-                  currentEvent = '';
-                  continue;
-                }
-                try {
-                  const data = JSON.parse(line.substring(6));
-
-                  // Capture real task ID from first event
-                  if (data.taskId && !realTaskId) {
-                    realTaskId = data.taskId;
-                    setTasks(prev => prev.map(t =>
-                      t.id === tempId ? { ...t, id: realTaskId! } : t
-                    ));
-                    setActiveTaskId(realTaskId);
-                  }
-
-                  handleSSEEvent(currentEvent, data, realTaskId || tempId);
-                } catch {
-                  // Skip invalid JSON
-                }
-                currentEvent = '';
-              }
-            }
-          }
-        } catch (error) {
-          console.error('[AgentContext] SSE stream error:', error);
-          setTasks(prev => prev.map(t =>
-            (t.id === tempId || t.id === realTaskId)
-              ? { ...t, status: 'failed' as const, error: String(error) }
-              : t
-          ));
-        } finally {
-          if (activeReaderRef.current === reader) {
-            activeReaderRef.current = null;
-          }
-        }
-      })();
-
+      processSSEStream(response, tempId);
       return tempId;
     } catch (error) {
       console.error('[AgentContext] Failed to start task:', error);
@@ -344,7 +371,61 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       ));
       return null;
     }
-  }, [handleSSEEvent]);
+  }, [processSSEStream]);
+
+  // Send a follow-up message (continue conversation)
+  const sendMessage = useCallback(async (taskId: string, message: string) => {
+    // Optimistically add user message
+    setTasks(prev => prev.map(t => {
+      if (t.id !== taskId) return t;
+      const maxTurn = Math.max(0, ...t.messages.map(m => m.turnNumber));
+      return {
+        ...t,
+        status: 'running' as AgentTaskStatus,
+        messages: [...t.messages, { turnNumber: maxTurn + 1, role: 'user' as const, content: message }],
+      };
+    }));
+
+    try {
+      if (activeReaderRef.current) {
+        activeReaderRef.current.cancel().catch(() => {});
+        activeReaderRef.current = null;
+      }
+
+      const response = await fetch(`${env.API_URL}/api/agents/tasks/${taskId}/message`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => 'Unknown error');
+        throw new Error(`Message failed (${response.status}): ${errText}`);
+      }
+
+      processSSEStream(response, taskId);
+    } catch (error) {
+      console.error('[AgentContext] Failed to send message:', error);
+      setTasks(prev => prev.map(t =>
+        t.id === taskId
+          ? { ...t, status: 'failed' as const, error: error instanceof Error ? error.message : String(error) }
+          : t
+      ));
+    }
+  }, [processSSEStream]);
+
+  // Complete a task (end conversation)
+  const completeTask = useCallback(async (taskId: string) => {
+    try {
+      await httpClient.post(`${env.API_URL}/api/agents/tasks/${taskId}/complete`, {});
+      setTasks(prev => prev.map(t =>
+        t.id === taskId ? { ...t, status: 'completed' as const, completedAt: new Date().toISOString() } : t
+      ));
+    } catch (error) {
+      console.error('[AgentContext] Failed to complete task:', error);
+    }
+  }, []);
 
   // Cancel a running task
   const cancelTask = useCallback(async (taskId: string) => {
@@ -358,16 +439,9 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Load tasks on mount
+  useEffect(() => { loadTasks(); }, [loadTasks]);
   useEffect(() => {
-    loadTasks();
-  }, [loadTasks]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      activeReaderRef.current?.cancel().catch(() => {});
-    };
+    return () => { activeReaderRef.current?.cancel().catch(() => {}); };
   }, []);
 
   return (
@@ -377,7 +451,9 @@ export function AgentProvider({ children }: { children: ReactNode }) {
         activeTaskId,
         isLoading,
         startTask,
+        sendMessage,
         cancelTask,
+        completeTask,
         loadTasks,
         getTaskDetail,
         setActiveTaskId,

@@ -89,7 +89,7 @@ export interface ToolCall {
 // Agent Task & Step (DB models)
 // ============================================
 
-export type AgentTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type AgentTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'awaiting_input';
 
 export interface AgentTask {
   id: string;
@@ -116,12 +116,22 @@ export interface AgentStep {
   id: string;
   taskId: string;
   stepNumber: number;
+  turnNumber: number;
   thought?: string;
   toolName?: string;
   toolInput?: Record<string, unknown>;
   toolOutput?: string;
   tokensUsed: number;
   durationMs: number;
+  createdAt: Date;
+}
+
+export interface AgentMessage {
+  id: string;
+  taskId: string;
+  turnNumber: number;
+  role: 'user' | 'assistant';
+  content: string;
   createdAt: Date;
 }
 
@@ -156,6 +166,9 @@ export interface AgentSSEEvent {
     error?: string;
     inputTokens?: number;
     outputTokens?: number;
+    /** For task:complete — tells frontend if agent awaits more input */
+    nextStatus?: 'awaiting_input' | 'completed';
+    turnNumber?: number;
   };
 }
 

@@ -1,9 +1,9 @@
 /**
- * AgentPersistence - CRUD for agent_tasks and agent_steps with RLS
+ * AgentPersistence - CRUD for agent_tasks, agent_steps, and agent_messages with RLS
  */
 
 import { databaseService } from '../DatabaseService.js';
-import type { AgentTask, AgentStep, AgentTaskStatus, AgentUserContext } from './types.js';
+import type { AgentTask, AgentStep, AgentMessage, AgentTaskStatus, AgentUserContext } from './types.js';
 
 function mapTask(row: any): AgentTask {
   return {
@@ -30,12 +30,24 @@ function mapStep(row: any): AgentStep {
     id: row.id,
     taskId: row.task_id,
     stepNumber: row.step_number,
+    turnNumber: row.turn_number ?? 1,
     thought: row.thought,
     toolName: row.tool_name,
     toolInput: row.tool_input,
     toolOutput: row.tool_output,
     tokensUsed: row.tokens_used,
     durationMs: row.duration_ms,
+    createdAt: row.created_at,
+  };
+}
+
+function mapMessage(row: any): AgentMessage {
+  return {
+    id: row.id,
+    taskId: row.task_id,
+    turnNumber: row.turn_number,
+    role: row.role,
+    content: row.content,
     createdAt: row.created_at,
   };
 }
@@ -98,12 +110,12 @@ export class AgentPersistence {
       paramIdx++;
     }
     if (extra?.inputTokens !== undefined) {
-      sets.push(`input_tokens = $${paramIdx}`);
+      sets.push(`input_tokens = input_tokens + $${paramIdx}`);
       values.push(extra.inputTokens);
       paramIdx++;
     }
     if (extra?.outputTokens !== undefined) {
-      sets.push(`output_tokens = $${paramIdx}`);
+      sets.push(`output_tokens = output_tokens + $${paramIdx}`);
       values.push(extra.outputTokens);
       paramIdx++;
     }
@@ -119,12 +131,13 @@ export class AgentPersistence {
    */
   async createStep(step: Omit<AgentStep, 'id' | 'createdAt'>): Promise<AgentStep> {
     const result = await databaseService.query(
-      `INSERT INTO agent_steps (task_id, step_number, thought, tool_name, tool_input, tool_output, tokens_used, duration_ms)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO agent_steps (task_id, step_number, turn_number, thought, tool_name, tool_input, tool_output, tokens_used, duration_ms)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
         step.taskId,
         step.stepNumber,
+        step.turnNumber,
         step.thought || null,
         step.toolName || null,
         step.toolInput ? JSON.stringify(step.toolInput) : null,
@@ -135,6 +148,49 @@ export class AgentPersistence {
     );
     return mapStep(result.rows[0]);
   }
+
+  // ============================================
+  // Messages (multi-turn conversation)
+  // ============================================
+
+  /**
+   * Create a conversation message
+   */
+  async createMessage(taskId: string, turnNumber: number, role: 'user' | 'assistant', content: string): Promise<AgentMessage> {
+    const result = await databaseService.query(
+      `INSERT INTO agent_messages (task_id, turn_number, role, content)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [taskId, turnNumber, role, content]
+    );
+    return mapMessage(result.rows[0]);
+  }
+
+  /**
+   * Get all messages for a task (ordered by turn)
+   */
+  async getMessages(taskId: string): Promise<AgentMessage[]> {
+    const result = await databaseService.query(
+      'SELECT * FROM agent_messages WHERE task_id = $1 ORDER BY turn_number ASC, created_at ASC',
+      [taskId]
+    );
+    return result.rows.map(mapMessage);
+  }
+
+  /**
+   * Get the highest turn number for a task (0 if no messages yet)
+   */
+  async getMaxTurnNumber(taskId: string): Promise<number> {
+    const result = await databaseService.query(
+      'SELECT COALESCE(MAX(turn_number), 0) as max_turn FROM agent_messages WHERE task_id = $1',
+      [taskId]
+    );
+    return result.rows[0]?.max_turn ?? 0;
+  }
+
+  // ============================================
+  // Queries
+  // ============================================
 
   /**
    * Get tasks for user (with RLS)
@@ -175,14 +231,14 @@ export class AgentPersistence {
         total: countResult.rows[0]?.total || 0,
       };
     } finally {
-      // Context is transaction-local, no explicit clear needed
+      // Context is transaction-local
     }
   }
 
   /**
-   * Get a single task with all steps (with RLS)
+   * Get a single task with steps and messages (with RLS)
    */
-  async getTaskWithSteps(context: AgentUserContext, taskId: string): Promise<{ task: AgentTask; steps: AgentStep[] } | null> {
+  async getTaskWithSteps(context: AgentUserContext, taskId: string): Promise<{ task: AgentTask; steps: AgentStep[]; messages: AgentMessage[] } | null> {
     await this.setUserContext(context.userId, context.userRole);
     try {
       const taskResult = await databaseService.query(
@@ -192,23 +248,42 @@ export class AgentPersistence {
 
       if (taskResult.rows.length === 0) return null;
 
-      const stepsResult = await databaseService.query(
-        'SELECT * FROM agent_steps WHERE task_id = $1 ORDER BY step_number ASC',
-        [taskId]
-      );
+      const [stepsResult, messagesResult] = await Promise.all([
+        databaseService.query(
+          'SELECT * FROM agent_steps WHERE task_id = $1 ORDER BY step_number ASC',
+          [taskId]
+        ),
+        databaseService.query(
+          'SELECT * FROM agent_messages WHERE task_id = $1 ORDER BY turn_number ASC, created_at ASC',
+          [taskId]
+        ),
+      ]);
 
       return {
         task: mapTask(taskResult.rows[0]),
         steps: stepsResult.rows.map(mapStep),
+        messages: messagesResult.rows.map(mapMessage),
       };
     } finally {
-      // Context is transaction-local, no explicit clear needed
+      // Context is transaction-local
     }
   }
+
+  /**
+   * Get task by ID (without RLS, for internal use)
+   */
+  async getTaskById(taskId: string): Promise<AgentTask | null> {
+    const result = await databaseService.query(
+      'SELECT * FROM agent_tasks WHERE id = $1',
+      [taskId]
+    );
+    return result.rows.length > 0 ? mapTask(result.rows[0]) : null;
+  }
+
   /**
    * Cleanup stale tasks on server startup.
-   * Tasks stuck in 'running' or 'pending' have no active AbortController
-   * after a restart and can never complete — mark them as cancelled.
+   * Tasks stuck in 'running' or 'pending' cannot resume — mark as cancelled.
+   * 'awaiting_input' tasks are fine — they can resume after restart.
    */
   async cleanupStaleTasks(): Promise<number> {
     const result = await databaseService.query(
