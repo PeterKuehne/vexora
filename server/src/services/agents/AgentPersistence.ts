@@ -205,6 +205,21 @@ export class AgentPersistence {
       // Context is transaction-local, no explicit clear needed
     }
   }
+  /**
+   * Cleanup stale tasks on server startup.
+   * Tasks stuck in 'running' or 'pending' have no active AbortController
+   * after a restart and can never complete — mark them as cancelled.
+   */
+  async cleanupStaleTasks(): Promise<number> {
+    const result = await databaseService.query(
+      `UPDATE agent_tasks
+       SET status = 'cancelled', completed_at = NOW(), updated_at = NOW(),
+           error = 'Server wurde neu gestartet'
+       WHERE status IN ('running', 'pending')
+       RETURNING id`
+    );
+    return result.rowCount ?? 0;
+  }
 }
 
 export const agentPersistence = new AgentPersistence();

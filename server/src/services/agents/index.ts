@@ -21,11 +21,23 @@ export type {
 } from './types.js';
 
 import { registerBuiltinTools } from './tools/index.js';
+import { agentPersistence } from './AgentPersistence.js';
 
 /**
- * Initialize the agent system - register built-in tools
+ * Initialize the agent system - register built-in tools, cleanup stale tasks
  */
-export function initializeAgentSystem(): void {
+export async function initializeAgentSystem(): Promise<void> {
   registerBuiltinTools();
+
+  // Cancel tasks stuck in running/pending from a previous server instance
+  try {
+    const cleaned = await agentPersistence.cleanupStaleTasks();
+    if (cleaned > 0) {
+      console.log(`[AgentSystem] ${cleaned} stale task(s) cancelled`);
+    }
+  } catch (error) {
+    console.warn('[AgentSystem] Failed to cleanup stale tasks:', error);
+  }
+
   console.log('[AgentSystem] Agent system initialized');
 }

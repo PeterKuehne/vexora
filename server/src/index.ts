@@ -249,7 +249,7 @@ httpServer.on('listening', async () => {
 
   // Initialize Agent System
   try {
-    initializeAgentSystem()
+    await initializeAgentSystem()
     console.log('✅ Agent system initialized')
   } catch (error) {
     console.warn('⚠️  Agent system initialization failed:', error)
