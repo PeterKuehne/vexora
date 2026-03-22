@@ -5,6 +5,8 @@
  * in both Anthropic and OpenAI/Ollama formats.
  */
 
+import { tool as aiTool, jsonSchema } from 'ai';
+import type { Tool } from 'ai';
 import type {
   AgentTool,
   AgentUserContext,
@@ -77,6 +79,30 @@ class ToolRegistryImpl {
         parameters: tool.parameters,
       },
     }));
+  }
+
+  /**
+   * Get tools in Vercel AI SDK format (Tool) for use with generateText/streamText
+   */
+  getAISDKTools(context: AgentUserContext, allowedTools?: string[]): Record<string, Tool> {
+    let tools = this.getAvailableTools(context);
+    if (allowedTools) {
+      const allowed = new Set(allowedTools);
+      tools = tools.filter(t => allowed.has(t.name));
+    }
+
+    const result: Record<string, Tool> = {};
+    for (const agentTool of tools) {
+      result[agentTool.name] = aiTool({
+        description: agentTool.description,
+        inputSchema: jsonSchema(agentTool.parameters as any),
+        execute: async (args) => {
+          const toolResult = await agentTool.execute(args as Record<string, unknown>, context);
+          return toolResult.output;
+        },
+      });
+    }
+    return result;
   }
 
   /**

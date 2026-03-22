@@ -36,7 +36,8 @@ import conversationRoutes from './routes/conversations.js'
 import usageRoutes from './routes/usage.js'
 import agentRoutes from './routes/agents.js'
 import skillRoutes from './routes/skills.js'
-import { llmRouter, PIIGuard } from './services/llm/index.js'
+import { PIIGuard } from './services/llm/PIIGuard.js'
+import { setPIIGuard } from './services/agents/ai-middleware.js'
 import { initializeAgentSystem } from './services/agents/index.js'
 import { initializeSkillSystem } from './services/skills/index.js'
 
@@ -224,7 +225,7 @@ httpServer.on('listening', async () => {
     const piiGuard = new PIIGuard();
     const piiAvailable = await piiGuard.isAvailable();
     if (piiAvailable) {
-      llmRouter.setPIIGuard(piiGuard);
+      setPIIGuard(piiGuard);
       console.log('✅ PII Guard initialized (Presidio available)');
     } else {
       console.warn('⚠️  PII Guard: Presidio not available, cloud models will work without PII masking');

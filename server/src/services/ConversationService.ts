@@ -5,8 +5,9 @@
  * Replaces LocalStorage-based conversation management.
  */
 
+import { generateText } from 'ai';
 import { databaseService } from './DatabaseService.js';
-import { llmRouter } from './llm/index.js';
+import { resolveModel } from './agents/ai-provider.js';
 
 export interface Conversation {
   id: string;
@@ -371,19 +372,16 @@ class ConversationService {
    */
   private async generateTitle(userId: string, role: string, conversationId: string, firstMessage: string): Promise<void> {
     try {
-      const response = await llmRouter.chat(
-        [
-          {
-            role: 'system',
-            content: 'Generiere einen kurzen Titel (max 6 Wörter) für diese Konversation basierend auf der ersten Nachricht. Antworte NUR mit dem Titel, keine Erklärung.',
-          },
-          { role: 'user', content: firstMessage.substring(0, 500) },
-        ],
-        'qwen3:8b',
-        { maxTokens: 30, temperature: 0.3 }
-      );
+      const response = await generateText({
+        model: resolveModel('qwen3:8b'),
+        system: 'Generiere einen kurzen Titel (max 6 Wörter) für diese Konversation basierend auf der ersten Nachricht. Antworte NUR mit dem Titel, keine Erklärung.',
+        prompt: firstMessage.substring(0, 500),
+        maxOutputTokens: 30,
+        temperature: 0.3,
+        providerOptions: { ollama: { think: false } },
+      });
 
-      const title = response.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim().replace(/^["']|["']$/g, '');
+      const title = response.text.replace(/<think>[\s\S]*?<\/think>/g, '').trim().replace(/^["']|["']$/g, '');
 
       if (title && title.length > 0 && title.length < 100) {
         await this.setUserContext(userId, role);

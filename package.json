@@ -22,13 +22,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.80.0",
+    "@ai-sdk/anthropic": "^3.0.63",
     "@azure/msal-node": "^5.0.2",
     "@headlessui/react": "^2.2.9",
     "@tailwindcss/vite": "^4.1.18",
     "@types/cookie-parser": "^1.4.10",
     "@types/pg": "^8.16.0",
     "@types/prismjs": "^1.26.5",
+    "ai": "^6.0.134",
     "arctic": "^3.7.0",
     "autoprefixer": "^10.4.23",
     "axios": "^1.13.2",
@@ -43,6 +44,7 @@
     "lucide-react": "^0.562.0",
     "multer": "^2.0.2",
     "neo4j-driver": "^6.0.1",
+    "ollama-ai-provider-v2": "^3.5.0",
     "pg": "^8.17.2",
     "postcss": "^8.5.6",
     "prismjs": "^1.30.0",

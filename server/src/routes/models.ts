@@ -13,7 +13,7 @@ import {
   type ModelQuery,
 } from '../validation/index.js';
 import { ollamaService } from '../services/index.js';
-import { llmRouter } from '../services/llm/index.js';
+import { hasProvider, getCloudModels } from '../services/agents/ai-provider.js';
 
 const router = Router();
 
@@ -45,11 +45,10 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     outputPricePerMTok?: number;
   }> = [];
 
-  if (llmRouter.hasProvider('anthropic')) {
+  if (hasProvider('anthropic')) {
     try {
-      const allModels = await llmRouter.getModels();
-      cloudModels = allModels
-        .filter(m => m.isCloud)
+      const allCloudModels = getCloudModels();
+      cloudModels = allCloudModels
         .filter(m => {
           if (!query.search) return true;
           const searchLower = query.search.toLowerCase();

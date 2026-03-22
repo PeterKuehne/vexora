@@ -8,8 +8,10 @@
 
 import { vectorService, type VectorSearchResponse } from './VectorService.js'
 import { vectorServiceV2, type VectorSearchResponseV2 } from './VectorServiceV2.js'
+import { generateText, streamText } from 'ai'
 import { ollamaService } from './OllamaService.js'
-import { llmRouter } from './llm/index.js'
+import { resolveModel, isCloudModel } from './agents/ai-provider.js'
+import { createGuardedModel } from './agents/ai-middleware.js'
 import { documentService } from './DocumentService.js'
 import { type ChatMessage } from '../validation/index.js'
 import { LoggerService } from './LoggerService.js'
@@ -529,10 +531,21 @@ class RAGService {
       // Phase 5: Start LLM generation span
       const llmSpanId = traceId ? this.tracingService.startSpan(traceId, 'llm_generation') : '';
 
-      const llmResponse = await llmRouter.chat(
-        ragMessages.map(m => ({ role: m.role as 'system' | 'user' | 'assistant', content: m.content })),
-        model,
-      )
+      const baseModel = resolveModel(model)
+      const guardedModel = createGuardedModel(baseModel, isCloudModel(model))
+
+      const systemMsgs = ragMessages.filter(m => m.role === 'system')
+      const convMsgs = ragMessages.filter(m => m.role !== 'system')
+
+      const llmResult = await generateText({
+        model: guardedModel,
+        system: systemMsgs.map(m => m.content).join('\n\n') || undefined,
+        messages: convMsgs.map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        })),
+      })
+      const llmResponse = { content: llmResult.text }
 
       // Phase 5: End LLM generation span
       if (traceId && llmSpanId) {
@@ -916,11 +929,21 @@ class RAGService {
         ...messages,
       ]
 
-      // Step 4: Get streaming response from LLM (via LLMRouter for provider flexibility)
-      const ollamaResponse = await llmRouter.chatStreamRaw(
-        ragMessages.map(m => ({ role: m.role as 'system' | 'user' | 'assistant', content: m.content })),
-        model,
-      )
+      // Step 4: Get streaming response from LLM (via AI SDK)
+      const baseModel = resolveModel(model)
+      const guardedModel = createGuardedModel(baseModel, isCloudModel(model))
+
+      const systemMsgs = ragMessages.filter(m => m.role === 'system')
+      const convMsgs = ragMessages.filter(m => m.role !== 'system')
+
+      const streamResult = streamText({
+        model: guardedModel,
+        system: systemMsgs.map(m => m.content).join('\n\n') || undefined,
+        messages: convMsgs.map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        })),
+      })
 
       // Step 5: Extract sources for citation
       const sources: RAGSource[] = searchResults.results.map((result) => ({
@@ -933,60 +956,64 @@ class RAGService {
         hybridScore: (result as { hybridScore?: number }).hybridScore, // Original score before reranking
       }))
 
-      // Step 6: Wrap the original stream to cleanup user context and end trace when done
-      const originalStream = ollamaResponse.body || new ReadableStream();
+      // Step 6: Convert AI SDK stream to ReadableStream in Ollama-compatible format
       const tracingService = this.tracingService;
       const totalLatency = Date.now() - startTime;
+      const encoder = new TextEncoder();
 
       const wrappedStream = new ReadableStream({
-        start(controller) {
-          const reader = originalStream.getReader();
-
-          const pump = async (): Promise<void> => {
-            try {
-              while (true) {
-                const { done, value } = await reader.read();
-
-                if (done) {
-                  // End trace on successful completion
-                  if (traceId) {
-                    await tracingService.endTrace(traceId, true, totalLatency);
-                  }
-
-                  // Cleanup user context when stream ends
-                  if (userContext) {
-                    try {
-                      await documentService.clearUserContext();
-                      console.log('🧹 Cleaned up user context after streaming RAG completion');
-                    } catch (cleanupError) {
-                      console.error('❌ Failed to cleanup user context after streaming:', cleanupError);
-                    }
-                  }
-                  controller.close();
-                  break;
-                }
-
-                controller.enqueue(value);
-              }
-            } catch (error) {
-              // End trace on error
-              if (traceId) {
-                await tracingService.endTrace(traceId, false, totalLatency);
-              }
-
-              // Cleanup user context on error too
-              if (userContext) {
-                try {
-                  await documentService.clearUserContext();
-                } catch (cleanupError) {
-                  console.error('❌ Failed to cleanup user context after streaming error:', cleanupError);
-                }
-              }
-              controller.error(error);
+        async start(controller) {
+          try {
+            for await (const chunk of streamResult.textStream) {
+              // Emit in Ollama-compatible JSON-per-line format
+              const jsonLine = JSON.stringify({
+                message: { role: 'assistant', content: chunk },
+                done: false,
+              });
+              controller.enqueue(encoder.encode(jsonLine + '\n'));
             }
-          };
 
-          pump();
+            // Emit done marker
+            const usage = await streamResult.usage;
+            const doneJson = JSON.stringify({
+              message: { role: 'assistant', content: '' },
+              done: true,
+              model,
+              prompt_eval_count: usage?.inputTokens,
+              eval_count: usage?.outputTokens,
+            });
+            controller.enqueue(encoder.encode(doneJson + '\n'));
+
+            // End trace on successful completion
+            if (traceId) {
+              await tracingService.endTrace(traceId, true, totalLatency);
+            }
+
+            // Cleanup user context when stream ends
+            if (userContext) {
+              try {
+                await documentService.clearUserContext();
+              } catch (cleanupError) {
+                console.error('Failed to cleanup user context after streaming:', cleanupError);
+              }
+            }
+            controller.close();
+          } catch (error) {
+            // End trace on error
+            if (traceId) {
+              await tracingService.endTrace(traceId, false, totalLatency);
+            }
+
+            // Cleanup user context on error too
+            if (userContext) {
+              try {
+                await documentService.clearUserContext();
+              } catch (cleanupError) {
+                console.error('Failed to cleanup user context after streaming error:', cleanupError);
+              }
+            }
+            controller.error(error);
+          }
         },
       });
 

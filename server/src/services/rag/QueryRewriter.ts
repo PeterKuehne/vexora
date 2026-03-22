@@ -8,7 +8,8 @@
  * - Uses Qwen3-safe sampling params (no greedy decoding / temperature:0)
  */
 
-import { llmRouter } from '../llm/index.js'
+import { generateText } from 'ai'
+import { resolveModel } from '../agents/ai-provider.js'
 import type { ChatMessage } from '../../validation/index.js'
 
 // Pronoun / reference patterns that strongly indicate an unresolved reference.
@@ -96,23 +97,29 @@ export class QueryRewriter {
         })),
       ]
 
-      // Use LLMRouter but force local model for query rewriting (no cloud needed)
+      // Force local model for query rewriting (no cloud needed)
       const rewriteModel = model.startsWith('anthropic:') ? 'qwen3:8b' : model;
 
-      const response = await llmRouter.chat(
-        rewriteMessages,
-        rewriteModel,
-        {
-          think: false,
-          numPredict: 150,
-          temperature: 0.7,
-          topP: 0.8,
-          topK: 20,
-        },
-      )
+      // Extract system prompt from messages
+      const systemMsg = rewriteMessages.find(m => m.role === 'system');
+      const convMsgs = rewriteMessages.filter(m => m.role !== 'system');
+
+      const response = await generateText({
+        model: resolveModel(rewriteModel),
+        system: systemMsg?.content,
+        messages: convMsgs.map(m => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        })),
+        maxOutputTokens: 150,
+        temperature: 0.7,
+        topP: 0.8,
+        topK: 20,
+        providerOptions: { ollama: { think: false } },
+      })
 
       // Clean any residual think tags (safety net)
-      const rewritten = cleanResponse(response.content)
+      const rewritten = cleanResponse(response.text)
 
       // Sanity check: if the LLM returned something empty or way too long, fall back
       if (!rewritten || rewritten.length > 500) {

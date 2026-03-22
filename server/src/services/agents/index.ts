@@ -5,6 +5,9 @@
 export { toolRegistry } from './ToolRegistry.js';
 export { agentPersistence } from './AgentPersistence.js';
 export { agentExecutor } from './AgentExecutor.js';
+export type { SSEEmitter } from './AgentExecutor.js';
+export { resolveModel, parseModelString, hasProvider, isCloudModel, getProviderOptions, getCloudModels } from './ai-provider.js';
+export { setPIIGuard, createGuardedModel, ensurePIIGuardAvailable, maskMessages, unmaskContent } from './ai-middleware.js';
 export type {
   AgentTool,
   AgentTask,

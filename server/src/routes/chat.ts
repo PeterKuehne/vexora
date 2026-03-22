@@ -1,8 +1,12 @@
 /**
  * Chat Routes - Main LLM chat endpoint with streaming and RAG support
+ *
+ * Migrated to Vercel AI SDK 6 for LLM calls.
+ * RAG streaming still uses the RAGService pipeline.
  */
 
 import { Router, type Response } from 'express';
+import { generateText, streamText } from 'ai';
 import { asyncHandler, authenticateToken } from '../middleware/index.js';
 import { ValidationError } from '../errors/index.js';
 import {
@@ -12,8 +16,9 @@ import {
   type ChatRequest,
 } from '../validation/index.js';
 import type { AuthenticatedRequest } from '../types/auth.js';
-import { ollamaService, ragService } from '../services/index.js';
-import { llmRouter } from '../services/llm/index.js';
+import { ragService } from '../services/index.js';
+import { resolveModel, parseModelString, isCloudModel } from '../services/agents/ai-provider.js';
+import { createGuardedModel } from '../services/agents/ai-middleware.js';
 
 const router = Router();
 
@@ -43,23 +48,18 @@ router.post('/', authenticateToken, asyncHandler(async (req: AuthenticatedReques
     res.setHeader('Connection', 'keep-alive')
     res.setHeader('X-Accel-Buffering', 'no') // Disable nginx buffering
 
-    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
     let clientDisconnected = false
 
     // Handle client disconnect - cancel any active streams
     res.on('close', () => {
       if (!res.writableEnded) {
         clientDisconnected = true
-        reader?.cancel().catch(() => {
-          // Ignore cancel errors
-        })
       }
     })
 
     if (ragEnabled && ragQuery) {
-      // RAG-enabled streaming response
+      // RAG-enabled streaming response (still uses RAGService pipeline)
       try {
-        // Extract user context for permission-aware RAG
         const userContext = req.user ? {
           userId: req.user.user_id,
           userRole: req.user.role,
@@ -86,7 +86,7 @@ router.post('/', authenticateToken, asyncHandler(async (req: AuthenticatedReques
           res.write(`data: ${JSON.stringify(sourcesMetadata)}\n\n`)
         }
 
-        reader = ragResponse.stream.getReader()
+        const reader = ragResponse.stream.getReader()
         if (!reader) {
           res.status(500).json({ error: 'Failed to get RAG response stream' })
           return
@@ -137,129 +137,63 @@ router.post('/', authenticateToken, asyncHandler(async (req: AuthenticatedReques
         }
       }
     } else {
-      // Standard streaming response (non-RAG)
+      // Standard streaming response (non-RAG) — AI SDK streamText
       const modelId = chatRequest.model || 'qwen3:8b';
-      const { provider } = llmRouter.parseModel(modelId);
-      const isCloudModel = provider !== 'ollama';
 
-      if (isCloudModel) {
-        // Cloud model streaming (Anthropic) via AsyncIterable
-        try {
-          const messages = chatRequest.messages.map(m => ({
-            role: m.role as 'system' | 'user' | 'assistant',
+      try {
+        // Resolve model with PII guard for cloud models
+        const baseModel = resolveModel(modelId);
+        const model = createGuardedModel(baseModel, isCloudModel(modelId));
+
+        // Extract system messages and conversation messages
+        const systemMessages = chatRequest.messages.filter(m => m.role === 'system');
+        const conversationMessages = chatRequest.messages.filter(m => m.role !== 'system');
+        const systemPrompt = systemMessages.length > 0
+          ? systemMessages.map(m => m.content).join('\n\n')
+          : undefined;
+
+        const abortController = new AbortController();
+        res.on('close', () => abortController.abort());
+
+        const result = streamText({
+          model,
+          system: systemPrompt,
+          messages: conversationMessages.map(m => ({
+            role: m.role as 'user' | 'assistant',
             content: m.content,
-          }));
+          })),
+          temperature: chatRequest.options?.temperature,
+          topP: chatRequest.options?.top_p,
+          topK: chatRequest.options?.top_k,
+          maxOutputTokens: chatRequest.options?.num_predict,
+          abortSignal: abortController.signal,
+        });
 
-          const stream = await llmRouter.chatStream(messages, modelId, {
-            temperature: chatRequest.options?.temperature,
-            topP: chatRequest.options?.top_p,
-            topK: chatRequest.options?.top_k,
-            maxTokens: chatRequest.options?.num_predict,
-          });
-
-          for await (const chunk of stream) {
-            if (clientDisconnected) break;
-
-            if (chunk.startsWith('\n__DONE__')) {
-              const metadata = JSON.parse(chunk.substring(8));
-              res.write(`data: ${JSON.stringify(metadata)}\n\n`);
-            } else {
-              res.write(`data: ${JSON.stringify({ message: { content: chunk }, done: false })}\n\n`);
-            }
-          }
-
-          if (!clientDisconnected) {
-            res.write('data: [DONE]\n\n');
-            res.end();
-          }
-        } catch (error) {
-          if (!clientDisconnected) {
-            console.error('Cloud stream failed:', error);
-            res.write(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : 'Stream failed' })}\n\n`);
-            res.end();
-          }
+        // Stream text chunks in the existing SSE format
+        for await (const chunk of result.textStream) {
+          if (clientDisconnected) break;
+          res.write(`data: ${JSON.stringify({ message: { content: chunk }, done: false })}\n\n`);
         }
-      } else {
-        // Ollama streaming (existing SSE logic with keep-alive)
-        let keepAliveInterval: NodeJS.Timeout | null = null;
 
-        try {
-          if (!clientDisconnected) {
-            res.write(`: stream started\n\n`);
-            if (typeof (res as any).flush === 'function') {
-              (res as any).flush();
-            }
-          }
-
-          keepAliveInterval = setInterval(() => {
-            if (!clientDisconnected) {
-              res.write(`: keep-alive\n\n`);
-              if (typeof (res as any).flush === 'function') {
-                (res as any).flush();
-              }
-            }
-          }, 500);
-
-          const ollamaResponse = await ollamaService.chatStream({
-            messages: chatRequest.messages,
-            model: chatRequest.model,
-            options: chatRequest.options,
-          });
-
-          if (keepAliveInterval) {
-            clearInterval(keepAliveInterval);
-            keepAliveInterval = null;
-          }
-
-          reader = ollamaResponse.body?.getReader()
-          if (!reader) {
-            res.status(500).json({ error: 'Failed to get response stream' })
-            return
-          }
-
-          const decoder = new TextDecoder()
-
-          try {
-            while (!clientDisconnected) {
-              const { done, value } = await reader.read()
-              if (done) break;
-
-              const chunk = decoder.decode(value, { stream: true })
-              const lines = chunk.split('\n').filter((line) => line.trim())
-
-              for (const line of lines) {
-                if (clientDisconnected) break
-
-                try {
-                  const parsed = JSON.parse(line)
-                  res.write(`data: ${JSON.stringify(parsed)}\n\n`)
-                } catch {
-                  // Skip malformed JSON lines
-                }
-              }
-            }
-
-            if (!clientDisconnected) {
-              res.write('data: [DONE]\n\n')
-              res.end()
-            }
-          } catch (streamError) {
-            if (!clientDisconnected) {
-              console.error('Stream error:', streamError)
-              res.write(`data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`)
-              res.end()
-            }
-          }
-        } catch (ollamaError) {
-          if (keepAliveInterval) {
-            clearInterval(keepAliveInterval);
-            keepAliveInterval = null;
-          }
-
-          if (!clientDisconnected) {
-            console.error('Ollama stream failed:', ollamaError)
-            res.status(500).json({ error: 'Failed to get chat response' })
-          }
+        if (!clientDisconnected) {
+          // Send final metadata
+          const usage = await result.usage;
+          const finishReason = await result.finishReason;
+          res.write(`data: ${JSON.stringify({
+            done: true,
+            model: modelId,
+            inputTokens: usage?.inputTokens,
+            outputTokens: usage?.outputTokens,
+            finishReason,
+          })}\n\n`);
+          res.write('data: [DONE]\n\n');
+          res.end();
+        }
+      } catch (error) {
+        if (!clientDisconnected) {
+          console.error('Stream failed:', error);
+          res.write(`data: ${JSON.stringify({ error: error instanceof Error ? error.message : 'Stream failed' })}\n\n`);
+          res.end();
         }
       }
     }
@@ -295,24 +229,36 @@ router.post('/', authenticateToken, asyncHandler(async (req: AuthenticatedReques
       }
     } else {
       try {
-        const messages = chatRequest.messages.map(m => ({
-          role: m.role as 'system' | 'user' | 'assistant',
-          content: m.content,
-        }));
-        const response = await llmRouter.chat(messages, chatRequest.model || 'qwen3:8b', {
+        const modelId = chatRequest.model || 'qwen3:8b';
+        const baseModel = resolveModel(modelId);
+        const model = createGuardedModel(baseModel, isCloudModel(modelId));
+
+        const systemMessages = chatRequest.messages.filter(m => m.role === 'system');
+        const conversationMessages = chatRequest.messages.filter(m => m.role !== 'system');
+        const systemPrompt = systemMessages.length > 0
+          ? systemMessages.map(m => m.content).join('\n\n')
+          : undefined;
+
+        const result = await generateText({
+          model,
+          system: systemPrompt,
+          messages: conversationMessages.map(m => ({
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+          })),
           temperature: chatRequest.options?.temperature,
           topP: chatRequest.options?.top_p,
           topK: chatRequest.options?.top_k,
-          maxTokens: chatRequest.options?.num_predict,
-        })
+          maxOutputTokens: chatRequest.options?.num_predict,
+        });
+
         // Return in Ollama-compatible format for backward compat
         res.json({
-          model: response.model,
-          message: { role: 'assistant', content: response.content },
+          model: modelId,
+          message: { role: 'assistant', content: result.text },
           done: true,
-          prompt_eval_count: response.inputTokens,
-          eval_count: response.outputTokens,
-          total_duration: response.totalDuration,
+          prompt_eval_count: result.usage?.inputTokens,
+          eval_count: result.usage?.outputTokens,
         })
       } catch (chatError) {
         console.error('Chat failed:', chatError)

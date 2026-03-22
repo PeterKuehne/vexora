@@ -1,22 +1,13 @@
 /**
- * AgentExecutor - Generalized ReAct loop for multi-step agent tasks
+ * AgentExecutor - Multi-step agent using Vercel AI SDK 6
  *
- * Based on the existing AgenticRAG.ts prototype, generalized to support
- * arbitrary tools via ToolRegistry and multiple LLM providers.
- *
- * Flow:
- * 1. Build system prompt with available tool descriptions
- * 2. Call LLM via llmRouter.chatWithTools()
- * 3. Extract thought, emit SSE event
- * 4. Execute tool calls, inject results into context
- * 5. Persist step to DB
- * 6. Repeat until finish or max iterations
- * 7. Support cancellation via AbortSignal
+ * Replaces the manual ReAct loop with AI SDK's native `generateText` + `maxSteps`.
+ * Keeps: cancellation, DB persistence, system prompt building, SSE event types.
+ * Removes: EventEmitter, manual tool-format switching, nudging logic.
  */
 
-import { EventEmitter } from 'events';
-import { llmRouter } from '../llm/index.js';
-import type { ChatMessage } from '../llm/LLMProvider.js';
+import { generateText, stepCountIs, type StepResult } from 'ai';
+import { resolveModel, getProviderOptions, parseModelString } from './ai-provider.js';
 import { toolRegistry } from './ToolRegistry.js';
 import { agentPersistence } from './AgentPersistence.js';
 import type {
@@ -27,17 +18,22 @@ import type {
 } from './types.js';
 import { DEFAULT_AGENT_CONFIG as defaultConfig } from './types.js';
 
-export class AgentExecutor extends EventEmitter {
+/**
+ * Callback type for SSE event emission.
+ * Set by the route handler before calling execute().
+ */
+export type SSEEmitter = (event: AgentSSEEvent) => void;
+
+export class AgentExecutor {
   private config: AgentConfig;
   private activeControllers: Map<string, AbortController> = new Map();
 
   constructor(config?: Partial<AgentConfig>) {
-    super();
     this.config = { ...defaultConfig, ...config };
   }
 
   /**
-   * Execute an agent task with the ReAct loop
+   * Execute an agent task using AI SDK generateText with maxSteps
    */
   async execute(
     query: string,
@@ -46,13 +42,15 @@ export class AgentExecutor extends EventEmitter {
       model?: string;
       conversationId?: string;
       signal?: AbortSignal;
-      systemPrompt?: string;      // Override default buildSystemPrompt()
-      allowedTools?: string[];     // Whitelist tools for this execution
+      systemPrompt?: string;
+      allowedTools?: string[];
+      emitSSE?: SSEEmitter;
     }
   ): Promise<AgentTask> {
     const model = options?.model || this.config.defaultModel;
     const abortController = new AbortController();
     const signal = options?.signal || abortController.signal;
+    const emitSSE = options?.emitSSE || (() => {});
 
     console.log(`[AgentExecutor] Starting task: model=${model}, query="${query.substring(0, 80)}..."`);
 
@@ -62,234 +60,132 @@ export class AgentExecutor extends EventEmitter {
 
     console.log(`[AgentExecutor] Task created: ${task.id}`);
 
-    // Emit task start
-    this.emitSSE({
+    emitSSE({
       event: 'task:start',
       data: { taskId: task.id },
     });
 
+    let stepNumber = 0;
+
     try {
       await agentPersistence.updateTaskStatus(task.id, 'running');
 
-      // Build available tools for this user (optionally filtered by allowedTools whitelist)
-      let availableTools = toolRegistry.getAvailableTools(context);
-      if (options?.allowedTools) {
-        const allowed = new Set(options.allowedTools);
-        availableTools = availableTools.filter(t => allowed.has(t.name));
-      }
-      const { provider } = llmRouter.parseModel(model);
-      const isAnthropic = provider === 'anthropic';
+      // Build tools in AI SDK format
+      const tools = toolRegistry.getAISDKTools(context, options?.allowedTools);
+      const toolNames = Object.keys(tools);
 
-      // Build tool options based on provider (using filtered tools)
-      const anthropicTools = isAnthropic
-        ? availableTools.map(t => ({ name: t.name, description: t.description, input_schema: t.parameters }))
-        : undefined;
-      const ollamaTools = !isAnthropic
-        ? availableTools.map(t => ({ type: 'function' as const, function: { name: t.name, description: t.description, parameters: t.parameters } }))
-        : undefined;
+      // Build system prompt
+      const systemPrompt = options?.systemPrompt || await this.buildSystemPrompt(toolNames, context);
 
-      // Build system prompt (use override if provided)
-      const systemPrompt = options?.systemPrompt || await this.buildSystemPrompt(availableTools.map(t => t.name), context);
+      const stepStartTimes: Map<number, number> = new Map();
 
-      // Initialize message history
-      const messages: ChatMessage[] = [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: query },
-      ];
+      const result = await generateText({
+        model: resolveModel(model),
+        system: systemPrompt,
+        prompt: query,
+        tools,
+        stopWhen: stepCountIs(this.config.maxIterations),
+        abortSignal: signal,
+        temperature: 0.1,
+        maxOutputTokens: 4096,
+        providerOptions: getProviderOptions(model),
 
-      let stepNumber = 0;
-      let totalInputTokens = 0;
-      let totalOutputTokens = 0;
-      let finalAnswer = '';
+        onStepFinish: async (step: StepResult<typeof tools>) => {
+          stepNumber++;
+          const stepStart = stepStartTimes.get(stepNumber) || Date.now();
+          const durationMs = Date.now() - stepStart;
 
-      // ReAct loop
-      while (stepNumber < this.config.maxIterations) {
-        // Check for cancellation
-        if (signal.aborted) {
-          await agentPersistence.updateTaskStatus(task.id, 'cancelled', {
-            totalSteps: stepNumber,
-            inputTokens: totalInputTokens,
-            outputTokens: totalOutputTokens,
-          });
-          this.emitSSE({ event: 'task:cancelled', data: { taskId: task.id } });
-          this.activeControllers.delete(task.id);
-          return { ...task, status: 'cancelled' };
-        }
+          console.log(`[AgentExecutor] Step ${stepNumber}: toolCalls=${step.toolCalls?.length || 0}, text=${(step.text || '').substring(0, 100) || '(empty)'}`);
 
-        stepNumber++;
-        const stepStart = Date.now();
-
-        // 1) Emit: "Agent denkt nach..."
-        this.emitSSE({
-          event: 'step:start',
-          data: { taskId: task.id, stepNumber },
-        });
-
-        console.log(`[AgentExecutor] Step ${stepNumber}: calling LLM (${model})`);
-
-        // 2) Call LLM with tools
-        // Note: think=false is critical for Qwen3 - tool calling doesn't work in thinking mode
-        const chatOptions: import('../llm/LLMProvider.js').ChatOptions = {
-          temperature: 0.1,
-          maxTokens: 4096,
-          think: false,
-          ...(anthropicTools && { anthropicTools: anthropicTools as any }),
-          ...(ollamaTools && { tools: ollamaTools as any }),
-        };
-
-        const response = await llmRouter.chatWithTools(
-          messages,
-          model,
-          chatOptions,
-          context.userId,
-          options?.conversationId,
-        );
-
-        totalInputTokens += response.inputTokens || 0;
-        totalOutputTokens += response.outputTokens || 0;
-
-        // Extract thought
-        const thought = response.thinkingContent || '';
-        // Content that isn't thinking (may contain the answer text for non-tool responses)
-        const contentText = response.content || '';
-
-        // 3) Emit thought if present
-        if (thought) {
-          this.emitSSE({
-            event: 'step:thinking',
-            data: { taskId: task.id, stepNumber, thought },
-          });
-        }
-
-        console.log(`[AgentExecutor] Step ${stepNumber}: LLM responded, stopReason=${response.stopReason}, toolCalls=${response.toolCalls?.length || 0}, content=${contentText.substring(0, 100) || '(empty)'}`);
-
-        // Check if model made tool calls
-        if (response.toolCalls && response.toolCalls.length > 0) {
-          // Build assistant message with tool calls for context
-          messages.push({
-            role: 'assistant',
-            content: contentText,
-            toolCalls: response.toolCalls,
+          // Emit step:start
+          emitSSE({
+            event: 'step:start',
+            data: { taskId: task.id, stepNumber },
           });
 
-          for (const toolCall of response.toolCalls) {
-            if (signal.aborted) break;
+          if (step.toolCalls && step.toolCalls.length > 0) {
+            for (let i = 0; i < step.toolCalls.length; i++) {
+              const tc = step.toolCalls[i]!;
+              const tr = step.toolResults?.[i];
 
-            const tool = toolRegistry.getTool(toolCall.name);
-            if (!tool) {
-              const errorOutput = `Unbekanntes Tool: ${toolCall.name}`;
-              if (isAnthropic) {
-                messages.push({ role: 'tool', content: errorOutput, toolUseId: toolCall.id });
-              } else {
-                messages.push({ role: 'user', content: `Tool-Fehler: ${errorOutput}` });
-              }
-              continue;
-            }
+              // Emit tool_start
+              emitSSE({
+                event: 'step:tool_start',
+                data: {
+                  taskId: task.id,
+                  stepNumber,
+                  toolName: tc.toolName,
+                  toolInput: tc.input as Record<string, unknown>,
+                },
+              });
 
-            // 4) Emit: tool is starting
-            this.emitSSE({
-              event: 'step:tool_start',
-              data: {
+              const toolOutput = typeof tr?.output === 'string'
+                ? tr.output
+                : JSON.stringify(tr?.output || '');
+
+              const truncatedOutput = toolOutput.length > this.config.maxToolOutputLength
+                ? toolOutput.substring(0, this.config.maxToolOutputLength) + '\n\n(Ausgabe gekürzt...)'
+                : toolOutput;
+
+              // Persist step
+              await agentPersistence.createStep({
                 taskId: task.id,
                 stepNumber,
-                toolName: toolCall.name,
-                toolInput: toolCall.arguments,
-              },
-            });
+                thought: step.text || undefined,
+                toolName: tc.toolName,
+                toolInput: tc.input as Record<string, unknown>,
+                toolOutput: truncatedOutput,
+                tokensUsed: (step.usage?.inputTokens || 0) + (step.usage?.outputTokens || 0),
+                durationMs,
+              });
 
-            // 5) Execute tool
-            const toolStart = Date.now();
-            const toolResult = await tool.execute(toolCall.arguments, context);
-            const toolDuration = Date.now() - toolStart;
-
-            const truncatedOutput = toolResult.output.length > this.config.maxToolOutputLength
-              ? toolResult.output.substring(0, this.config.maxToolOutputLength) + '\n\n(Ausgabe gekürzt...)'
-              : toolResult.output;
-
-            // Add tool result to messages
-            if (isAnthropic) {
-              messages.push({ role: 'tool', content: truncatedOutput, toolUseId: toolCall.id });
-            } else {
-              messages.push({ role: 'user', content: `Ergebnis von ${toolCall.name}:\n${truncatedOutput}` });
+              // Emit tool_complete
+              emitSSE({
+                event: 'step:tool_complete',
+                data: {
+                  taskId: task.id,
+                  stepNumber,
+                  toolName: tc.toolName,
+                  toolInput: tc.input as Record<string, unknown>,
+                  toolOutput: truncatedOutput.substring(0, 500),
+                  duration: durationMs,
+                },
+              });
             }
-
-            // Persist step
+          } else if (step.text) {
+            // Final answer step (no tool calls)
             await agentPersistence.createStep({
               taskId: task.id,
               stepNumber,
-              thought: thought || contentText || undefined,
-              toolName: toolCall.name,
-              toolInput: toolCall.arguments,
-              toolOutput: truncatedOutput,
-              tokensUsed: (response.inputTokens || 0) + (response.outputTokens || 0),
-              durationMs: Date.now() - stepStart,
-            });
-
-            // 6) Emit: tool completed with result
-            this.emitSSE({
-              event: 'step:tool_complete',
-              data: {
-                taskId: task.id,
-                stepNumber,
-                toolName: toolCall.name,
-                toolInput: toolCall.arguments,
-                toolOutput: truncatedOutput.substring(0, 500),
-                duration: toolDuration,
-              },
+              thought: undefined,
+              toolName: undefined,
+              toolInput: undefined,
+              toolOutput: step.text.substring(0, 1000),
+              tokensUsed: (step.usage?.inputTokens || 0) + (step.usage?.outputTokens || 0),
+              durationMs,
             });
           }
 
-          // Emit step complete
-          this.emitSSE({
-            event: 'step:complete',
-            data: { taskId: task.id, stepNumber, thought: thought || contentText, duration: Date.now() - stepStart },
-          });
-        } else if (stepNumber === 1) {
-          // First step without tool calls - nudge model to use tools
-          console.log(`[AgentExecutor] Step 1: no tool calls, nudging model to use rag_search`);
-          messages.push({ role: 'assistant', content: contentText });
-          messages.push({
-            role: 'user',
-            content: 'You did not use any tools. You MUST call the rag_search tool now to search the document database. Do not respond with text - use the tool calling mechanism.',
-          });
-          this.emitSSE({
-            event: 'step:complete',
-            data: { taskId: task.id, stepNumber, thought: contentText || 'Erneuter Versuch mit Tool-Nutzung...', duration: Date.now() - stepStart },
-          });
-          continue;
-        } else {
-          // No tool calls - model is done, treat as final answer
-          finalAnswer = contentText;
-
-          await agentPersistence.createStep({
-            taskId: task.id,
-            stepNumber,
-            thought: thought || undefined,
-            toolName: undefined,
-            toolInput: undefined,
-            toolOutput: finalAnswer.substring(0, 1000),
-            tokensUsed: (response.inputTokens || 0) + (response.outputTokens || 0),
-            durationMs: Date.now() - stepStart,
-          });
-
-          this.emitSSE({
+          // Emit step:complete
+          emitSSE({
             event: 'step:complete',
             data: {
               taskId: task.id,
               stepNumber,
-              thought,
-              duration: Date.now() - stepStart,
+              thought: step.text || undefined,
+              duration: durationMs,
             },
           });
 
-          break;
-        }
-      }
+          // Track start time for next step
+          stepStartTimes.set(stepNumber + 1, Date.now());
+        },
+      });
 
-      // If no final answer after max iterations, generate one
-      if (!finalAnswer && stepNumber >= this.config.maxIterations) {
-        finalAnswer = 'Maximale Anzahl an Schritten erreicht. Bitte versuche die Frage konkreter zu formulieren.';
-      }
+      // Calculate totals from result
+      const finalAnswer = result.text || 'Maximale Anzahl an Schritten erreicht.';
+      const totalInputTokens = result.usage?.inputTokens || 0;
+      const totalOutputTokens = result.usage?.outputTokens || 0;
 
       // Complete task
       await agentPersistence.updateTaskStatus(task.id, 'completed', {
@@ -299,7 +195,7 @@ export class AgentExecutor extends EventEmitter {
         outputTokens: totalOutputTokens,
       });
 
-      this.emitSSE({
+      emitSSE({
         event: 'task:complete',
         data: {
           taskId: task.id,
@@ -321,13 +217,24 @@ export class AgentExecutor extends EventEmitter {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+
+      // Check if this was a cancellation
+      if (signal.aborted) {
+        await agentPersistence.updateTaskStatus(task.id, 'cancelled', {
+          totalSteps: stepNumber,
+        });
+        emitSSE({ event: 'task:cancelled', data: { taskId: task.id } });
+        this.activeControllers.delete(task.id);
+        return { ...task, status: 'cancelled' };
+      }
+
       console.error(`[AgentExecutor] Task ${task.id} failed:`, errorMessage);
 
       await agentPersistence.updateTaskStatus(task.id, 'failed', {
         error: errorMessage,
       });
 
-      this.emitSSE({
+      emitSSE({
         event: 'task:error',
         data: { taskId: task.id, error: errorMessage },
       });
@@ -431,13 +338,6 @@ WORKFLOW:
 6. If no relevant documents were found, say so - do not make up an answer`;
 
     return prompt;
-  }
-
-  /**
-   * Emit an SSE event
-   */
-  private emitSSE(event: AgentSSEEvent): void {
-    this.emit('sse', event);
   }
 }
 

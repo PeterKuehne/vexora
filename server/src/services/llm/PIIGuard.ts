@@ -5,7 +5,11 @@
  * to detect and mask PII before sending to cloud LLM providers.
  */
 
-import type { ChatMessage } from './LLMProvider.js';
+/** Minimal message type for PII masking (replaces LLMProvider.PIIMessage dependency) */
+interface PIIMessage {
+  role: string;
+  content: string;
+}
 
 interface PresidioEntity {
   entity_type: string;
@@ -72,7 +76,7 @@ export class PIIGuard {
   /**
    * Mask PII in messages before sending to cloud LLM
    */
-  async mask(messages: ChatMessage[]): Promise<ChatMessage[]> {
+  async mask(messages: PIIMessage[]): Promise<PIIMessage[]> {
     if (!this.enabled) return messages;
 
     this.tokenMap = new Map();

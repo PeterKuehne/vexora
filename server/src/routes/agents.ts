@@ -2,6 +2,7 @@
  * Agent Routes - API endpoints for the Agent Framework
  *
  * SSE streaming for real-time step updates, task management, cancellation.
+ * Migrated to use direct SSE emission via callback (no EventEmitter).
  */
 
 import { Router, type Request, type Response } from 'express';
@@ -66,22 +67,17 @@ router.post('/run', authenticateToken, (req: Request, res: Response) => {
 
   const cleanup = () => {
     clearInterval(keepAliveInterval);
-    agentExecutor.removeListener('sse', sseHandler);
   };
 
-  // Listen to ALL executor SSE events - we filter by taskId once we know it
-  let knownTaskId: string | null = null;
+  // Handle client disconnect
+  res.on('close', () => {
+    clientDisconnected = true;
+    cleanup();
+  });
 
-  const sseHandler = (event: AgentSSEEvent) => {
+  // SSE emitter callback — passed to AgentExecutor
+  const emitSSE = (event: AgentSSEEvent) => {
     if (clientDisconnected) return;
-
-    // Once we know the task ID, only forward events for this task
-    if (knownTaskId && event.data.taskId !== knownTaskId) return;
-
-    // Before we know the task ID, the first event sets it
-    if (!knownTaskId && event.data.taskId) {
-      knownTaskId = event.data.taskId;
-    }
 
     res.write(`event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`);
 
@@ -98,14 +94,6 @@ router.post('/run', authenticateToken, (req: Request, res: Response) => {
     }
   };
 
-  agentExecutor.on('sse', sseHandler);
-
-  // Handle client disconnect
-  res.on('close', () => {
-    clientDisconnected = true;
-    cleanup();
-  });
-
   // Determine effective model - fall back to Ollama if no Anthropic key
   const effectiveModel = model || (
     process.env.ANTHROPIC_API_KEY
@@ -113,10 +101,11 @@ router.post('/run', authenticateToken, (req: Request, res: Response) => {
       : process.env.OLLAMA_DEFAULT_MODEL || 'qwen3:8b'
   );
 
-  // Execute the agent task (fire-and-forget, events come via SSE)
+  // Execute the agent task (fire-and-forget, events come via SSE callback)
   agentExecutor.execute(query.trim(), context, {
     model: effectiveModel,
     conversationId,
+    emitSSE,
   }).catch(error => {
     console.error('[AgentRoute] Execution error:', error);
     if (!clientDisconnected) {
@@ -197,66 +186,31 @@ router.post('/tasks/:id/cancel', authenticateToken, async (req: Request, res: Re
 });
 
 /**
- * GET /api/agents/tasks/:id/stream - SSE reconnect stream for a running task
+ * GET /api/agents/tasks/:id/stream - Reconnect stream for a running task
+ *
+ * If the task is still running, we can't replay the live stream (no EventEmitter).
+ * Instead, return the task data so the frontend can poll or reconnect.
+ * If the task is finished, return task + steps as JSON.
  */
 router.get('/tasks/:id/stream', authenticateToken, async (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const taskId = req.params.id!;
 
-  if (!agentExecutor.isRunning(taskId)) {
-    try {
-      const context = getUserContext(authReq);
-      const result = await agentPersistence.getTaskWithSteps(context, taskId);
-      if (result) {
-        res.json(result);
-      } else {
-        res.status(404).json({ error: 'Task nicht gefunden' });
-      }
-    } catch (error) {
-      res.status(500).json({ error: 'Fehler' });
+  try {
+    const context = getUserContext(authReq);
+    const result = await agentPersistence.getTaskWithSteps(context, taskId);
+
+    if (!result) {
+      res.status(404).json({ error: 'Task nicht gefunden' });
+      return;
     }
-    return;
+
+    // Always return task data — frontend handles display
+    // For running tasks, the frontend can poll this endpoint
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Fehler' });
   }
-
-  // Set up SSE for reconnection
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders();
-
-  let clientDisconnected = false;
-
-  const keepAliveInterval = setInterval(() => {
-    if (!clientDisconnected) {
-      res.write(`event: keepalive\ndata: {}\n\n`);
-    }
-  }, 15000);
-
-  const sseHandler = (event: AgentSSEEvent) => {
-    if (clientDisconnected) return;
-    if (event.data.taskId !== taskId) return;
-
-    res.write(`event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`);
-
-    if (
-      event.event === 'task:complete' ||
-      event.event === 'task:error' ||
-      event.event === 'task:cancelled'
-    ) {
-      clearInterval(keepAliveInterval);
-      agentExecutor.removeListener('sse', sseHandler);
-      if (!clientDisconnected) res.end();
-    }
-  };
-
-  agentExecutor.on('sse', sseHandler);
-
-  res.on('close', () => {
-    clientDisconnected = true;
-    clearInterval(keepAliveInterval);
-    agentExecutor.removeListener('sse', sseHandler);
-  });
 });
 
 export default router;
