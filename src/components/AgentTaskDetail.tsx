@@ -10,7 +10,7 @@
  * During execution: same blocks appear live with spinners
  */
 
-import { useEffect, useState, useRef, type KeyboardEvent, type FormEvent } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   useAgent,
   type AgentStep,
@@ -18,6 +18,7 @@ import {
 } from '../contexts/AgentContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { Markdown } from './Markdown';
+import { ChatInput } from './ChatInput';
 import {
   Bot,
   CheckCircle2,
@@ -28,51 +29,53 @@ import {
   ChevronRight,
   Clock,
   X,
-  Send,
   Pencil,
 } from 'lucide-react';
 import { cn } from '../utils';
 
-// ── Tool Call Block (collapsible like Claude) ──
+// ── Tool Call Block (collapsible with vertical connector line like Claude) ──
 function ToolCallBlock({ step, isDark }: { step: AgentStep; isDark: boolean }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [showRequest, setShowRequest] = useState(false);
+  const [showResult, setShowResult] = useState(false);
 
   const toolLabel = (step.toolName || 'tool').replace(/_/g, ' ');
   const displayName = toolLabel.charAt(0).toUpperCase() + toolLabel.slice(1);
   const isRunning = step.status === 'tool_running';
+  const hasResult = step.status === 'complete' && (step.toolInput || step.toolOutput);
 
   return (
     <div className="my-3">
-      {/* Tool name - collapsible header */}
-      <button
-        onClick={() => !isRunning && setIsOpen(!isOpen)}
-        className={cn(
-          'flex items-center gap-1.5 text-sm transition-colors',
-          isDark ? 'text-white/45 hover:text-white/65' : 'text-gray-400 hover:text-gray-600'
-        )}
-      >
-        <span>{displayName}</span>
-        {isRunning
-          ? <Loader2 size={13} className="animate-spin ml-0.5" />
-          : isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />
-        }
-      </button>
+      {/* Tool header with icon — always visible */}
+      <div className="flex items-center gap-2">
+        <Pencil size={14} className={cn('shrink-0', isDark ? 'text-white/30' : 'text-gray-400')} />
+        <span className={cn('text-sm', isDark ? 'text-white/45' : 'text-gray-400')}>
+          {displayName}
+        </span>
+        {isRunning && <Loader2 size={13} className="animate-spin text-blue-400" />}
+      </div>
 
-      {/* Expanded content */}
-      {(isOpen || isRunning) && (
-        <div className="mt-2 ml-0.5 space-y-2">
-          {/* Activity line */}
-          <div className={cn('flex items-center gap-2 text-sm', isDark ? 'text-white/35' : 'text-gray-400')}>
-            <Pencil size={14} />
-            <span>{isRunning ? 'Wird ausgefuehrt...' : displayName}</span>
-          </div>
+      {/* Content with vertical connector line — always shown */}
+      <div className="flex ml-[6px]">
+        {/* Vertical line */}
+        <div className={cn(
+          'w-px shrink-0 ml-px',
+          isDark ? 'bg-white/[0.08]' : 'bg-gray-200'
+        )} />
 
-          {/* Ergebnis badge (clickable → shows request) */}
-          {step.status === 'complete' && (step.toolInput || step.toolOutput) && (
-            <div>
+        {/* Content area */}
+        <div className="ml-4 pb-1 min-w-0">
+          {/* Running indicator */}
+          {isRunning && (
+            <div className={cn('flex items-center gap-2 text-sm pt-1', isDark ? 'text-white/35' : 'text-gray-400')}>
+              <Loader2 size={13} className="animate-spin" />
+              <span>Wird ausgeführt...</span>
+            </div>
+          )}
+
+          {/* Ergebnis badge — only this is collapsible */}
+          {hasResult && (
+            <div className="pt-1">
               <button
-                onClick={() => setShowRequest(!showRequest)}
+                onClick={() => setShowResult(!showResult)}
                 className={cn(
                   'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium transition-colors',
                   isDark
@@ -81,10 +84,10 @@ function ToolCallBlock({ step, isDark }: { step: AgentStep; isDark: boolean }) {
                 )}
               >
                 Ergebnis
-                {showRequest ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                {showResult ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
               </button>
 
-              {showRequest && (
+              {showResult && (
                 <div className="mt-2 space-y-2">
                   {step.toolInput && (
                     <div className={cn(
@@ -123,7 +126,7 @@ function ToolCallBlock({ step, isDark }: { step: AgentStep; isDark: boolean }) {
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -140,39 +143,129 @@ function ThoughtBlock({ text, isDark }: { text: string; isDark: boolean }) {
   );
 }
 
+// ── Collapsible Tool Group (like Claude's "5 Agenten ausgeführt >") ──
+function ToolGroup({ steps, isDark, defaultOpen }: {
+  steps: AgentStep[];
+  isDark: boolean;
+  defaultOpen?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen ?? false);
+
+  const toolSteps = steps.filter(s => s.toolName);
+  const completedCount = toolSteps.filter(s => s.status === 'complete').length;
+  const runningCount = toolSteps.filter(s => s.status === 'tool_running').length;
+  const isGroupRunning = runningCount > 0;
+
+  // Build summary label
+  const label = isGroupRunning
+    ? `${completedCount} ausgeführt, ${runningCount} aktiv...`
+    : `${completedCount} ${completedCount === 1 ? 'Tool ausgeführt' : 'Tools ausgeführt'}`;
+
+  return (
+    <div className="my-2">
+      {/* Collapsible header */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'flex items-center gap-1.5 text-sm transition-colors py-1',
+          isDark ? 'text-white/60 hover:text-white/75' : 'text-gray-600 hover:text-gray-800'
+        )}
+      >
+        {!isGroupRunning && (
+          <CheckCircle2 size={14} className={cn('shrink-0', isDark ? 'text-white/50' : 'text-gray-500')} />
+        )}
+        <span>{label}</span>
+        {isGroupRunning
+          ? <Loader2 size={13} className="animate-spin" />
+          : isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />
+        }
+      </button>
+
+      {/* Expanded: all tool calls + Fertig inside */}
+      {(isOpen || isGroupRunning) && (
+        <div className="mt-1">
+          {steps.map((step) => (
+            <div key={step.stepNumber}>
+              {step.toolName && <ToolCallBlock step={step} isDark={isDark} />}
+            </div>
+          ))}
+          {!isGroupRunning && (
+            <div className="flex items-center gap-3 py-2">
+              <CheckCircle2 size={16} className={cn('shrink-0', isDark ? 'text-white/50' : 'text-gray-500')} />
+              <span className={cn('text-sm', isDark ? 'text-white/60' : 'text-gray-600')}>Fertig</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Step Stream (linear blocks like Claude) ──
 function StepStream({ steps, isRunning, isDark }: {
   steps: AgentStep[];
   isRunning: boolean;
   isDark: boolean;
 }) {
+  // Group consecutive tool-calling steps together
+  const groups: Array<{ type: 'thought' | 'thinking' | 'tools' | 'fertig'; steps: AgentStep[] }> = [];
+
+  for (const step of steps) {
+    if (step.status === 'thinking' && !step.thought && !step.toolName) {
+      groups.push({ type: 'thinking', steps: [step] });
+    } else if (step.thought && !step.toolName) {
+      groups.push({ type: 'thought', steps: [step] });
+    } else if (step.toolName) {
+      // Merge consecutive tool steps into one group
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup?.type === 'tools') {
+        lastGroup.steps.push(step);
+      } else {
+        groups.push({ type: 'tools', steps: [step] });
+      }
+    }
+  }
+
   return (
     <div>
-      {steps.map((step, idx) => (
-        <div key={step.stepNumber}>
-          {/* Thought */}
-          {step.thought && <ThoughtBlock text={step.thought} isDark={isDark} />}
+      {groups.map((group, idx) => {
+        if (group.type === 'thought') {
+          return <ThoughtBlock key={idx} text={group.steps[0]!.thought!} isDark={isDark} />;
+        }
 
-          {/* Thinking spinner (waiting for LLM response) */}
-          {step.status === 'thinking' && !step.thought && !step.toolName && (
-            <div className={cn('flex items-center gap-2.5 py-2', isDark ? 'text-white/35' : 'text-gray-400')}>
+        if (group.type === 'thinking') {
+          return (
+            <div key={idx} className={cn('flex items-center gap-2.5 py-2', isDark ? 'text-white/35' : 'text-gray-400')}>
               <Loader2 size={15} className="animate-spin" />
               <span className="text-sm">Denkt nach...</span>
             </div>
-          )}
+          );
+        }
 
-          {/* Tool call block */}
-          {step.toolName && <ToolCallBlock step={step} isDark={isDark} />}
+        if (group.type === 'tools') {
+          const allComplete = group.steps.every(s => s.status === 'complete');
+          const isLastGroup = idx === groups.length - 1;
 
-          {/* "Fertig" after completed steps with tools (not after last if still running) */}
-          {step.status === 'complete' && step.toolName && !(isRunning && idx === steps.length - 1) && (
-            <div className="flex items-center gap-3 py-2">
-              <CheckCircle2 size={16} className={cn('shrink-0', isDark ? 'text-white/20' : 'text-gray-300')} />
-              <span className={cn('text-sm', isDark ? 'text-white/35' : 'text-gray-400')}>Fertig</span>
+          return (
+            <div key={idx}>
+              {group.steps.length === 1 ? (
+                // Single tool call — show directly (no collapsible wrapper)
+                <ToolCallBlock step={group.steps[0]!} isDark={isDark} />
+              ) : (
+                // Multiple tool calls — collapsible group
+                <ToolGroup
+                  steps={group.steps}
+                  isDark={isDark}
+                  defaultOpen={isRunning && isLastGroup}
+                />
+              )}
+
             </div>
-          )}
-        </div>
-      ))}
+          );
+        }
+
+        return null;
+      })}
 
       {/* Trailing spinner when waiting for next step */}
       {isRunning && steps.length > 0 && steps[steps.length - 1]?.status === 'complete' && (
@@ -189,8 +282,6 @@ function StepStream({ steps, isRunning, isDark }: {
 export function AgentTaskDetail() {
   const { activeTaskId, tasks, cancelTask, getTaskDetail, setActiveTaskId, startTask } = useAgent();
   const { isDark } = useTheme();
-  const [input, setInput] = useState('');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const task = activeTaskId ? tasks.find(t => t.id === activeTaskId) : null;
@@ -209,69 +300,9 @@ export function AgentTaskDetail() {
     }
   }, [task?.steps, task?.status]);
 
-  // Auto-resize textarea
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = 'auto';
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
-    }
-  }, [input]);
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    if (input.trim()) {
-      startTask(input.trim());
-      setInput('');
-      if (textareaRef.current) textareaRef.current.style.height = 'auto';
-    }
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
-  };
-
-  const taskInput = (
-    <form onSubmit={handleSubmit}>
-      <div className={cn(
-        'flex items-center gap-2 p-3 rounded-xl transition-colors',
-        isDark
-          ? 'bg-white/[0.03] border border-white/[0.08] focus-within:border-white/[0.15] focus-within:ring-1 focus-within:ring-blue-500/20'
-          : 'bg-white border border-gray-200/80 focus-within:border-gray-300 focus-within:ring-1 focus-within:ring-blue-500/20 shadow-sm'
-      )}>
-        <Bot size={16} className={cn('shrink-0', isDark ? 'text-blue-400/60' : 'text-blue-500/60')} />
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Agent-Aufgabe eingeben..."
-          rows={1}
-          className={cn(
-            'flex-1 bg-transparent resize-none outline-none',
-            'text-primary placeholder:text-secondary',
-            'min-h-[24px] max-h-[200px] text-sm',
-            'focus:outline-none focus:ring-0 focus:border-0'
-          )}
-        />
-        <button
-          type="submit"
-          disabled={!input.trim()}
-          className={cn(
-            'shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-colors',
-            input.trim()
-              ? isDark ? 'text-blue-400 hover:bg-blue-500/20' : 'text-blue-600 hover:bg-blue-50'
-              : isDark ? 'text-white/15' : 'text-gray-300'
-          )}
-        >
-          <Send size={16} />
-        </button>
-      </div>
-    </form>
-  );
+  const handleSend = useCallback((message: string) => {
+    startTask(message);
+  }, [startTask]);
 
   // ── No task selected ──
   if (!task) {
@@ -288,7 +319,14 @@ export function AgentTaskDetail() {
             </p>
           </div>
         </div>
-        <div className="shrink-0 p-4">{taskInput}</div>
+        <div className={cn('shrink-0 border-t animate-stagger-5', isDark ? 'border-white/[0.06]' : 'border-gray-200/80')}>
+          <div className="p-4 max-w-4xl mx-auto w-full">
+            <ChatInput onSend={handleSend} placeholder="Agent-Aufgabe eingeben..." />
+            <p className={cn('text-xs mt-2 text-center', isDark ? 'text-gray-500' : 'text-gray-400')}>
+              Enter zum Senden, Shift+Enter fuer neue Zeile
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -338,14 +376,6 @@ export function AgentTaskDetail() {
           {/* ── Final "Fertig" + Answer (completed) ── */}
           {task.status === 'completed' && (
             <>
-              {/* Final fertig marker */}
-              {task.steps.length > 0 && !task.steps[task.steps.length - 1]?.toolName && (
-                <div className="flex items-center gap-3 py-2 mb-4">
-                  <CheckCircle2 size={16} className={cn('shrink-0', isDark ? 'text-white/20' : 'text-gray-300')} />
-                  <span className={cn('text-sm', isDark ? 'text-white/35' : 'text-gray-400')}>Fertig</span>
-                </div>
-              )}
-
               {/* Answer as Markdown */}
               {task.result?.answer && (
                 <div className={cn('prose prose-sm max-w-none', isDark ? 'prose-invert' : '')}>
@@ -387,8 +417,10 @@ export function AgentTaskDetail() {
 
       {/* Bottom input */}
       {isTerminal && (
-        <div className={cn('shrink-0 p-4 border-t', isDark ? 'border-white/[0.06]' : 'border-gray-200')}>
-          {taskInput}
+        <div className={cn('shrink-0 border-t', isDark ? 'border-white/[0.06]' : 'border-gray-200/80')}>
+          <div className="p-4 max-w-4xl mx-auto w-full">
+            <ChatInput onSend={handleSend} placeholder="Neuen Agent-Task starten..." />
+          </div>
         </div>
       )}
     </div>
