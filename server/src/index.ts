@@ -76,7 +76,9 @@ app.use(express.json())
 // Rate Limiters
 // ============================================
 
-const authRateLimiter = createRateLimiter({ maxAttempts: 10, windowMs: 15 * 60 * 1000 })
+// Auth rate limit covers ALL auth endpoints (login, refresh, logout, OAuth callbacks).
+// Must be generous enough for normal usage: token refresh every ~10min + page loads.
+const authRateLimiter = createRateLimiter({ maxAttempts: 100, windowMs: 15 * 60 * 1000 })
 const adminRateLimiter = createRateLimiter({ maxAttempts: 100, windowMs: 15 * 60 * 1000 })
 const generalRateLimiter = createRateLimiter({ maxAttempts: 200, windowMs: 15 * 60 * 1000 })
 
@@ -85,9 +87,6 @@ const generalRateLimiter = createRateLimiter({ maxAttempts: 200, windowMs: 15 * 
 // ============================================
 
 // Auth & Admin
-// Login/register: strict rate limit (10/15min). Refresh/logout: generous (200/15min).
-app.use('/api/auth/refresh', generalRateLimiter, authRoutes)
-app.use('/api/auth/logout', generalRateLimiter, authRoutes)
 app.use('/api/auth', authRateLimiter, authRoutes)
 app.use('/api/admin', adminRateLimiter, adminRoutes)
 app.use('/api/admin/settings', adminRateLimiter, settingsRoutes)
