@@ -19,6 +19,7 @@ const STATUS_CONFIG: Record<AgentTaskStatus, {
   completed: { label: 'Fertig', icon: CheckCircle2, color: 'text-green-600', darkColor: 'text-green-400' },
   failed: { label: 'Fehler', icon: XCircle, color: 'text-red-600', darkColor: 'text-red-400' },
   cancelled: { label: 'Abgebrochen', icon: Ban, color: 'text-gray-500', darkColor: 'text-gray-400' },
+  awaiting_input: { label: 'Wartet', icon: Clock, color: 'text-blue-600', darkColor: 'text-blue-400' },
 };
 
 export function AgentTaskSidebar() {
