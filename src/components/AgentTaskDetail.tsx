@@ -221,14 +221,16 @@ function StepStream({ steps, isRunning, isDark }: {
   );
 }
 
-// ── User Message Bubble ──
+// ── User Message Bubble (right-aligned like Claude) ──
 function UserMessageBubble({ content, isDark }: { content: string; isDark: boolean }) {
   return (
-    <div className="flex gap-3 py-3">
-      <div className={cn('shrink-0 w-6 h-6 rounded-full flex items-center justify-center', isDark ? 'bg-blue-500/20' : 'bg-blue-100')}>
-        <User size={13} className={cn(isDark ? 'text-blue-400' : 'text-blue-600')} />
-      </div>
-      <div className={cn('text-sm leading-relaxed pt-0.5', isDark ? 'text-white/80' : 'text-gray-800')}>
+    <div className="flex justify-end py-4">
+      <div className={cn(
+        'max-w-[85%] rounded-2xl px-5 py-3.5 text-sm leading-relaxed',
+        isDark
+          ? 'bg-white/[0.08] text-white/85'
+          : 'bg-stone-100 text-gray-800'
+      )}>
         {content}
       </div>
     </div>
