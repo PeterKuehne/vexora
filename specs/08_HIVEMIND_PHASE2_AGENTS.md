@@ -1,8 +1,8 @@
 # Phase 2: Agent Framework
 
-**Zeitraum:** Wochen 4-7
-**Abhängigkeiten:** Phase 1 (LLM Provider Abstraction)
-**Ziel:** Agenten die Multi-Step-Tasks planen, Tools nutzen und Ergebnisse berichten. Erweitert das bestehende `AgenticRAG`-Pattern zu einem allgemeinen Agent-System.
+**Status:** Implementiert (migriert auf Vercel AI SDK 6)
+**Abhängigkeiten:** Phase 1 (LLM Provider Abstraction — ersetzt durch AI SDK)
+**Ziel:** Agenten die Multi-Step-Tasks planen, Tools nutzen und Ergebnisse berichten. Multi-Turn Konversationen für interaktive Workflows.
 
 ---
 
@@ -10,10 +10,12 @@
 
 ```
 server/src/services/agents/
-  AgentExecutor.ts        ← ReAct-Loop: think → tool call → observe → repeat
-  ToolRegistry.ts         ← Registriert Tools die Agenten nutzen können
-  AgentPersistence.ts     ← Speichert/Resumiert Tasks in PostgreSQL
-  types.ts                ← Agent, Tool, AgentTask, AgentStep Interfaces
+  AgentExecutor.ts        ← Multi-Turn via AI SDK generateText() + stopWhen
+  ToolRegistry.ts         ← Registriert Tools, liefert AI SDK + legacy Formate
+  AgentPersistence.ts     ← Tasks, Steps, Messages in PostgreSQL mit RLS
+  ai-provider.ts          ← resolveModel(), parseModelString(), Provider-Setup
+  ai-middleware.ts        ← PII Guard Integration (setPIIGuard, createGuardedModel)
+  types.ts                ← AgentTask, AgentStep, AgentMessage, SSE Events
   tools/                  ← Built-in Tool-Implementierungen
     rag-search.ts
     graph-query.ts
@@ -21,83 +23,128 @@ server/src/services/agents/
     sql-query.ts
     create-document.ts
     send-notification.ts
-  index.ts
+    list-skills.ts
+    load-skill.ts
+    create-skill.ts
+    update-skill.ts
+    run-skill-test.ts     ← Sub-Agent via generateText()
+  index.ts                ← registerBuiltinTools() + cleanupStaleTasks()
 ```
 
-### AgentExecutor (ReAct-Pattern)
+### AgentExecutor (Vercel AI SDK 6)
 
-Basierend auf dem existierenden `AgenticRAG.ts` (server/src/services/rag/AgenticRAG.ts), das bereits einen Tool-Loop mit 4 Tools implementiert. Dieses Pattern wird generalisiert.
+Nutzt `generateText()` mit `stopWhen: stepCountIs(n)` statt manuellem ReAct-Loop. Das AI SDK übernimmt automatisch:
+- Multi-Step Tool-Calling (Model ruft Tool auf → Ergebnis → nächster Schritt)
+- Tool-Format-Konvertierung (AI SDK `tool()` + `jsonSchema()`)
+- Provider-Routing (Anthropic, Ollama via `resolveModel()`)
 
-**Input:**
-- User-Query + Chat-History
-- Verfügbare Tools (aus ToolRegistry, gefiltert nach User-Rolle)
-- User-Permissions (JWT Claims: user_id, role, department)
-- Optional: Skill-Definition (vordefinierter Workflow)
+**Kern-Methoden:**
 
-**Loop:**
-1. LLM erhält System-Prompt mit Tool-Beschreibungen + bisherige Steps
-2. LLM generiert `thought` (Reasoning) + `tool_call` (Name + Arguments)
-3. Tool wird ausgeführt mit User-Kontext (Permission-Vererbung)
-4. Tool-Result wird dem Kontext hinzugefügt
-5. Wiederholung bis `finish`-Tool aufgerufen wird oder Max-Iterationen erreicht
-6. Jeder Step wird in `agent_steps` Tabelle persistiert
+| Methode | Zweck |
+|---------|-------|
+| `execute(query, context, options)` | Neue Konversation starten (Turn 1) |
+| `continueTask(taskId, message, context)` | Follow-up Nachricht (Turn N) |
+| `completeTask(taskId)` | Konversation beenden |
+| `cancel(taskId)` | Laufenden Task abbrechen |
+| `isRunning(taskId)` | Prüfen ob Task aktiv |
+| `buildSystemPrompt(toolNames, context)` | System-Prompt mit Skills (Level 1) |
 
-**Konfiguration:**
-- `MAX_AGENT_ITERATIONS=10` (Default)
+**Multi-Turn Flow:**
+1. `execute()` erstellt Task + erste User-Message in DB
+2. Ruft `runTurn()` auf → `generateText({ messages, tools, ... })`
+3. Agent antwortet, Status wird `awaiting_input`
+4. User sendet Follow-up → `continueTask()` lädt Message-History aus DB
+5. Ruft `runTurn()` mit voller History auf → Agent hat vollen Kontext
+6. Wiederholung bis User `completeTask()` aufruft
+
+**Konfiguration (Umgebungsvariablen):**
+- `MAX_AGENT_ITERATIONS=10` (Default Steps pro Turn)
 - `AGENT_DEFAULT_MODEL=anthropic:claude-sonnet-4-6`
 - `AGENT_TIMEOUT_MS=300000` (5 Minuten)
 
+### AI Provider (ai-provider.ts)
+
+Ersetzt den alten LLMRouter. Zentrales Model-Resolution:
+
+```typescript
+resolveModel('anthropic:claude-sonnet-4-6')  → @ai-sdk/anthropic Provider
+resolveModel('qwen3:8b')                     → ollama-ai-provider-v2
+resolveModel('ollama:qwen3:8b')              → ollama-ai-provider-v2
+```
+
+**Funktionen:**
+- `resolveModel(modelString)` — Gibt AI SDK LanguageModel zurück
+- `parseModelString(model)` — Parst Provider + Model-Name
+- `hasProvider(name)` — Prüft Verfügbarkeit
+- `isCloudModel(model)` — Cloud vs. lokal
+- `getProviderOptions(model)` — Ollama: `{ think: false }` für Tool-Calling
+- `getCloudModels()` — Statische Cloud-Model-Liste mit Pricing
+
+### PII Guard Middleware (ai-middleware.ts)
+
+PII-Masking für Cloud-Provider via Presidio (Analyzer + Anonymizer):
+
+- `setPIIGuard(guard)` — Wird beim Server-Start gesetzt
+- `createGuardedModel(model, isCloud)` — Wraps Model (aktuell Passthrough, PII auf Message-Level)
+- `maskMessages(messages, isCloud)` — Maskiert PII in Messages
+- `unmaskContent(content, isCloud)` — Demaskiert PII in Antworten
+
+### SSE Event Emission
+
+Events werden via Callback-Funktion (`SSEEmitter`) direkt an die HTTP Response gesendet — kein EventEmitter-Pattern mehr.
+
+```typescript
+const emitSSE = (event: AgentSSEEvent) => {
+  res.write(`event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`);
+};
+
+agentExecutor.execute(query, context, { emitSSE });
+```
+
 ### Permission-Vererbung
 
-Agenten sind keine eigenständigen Akteure – sie handeln **im Namen des Users**:
-- Agent erbt JWT-Claims des aufrufenden Users
-- `rag_search` Tool nutzt bestehende RLS (sieht nur Dokumente die der User sehen darf)
-- `sql_query` Tool nutzt Column-Allowlist basierend auf User-Rolle
-- `create_document` Tool setzt `owner_id` auf den aufrufenden User
-- Audit-Log: Jeder Tool-Call wird mit `user_id` + `agent_task_id` geloggt
+Agenten handeln **im Namen des Users**:
+- Agent erbt JWT-Claims des aufrufenden Users (userId, userRole, department)
+- `rag_search` nutzt bestehende RLS (sieht nur erlaubte Dokumente)
+- `sql_query` nur SELECT, 10s Timeout, 1000 Rows, Manager/Admin only
+- `create_document` setzt owner auf aufrufenden User
+- Jeder Step wird mit task_id + user_id in DB persistiert
+
+### Server-Start Cleanup
+
+`initializeAgentSystem()` beim Start:
+1. Registriert alle Built-in Tools
+2. Setzt `running`/`pending` Tasks auf `cancelled` (kein AbortController nach Restart)
+3. `awaiting_input` Tasks bleiben erhalten (können nach Restart fortgesetzt werden)
 
 ---
 
-## 2.2 Built-in Tools
+## 2.2 Built-in Tools (11 Stück)
 
-### rag_search
-- **Wraps:** Bestehenden `VectorServiceV2.search()` + `RerankerService.rerank()`
-- **Input:** `{ query: string, limit?: number, documentFilter?: string[] }`
-- **Output:** Top-K Chunks mit Scores und Dokumenten-Metadaten
-- **Permissions:** Nutzt `allowedDocumentIds` aus RLS-Kontext
+| Tool | Zweck | Einschränkungen |
+|------|-------|-----------------|
+| `rag_search` | Hybrid-Suche (BM25 + Semantic) in Dokumenten | RLS-gefiltert |
+| `read_chunk` | Chunk-Details mit Kontext-Erweiterung (Adjacent Chunks) | Validiert Chunk-ID Format |
+| `graph_query` | Neo4j Entity-Suche + Beziehungen | Optional (GRAPH_ENABLED) |
+| `sql_query` | Read-Only SQL (nur SELECT) | Manager/Admin, 10s Timeout, 1000 Rows |
+| `create_document` | Text-Dokument erstellen | Setzt Classification Level |
+| `send_notification` | Echtzeit-Benachrichtigung via Socket.io | info/success/warning/error |
+| `list_skills` | Skills durchsuchen (Kategorie, Suche) | Max 20 Ergebnisse |
+| `load_skill` | Skill-Instruktionen laden (Progressive Disclosure Level 2) | Trackt Execution |
+| `create_skill` | Neuen Personal-Skill erstellen | Validiert Definition |
+| `update_skill` | Bestehenden Skill aktualisieren | Nur Owner/Admin |
+| `run_skill_test` | Sub-Agent Test (mit/ohne Skill, A/B-Vergleich) | Eigener generateText() Call |
 
-### graph_query
-- **Wraps:** Bestehenden `GraphService.refineRAGResults()`
-- **Input:** `{ entities: string[], depth?: number }`
-- **Output:** Verwandte Entitäten, Beziehungen, zusätzliche Chunks
-- **Permissions:** Nur Entitäten aus zugänglichen Dokumenten
+### ToolRegistry
 
-### read_chunk
-- **Bestehend aus:** `AgenticRAG.ts`
-- **Input:** `{ chunkId: string, expandContext?: boolean }`
-- **Output:** Chunk-Inhalt + optional Parent/Sibling-Chunks
+Zentrale Registrierung mit Rollen-basierter Filterung:
 
-### sql_query (Neu)
-- **Funktion:** Read-Only SQL gegen PostgreSQL
-- **Input:** `{ query: string, params?: any[] }`
-- **Sicherheit:**
-  - Nur SELECT-Statements erlaubt (Regex-Validierung)
-  - Separate DB-Connection mit Read-Only User
-  - Column-Allowlist pro Rolle (z.B. Employee darf keine salary-Spalten sehen)
-  - Query-Timeout: 10 Sekunden
-  - Max Result Rows: 1000
-- **Output:** Tabelle als JSON-Array
-
-### create_document (Neu)
-- **Funktion:** Erstellt Markdown-Dokument und registriert es im System
-- **Input:** `{ title: string, content: string, classification?: string }`
-- **Flow:** Speichert Datei → Triggert Processing-Pipeline (Parsing, Chunking, Embedding)
-- **Permissions:** Owner wird auf aufrufenden User gesetzt
-
-### send_notification (Neu)
-- **Funktion:** Sendet Benachrichtigung an User
-- **Input:** `{ message: string, type: 'info' | 'success' | 'warning' }`
-- **Flow:** Socket.io Event an User-Session oder in Notification-Queue
+```typescript
+toolRegistry.register(tool)              // Tool registrieren
+toolRegistry.getAvailableTools(context)  // Nach Rolle gefiltert
+toolRegistry.getAISDKTools(context)      // AI SDK Format (tool() + jsonSchema())
+toolRegistry.getToolNames()              // Für SkillValidator
+```
 
 ---
 
@@ -112,17 +159,16 @@ CREATE TABLE agent_tasks (
   tenant_id UUID,
   conversation_id UUID REFERENCES conversations(id),
   status TEXT NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending','running','paused','completed','failed','cancelled')),
+    CHECK (status IN ('pending','running','completed','failed','cancelled','awaiting_input')),
   query TEXT NOT NULL,
-  skill_id UUID,        -- NULL für Ad-hoc Tasks
   model TEXT NOT NULL,
-  result JSONB,          -- Finales Ergebnis
+  result JSONB,
   error TEXT,
   total_steps INTEGER DEFAULT 0,
-  total_duration_ms INTEGER,
   input_tokens INTEGER DEFAULT 0,
   output_tokens INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
+  started_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   completed_at TIMESTAMPTZ
 );
@@ -131,71 +177,81 @@ CREATE TABLE agent_steps (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   task_id UUID NOT NULL REFERENCES agent_tasks(id) ON DELETE CASCADE,
   step_number INTEGER NOT NULL,
-  thought TEXT,            -- LLM Reasoning
-  tool_name TEXT,          -- Welches Tool aufgerufen wurde
-  tool_input JSONB,        -- Tool-Argumente
-  tool_output TEXT,        -- Tool-Ergebnis (truncated bei großen Outputs)
+  turn_number INTEGER DEFAULT 1,
+  thought TEXT,
+  tool_name TEXT,
+  tool_input JSONB,
+  tool_output TEXT,
   tokens_used INTEGER DEFAULT 0,
   duration_ms INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
--- Indices
-CREATE INDEX idx_agent_tasks_user ON agent_tasks(user_id, status, created_at DESC);
-CREATE INDEX idx_agent_tasks_conversation ON agent_tasks(conversation_id);
-CREATE INDEX idx_agent_steps_task ON agent_steps(task_id, step_number);
-
--- RLS
-ALTER TABLE agent_tasks ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY agent_tasks_user_access ON agent_tasks
-  FOR ALL USING (
-    user_id = current_setting('app.user_id', true)::uuid
-    OR (
-      current_setting('app.user_role', true) = 'Manager'
-      AND tenant_id = (SELECT tenant_id FROM users WHERE id = current_setting('app.user_id', true)::uuid)
-    )
-    OR current_setting('app.user_role', true) = 'Admin'
-  );
 ```
+
+### Migration `012_agent_multi_turn.sql`
+
+```sql
+CREATE TABLE agent_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id UUID NOT NULL REFERENCES agent_tasks(id) ON DELETE CASCADE,
+  turn_number INTEGER NOT NULL,
+  role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant')),
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_agent_messages_task ON agent_messages(task_id, turn_number);
+```
+
+### RLS
+
+- Tasks: User sieht eigene, Manager sieht Tenant, Admin sieht alle
+- Steps: Folgt Task-Visibility (CASCADE)
+- Messages: Folgt Task-Visibility
 
 ---
 
 ## 2.4 API Endpoints
 
-### Neue Route `server/src/routes/agents.ts`
-
 ```
-POST   /api/agents/run                 → Agent-Task starten
-  Body: { query: string, model?: string, conversationId?: string }
-  Response: { taskId: string } + SSE-Stream Header
-
-GET    /api/agents/tasks               → User-Tasks listen (paginiert)
-  Query: ?status=running&limit=20&offset=0
-  Response: { tasks: AgentTask[], total: number }
-
-GET    /api/agents/tasks/:id           → Task-Details mit Steps
-  Response: { task: AgentTask, steps: AgentStep[] }
-
-POST   /api/agents/tasks/:id/cancel    → Laufenden Task abbrechen
-  Response: { success: boolean }
-
-GET    /api/agents/tasks/:id/stream    → SSE-Stream für Echtzeit-Updates
-  Events: step:start, step:complete, task:complete, task:error
+POST   /api/agents/run                    → Neue Konversation starten (Turn 1, SSE)
+POST   /api/agents/tasks/:id/message      → Follow-up Nachricht senden (Turn N, SSE)
+POST   /api/agents/tasks/:id/complete     → Konversation beenden
+POST   /api/agents/tasks/:id/cancel       → Laufenden Task abbrechen
+GET    /api/agents/tasks                  → Task-Liste (paginiert, RLS)
+GET    /api/agents/tasks/:id             → Task + Steps + Messages laden
+GET    /api/agents/tasks/:id/stream      → Task-Daten für Reconnect/Polling
 ```
 
-### SSE-Stream Format
+### SSE Events
 
 ```
+event: task:start
+data: {"taskId": "..."}
+
 event: step:start
-data: {"stepNumber": 1, "thought": "Ich suche nach relevanten Dokumenten..."}
+data: {"taskId": "...", "stepNumber": 1}
+
+event: step:tool_start
+data: {"taskId": "...", "stepNumber": 1, "toolName": "rag_search", "toolInput": {...}}
+
+event: step:tool_complete
+data: {"taskId": "...", "stepNumber": 1, "toolName": "rag_search", "toolOutput": "...", "duration": 1234}
 
 event: step:complete
-data: {"stepNumber": 1, "toolName": "rag_search", "duration": 1234}
+data: {"taskId": "...", "stepNumber": 1, "thought": "...", "duration": 1500}
 
 event: task:complete
-data: {"taskId": "...", "result": "...", "totalSteps": 3, "duration": 5678}
+data: {"taskId": "...", "result": "...", "totalSteps": 3, "nextStatus": "awaiting_input", "turnNumber": 1}
+
+event: task:error
+data: {"taskId": "...", "error": "..."}
+
+event: task:cancelled
+data: {"taskId": "..."}
 ```
+
+`nextStatus: "awaiting_input"` signalisiert dem Frontend dass der Agent auf weitere Eingabe wartet.
 
 ---
 
@@ -203,70 +259,90 @@ data: {"taskId": "...", "result": "...", "totalSteps": 3, "duration": 5678}
 
 ### AgentContext.tsx
 
-Neuer Context für Agent-Task-State:
-- `tasks: AgentTask[]` – Aktive und kürzliche Tasks
-- `activeTask: AgentTask | null` – Aktuell laufender Task
-- `startTask(query, model)` – Startet Agent und öffnet SSE-Stream
-- `cancelTask(taskId)` – Bricht Task ab
-- `loadTasks()` – Lädt Task-Historie
+State-Management für Multi-Turn Agent-Konversationen:
 
-### Chat-Integration
+| Action | Zweck |
+|--------|-------|
+| `startTask(query, model)` | Neue Konversation starten, SSE-Stream verarbeiten |
+| `sendMessage(taskId, message)` | Follow-up senden, SSE-Stream verarbeiten |
+| `completeTask(taskId)` | Konversation beenden |
+| `cancelTask(taskId)` | Laufenden Task abbrechen |
+| `getTaskDetail(taskId)` | Task + Steps + Messages aus API laden |
+| `loadTasks()` | Task-Liste laden |
 
-- "Agent Mode"-Toggle im ChatInput (neben RAG-Toggle)
-- Wenn aktiv: User-Message wird an `/api/agents/run` statt `/api/chat` gesendet
-- Agent-Antwort wird als spezielle AI-Message dargestellt mit:
-  - Thinking Steps (aufklappbar)
-  - Tool-Calls (mit Input/Output)
-  - Finales Ergebnis
+**State:**
+- `tasks: AgentTask[]` — Alle Tasks mit Steps und Messages
+- `activeTaskId: string | null` — Aktuell angezeigte Konversation
+- `isLoading: boolean` — Lade-Status
 
-### AgentTaskSidebar
+### AgentTaskDetail.tsx (Conversation Workspace)
 
-- Liste laufender/kürzlicher Tasks
-- Status-Badges (running, completed, failed)
-- Click → öffnet Task-Detail
+Rendert Multi-Turn Konversationen wie Claude Cowork:
 
-### AgentTaskDetail
+- **User-Nachrichten**: Rechts-eingerückte Bubble (max 85% Breite, abgerundete Ecken)
+- **Agent-Antworten**: Markdown-formatiert, links ausgerichtet
+- **Tool-Calls**: Collapsible mit vertikaler Linie + "Ergebnis" Badge
+- **Tool-Gruppen**: "N Tools ausgeführt >" zusammenfassbar (Claude-Style)
+- **Thinking**: Clock-Icon + grauer Text
+- **Chat-Input**: Sichtbar bei Status `awaiting_input`
+- **"Beenden" Button**: Im Header um Konversation abzuschließen
+- **Turn-Trenner**: Horizontale Linie zwischen Turns
 
-- Step-für-Step Timeline
-- Thought-Bubbles + Tool-Call-Cards
-- Duration pro Step
-- Token-Verbrauch + Kosten
+**Backward-kompatibel:** Alte Single-Turn Tasks (ohne Messages) werden über `task.query` + `task.result.answer` gerendert.
+
+### AgentTaskSidebar.tsx
+
+Liste aller Agent-Konversationen mit Status-Badge:
+
+| Status | Label | Icon | Farbe |
+|--------|-------|------|-------|
+| `pending` | Wartend | Clock | Gelb |
+| `running` | Aktiv | Loader (animiert) | Blau |
+| `awaiting_input` | Wartet | Clock | Blau |
+| `completed` | Fertig | CheckCircle | Grün |
+| `failed` | Fehler | XCircle | Rot |
+| `cancelled` | Abgebrochen | Ban | Grau |
+
+"+" Button startet neue Konversation (ohne Task ausgewählt → ChatInput unten).
 
 ---
 
-## Dateien-Übersicht
+## 2.6 Technologie-Stack
 
-### Geänderte Dateien
-| Datei | Änderung |
-|-------|----------|
-| `server/src/index.ts` | Agent-Routes mounten |
-| `server/src/services/rag/AgenticRAG.ts` | Pattern extrahieren, referenzieren |
-| `src/App.tsx` | AgentContext Provider |
-| `src/components/ChatContainer.tsx` | Agent-Mode Toggle |
-| `src/components/ChatInput.tsx` | Agent-Mode Button |
+| Komponente | Technologie |
+|------------|-------------|
+| LLM Routing | Vercel AI SDK 6 (`ai@6.0.134`) |
+| Anthropic | `@ai-sdk/anthropic` |
+| Ollama | `ollama-ai-provider-v2` |
+| Tool-Calling | AI SDK `tool()` + `jsonSchema()` + `stopWhen: stepCountIs(n)` |
+| Sub-Agenten | `generateText()` innerhalb von Tool-Execute |
+| Streaming | SSE via Callback (kein EventEmitter) |
+| PII Guard | Presidio (Analyzer + Anonymizer) |
 
-### Neue Dateien
-| Datei | Zweck |
-|-------|-------|
-| `server/src/services/agents/AgentExecutor.ts` | ReAct-Loop |
-| `server/src/services/agents/ToolRegistry.ts` | Tool-Verwaltung |
-| `server/src/services/agents/AgentPersistence.ts` | DB-Persistence |
-| `server/src/services/agents/types.ts` | TypeScript-Interfaces |
-| `server/src/services/agents/tools/*.ts` | 6 Built-in Tools |
-| `server/src/routes/agents.ts` | API-Endpoints |
-| `server/src/migrations/010_agent_system.sql` | DB-Schema |
-| `src/contexts/AgentContext.tsx` | Frontend-State |
-| `src/components/AgentTaskSidebar.tsx` | Task-Liste |
-| `src/components/AgentTaskDetail.tsx` | Task-Detail-View |
+### Gelöschte Dateien (ersetzt durch AI SDK)
+
+- `server/src/services/llm/LLMRouter.ts` → `ai-provider.ts`
+- `server/src/services/llm/OllamaProvider.ts` → `ollama-ai-provider-v2`
+- `server/src/services/llm/AnthropicProvider.ts` → `@ai-sdk/anthropic`
+- `server/src/services/llm/LLMProvider.ts` → AI SDK eigene Types
+- `server/src/services/llm/index.ts` → Nicht mehr benötigt
+- `@anthropic-ai/sdk` Paket → `@ai-sdk/anthropic`
+
+### Erhaltene Datei
+
+- `server/src/services/llm/PIIGuard.ts` — Weiterhin aktiv, eigenes `PIIMessage` Interface
 
 ---
 
 ## Verifikation
 
-1. **Agent starten:** Query senden → Task wird erstellt, Steps erscheinen in Echtzeit
+1. **Multi-Turn:** Query senden → Agent antwortet → Follow-up senden → Agent hat vollen Kontext
 2. **RAG-Tool:** Agent nutzt `rag_search` → findet relevante Dokumente
 3. **Permission-Test:** Employee-Agent findet keine restricted Dokumente
-4. **Abbrechen:** Laufenden Task canceln → Status wechselt zu 'cancelled'
-5. **Persistenz:** Browser schließen, öffnen → abgeschlossene Tasks sind sichtbar
-6. **Kosten-Tracking:** Cloud-Agent-Calls erscheinen in `api_usage_log`
-7. **Audit:** Agent-Steps sind in DB nachvollziehbar
+4. **Abbrechen:** Laufenden Task canceln → Status wechselt zu `cancelled`
+5. **Beenden:** Konversation explizit beenden → Status wechselt zu `completed`
+6. **Persistenz:** Browser schließen, öffnen → Konversationen mit Messages sichtbar
+7. **Server-Restart:** `running`/`pending` Tasks → `cancelled`, `awaiting_input` Tasks bleiben
+8. **Sub-Agent:** `run_skill_test` spawnt unabhängigen Agent via `generateText()`
+9. **Skills:** Agent erkennt Skill aus System-Prompt → lädt via `load_skill`
+10. **Backward-Kompatibilität:** Alte Single-Turn Tasks werden korrekt gerendert
