@@ -1,7 +1,7 @@
 # Phase 3: Schwarm-Skill-System
 
-**Zeitraum:** Wochen 8-10
-**Abhängigkeiten:** Phase 2 (Agent Framework)
+**Status:** Implementiert
+**Abhängigkeiten:** Phase 2 (Agent Framework), Vercel AI SDK 6 Migration
 **Ziel:** Ein organisches Skill-System nach dem Hive-Mind-Prinzip: Jeder kann Fertigkeiten für den Schwarm entwickeln, der Schwarm entscheidet welche zum Standard werden. Skills kodifizieren den Willen, die Regeln und Richtlinien des Unternehmens in ausführbare Agent-Workflows.
 
 ---
@@ -37,7 +37,7 @@ sieht + nutzt            nutzt + bewertet          Best Practice
 ```
 
 **Personal (Draft):**
-- Jeder Mitarbeiter kann einen Skill erstellen
+- Jeder Mitarbeiter kann einen Skill erstellen (auch über den Agenten via Skill Creator Skill)
 - Nur der Ersteller sieht und nutzt ihn
 - Experimentell, unfertig, persönlicher Workflow
 
@@ -56,131 +56,144 @@ sieht + nutzt            nutzt + bewertet          Best Practice
 
 ### Degradation
 
-Wenn ein Schwarm-Skill über Zeit schlechte Bewertungen bekommt (Quote fällt unter 60%), wird er automatisch zum Team-Skill zurückgestuft. Der Schwarm korrigiert sich selbst.
+Wenn ein Schwarm-Skill über Zeit schlechte Bewertungen bekommt (Quote fällt unter 60% bei mindestens 10 Votes), wird er automatisch zum Team-Skill zurückgestuft. Built-in Skills werden nie degradiert. Der Schwarm korrigiert sich selbst.
 
 ---
 
-## 3.2 Skill-Architektur
+## 3.2 Skill-Architektur: Progressive Disclosure
+
+Skills nutzen ein **dreistufiges Laden** inspiriert von Anthropic Claude Code Skills:
+
+### Level 1: Metadata (immer im Kontext)
+
+Skill-Name + Description werden in den Agent System-Prompt injiziert (~100 Wörter pro Skill). Der Agent weiß dadurch immer welche Skills existieren, ohne sie laden zu müssen.
 
 ```
-server/src/services/skills/
-  SkillEngine.ts          ← Führt Skill über AgentExecutor aus
-  SkillRegistry.ts        ← CRUD + Discovery + Schwarm-Logik
-  SkillValidator.ts       ← Validiert Definitionen + Inputs
-  SwarmPromotion.ts       ← Automatische Scope-Änderung basierend auf Votes/Usage
-  types.ts
-  builtin/                ← Eingebaute Seed-Skills
-    document-summary.json
-    email-draft.json
-    weekly-report.json
-  index.ts
+SKILLS (pre-built workflows):
+- Skill Creator [skill-creator]: Erstellt, testet und verbessert Skills...
+- Dokument-Zusammenfassung [document-summary]: Fasst Dokumente zusammen...
+- Recherche-Report [research-report]: Erstellt strukturierte Recherche-Reports...
+```
+
+### Level 2: Instruktionen (on-demand via load_skill)
+
+Wenn der Agent einen passenden Skill erkennt, lädt er die vollständigen Markdown-Instruktionen via `load_skill(slug)`. Diese enthalten den kompletten Workflow, Regeln, Beispiele.
+
+### Level 3: Tool-Nutzung
+
+Der Agent folgt den Skill-Instruktionen und nutzt die empfohlenen Tools (rag_search, read_chunk, create_skill, etc.) um die Aufgabe zu erledigen.
+
+```
+User: "Erstelle einen Recherche-Report zum Thema X"
+
+Agent erkennt: Skill "research-report" passt
+  → load_skill("research-report")
+  → Erhält vollständige Markdown-Instruktionen
+  → Folgt dem Workflow: rag_search → read_chunk → graph_query → Report formatieren
 ```
 
 ### Skill-Definition Format
 
-Skills werden als JSON in PostgreSQL gespeichert:
-
-```json
-{
-  "name": "Wochenbericht erstellen",
-  "description": "Fasst Aktivitäten der Woche zusammen basierend auf Dokumenten und Daten",
-  "version": "1.0",
-  "inputs": [
-    {
-      "name": "week",
-      "type": "string",
-      "required": true,
-      "description": "Kalenderwoche (z.B. KW12 2026)"
-    },
-    {
-      "name": "department",
-      "type": "string",
-      "required": false,
-      "options": ["Marketing", "Vertrieb", "Pflege", "Verwaltung"]
-    }
-  ],
-  "context": "Du erstellst professionelle Wochenberichte. Nutze formelle Sprache, strukturiere nach: Zusammenfassung, Highlights, Herausforderungen, Nächste Schritte.",
-  "steps": [
-    {
-      "name": "Daten sammeln",
-      "prompt": "Suche alle Dokumente und Daten zur Woche {{week}} für {{department}}.",
-      "tools": ["rag_search", "sql_query"],
-      "maxIterations": 3
-    },
-    {
-      "name": "Bericht erstellen",
-      "prompt": "Erstelle den Wochenbericht als strukturiertes Markdown.",
-      "tools": ["create_document"]
-    }
-  ],
-  "category": "Berichte",
-  "tags": ["woche", "report"],
-  "estimatedDuration": "1-3 Minuten"
-}
-```
-
-### Chat-integrierte Auslösung
-
-Skills werden **nicht** über eine separate Seite ausgeführt, sondern im Chat erkannt:
-
-```
-User: "Erstelle einen Wochenbericht für KW12"
-
-Agent: 📦 Skill erkannt: Wochenbericht erstellen
-       Woche: KW12 2026
-       Abteilung: (alle)
-
-       Soll ich den Bericht erstellen?
-       [✅ Ja, starten] [✏️ Anpassen]
-
---- nach Bestätigung ---
-
-✅ Schritt 1: Daten sammeln (8 Quellen gefunden)
-⏳ Schritt 2: Bericht erstellen...
-```
-
-**Erkennung:** Der Agent bekommt die verfügbaren Skills als Tool-Beschreibungen. Wenn eine User-Anfrage zu einem Skill passt, schlägt er ihn vor statt frei zu antworten. User kann bestätigen oder ignorieren.
-
-**Alternatives Auslösen:**
-- Command Palette (Cmd+K): Skill suchen und direkt starten
-- Slash-Command im Chat: `/skill wochenbericht KW12`
-- API/Slack: `POST /api/v1/skills/:slug/execute`
-
-### SkillEngine
-
-- Nimmt Skill-Definition + User-Inputs
-- Ersetzt `{{placeholders}}` in Prompts mit Input-Werten
-- Injiziert Skill-Context als System-Prompt
-- Führt jeden Step über `AgentExecutor` aus
-- Ergebnis jedes Steps fließt als Kontext in den nächsten
-
-### SwarmPromotion
-
-Periodischer Check (z.B. stündlich oder bei jedem Vote):
+Skills werden als JSONB in PostgreSQL gespeichert:
 
 ```typescript
-async checkPromotion(skillId: UUID): Promise<void> {
-  const skill = await this.getSkillWithStats(skillId);
+interface SkillDefinition {
+  content: string;    // Vollständige Markdown-Instruktionen
+  tools: string[];    // Empfohlene Tool-Namen
+  version: string;    // Semantische Version
+}
+```
 
-  // Team → Schwarm Promotion
-  if (skill.scope === 'team'
-      && skill.adoption_count >= 5
-      && skill.voteRatio >= 0.8) {
-    await this.promote(skillId, 'swarm');
-  }
-
-  // Schwarm → Team Degradation
-  if (skill.scope === 'swarm'
-      && skill.voteRatio < 0.6
-      && skill.total_votes >= 10) {
-    await this.demote(skillId, 'team');
+**Beispiel (document-summary.json):**
+```json
+{
+  "slug": "document-summary",
+  "name": "Dokument-Zusammenfassung",
+  "description": "Fasst Dokumente zusammen. Nutze diesen Skill wenn der User 'fasse zusammen', 'Zusammenfassung', 'Überblick' sagt...",
+  "category": "zusammenfassung",
+  "tags": ["zusammenfassung", "dokument"],
+  "definition": {
+    "version": "1.0.0",
+    "tools": ["rag_search", "read_chunk"],
+    "content": "# Dokument-Zusammenfassung\n\n## Workflow\n1. Durchsuche die Wissensdatenbank...\n2. Lies relevante Chunks...\n3. Erstelle eine strukturierte Zusammenfassung..."
   }
 }
 ```
+
+### Description — das Wichtigste
+
+Die Description bestimmt ob der Agent den Skill lädt. Sie muss enthalten:
+1. Was der Skill tut (1 Satz)
+2. Wann er genutzt werden soll (Trigger-Phrasen auf Deutsch)
+3. Konkretes Beispiel was User sagen könnten
+
+Tendenz ist dass Skills zu selten getriggert werden — daher die Description etwas "pushier" formulieren.
 
 ---
 
-## 3.3 Datenbank
+## 3.3 Agent-Tools für Skills
+
+Skills werden über Agent-Tools gesteuert, nicht über separate API-Endpoints:
+
+| Tool | Zweck |
+|------|-------|
+| `load_skill` | Lädt vollständige Instruktionen eines Skills (Level 2) |
+| `list_skills` | Durchsucht verfügbare Skills (Kategorie, Suche) |
+| `create_skill` | Erstellt einen neuen Personal-Skill |
+| `update_skill` | Aktualisiert einen bestehenden Skill |
+| `run_skill_test` | Testet einen Skill via Sub-Agent (mit/ohne Skill, A/B-Vergleich) |
+
+### Sub-Agent Testing (run_skill_test)
+
+Das `run_skill_test` Tool spawnt einen unabhängigen Sub-Agenten via `generateText()`:
+
+```typescript
+// Wird innerhalb des Skill Creator Workflows genutzt
+run_skill_test({
+  prompt: "Fasse das Dokument XY zusammen",
+  skill_slug: "document-summary",  // Test MIT Skill
+})
+
+run_skill_test({
+  prompt: "Fasse das Dokument XY zusammen",
+  // kein skill_slug = Baseline OHNE Skill
+})
+```
+
+Der Sub-Agent hat eigene Tools, eigenes System-Prompt, eigenes Step-Limit. Ergebnis enthält: Antwort, Dauer, Steps, Tokens, genutzte Tools.
+
+### System-Prompt Regel
+
+Tools wie `create_skill`, `update_skill`, `run_skill_test` sind für Skill-Workflows gedacht (z.B. den Skill Creator Skill), nicht für direkten Aufruf. Der System-Prompt instruiert den Agent, bei Skill-bezogenen Anfragen zuerst den passenden Skill zu laden.
+
+---
+
+## 3.4 Built-in Skills
+
+Drei Built-in Skills werden beim Server-Start via `seedBuiltinSkills()` in die DB geladen (idempotent):
+
+| Skill | Slug | Kategorie | Tools |
+|-------|------|-----------|-------|
+| Skill Creator v3 | `skill-creator` | meta | create_skill, update_skill, load_skill, list_skills, run_skill_test |
+| Dokument-Zusammenfassung | `document-summary` | zusammenfassung | rag_search, read_chunk |
+| Recherche-Report | `research-report` | recherche | rag_search, read_chunk, graph_query |
+
+### Skill Creator (Meta-Skill)
+
+Der Skill Creator führt den User durch den Skill-Entwicklungsprozess:
+
+1. **Intent erfassen** — Verstehe was der Skill tun soll
+2. **Interview** — Kläre Edge Cases, Formate, Erfolgskriterien
+3. **Skill schreiben** — Erstelle mit `create_skill`
+4. **Testen mit Sub-Agenten** — `run_skill_test` mit UND ohne Skill
+5. **Ergebnisse präsentieren** — Vergleich dem User zeigen
+6. **Verbessern** — `update_skill` basierend auf Feedback
+7. **Wiederholen** — Bis der User zufrieden ist
+8. **Description optimieren** — Trigger-Treffsicherheit verbessern
+
+---
+
+## 3.5 Datenbank
 
 ### Migration `011_skills.sql`
 
@@ -188,51 +201,49 @@ async checkPromotion(skillId: UUID): Promise<void> {
 CREATE TABLE skills (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID,
-  name TEXT NOT NULL,
-  slug TEXT NOT NULL,
-  description TEXT,
-  definition JSONB NOT NULL,
   created_by UUID REFERENCES users(id),
+  name VARCHAR(200) NOT NULL,
+  slug VARCHAR(200) NOT NULL,
+  description TEXT,
+  definition JSONB NOT NULL,  -- { content, tools, version }
 
   -- Schwarm-Lebenszyklus
   scope TEXT NOT NULL DEFAULT 'personal'
     CHECK (scope IN ('personal', 'team', 'swarm')),
-  department TEXT,            -- Relevant für scope='team'
-  is_verified BOOLEAN DEFAULT FALSE,  -- Admin-Siegel
-  promoted_at TIMESTAMPTZ,   -- Wann zum Schwarm-Skill
+  department VARCHAR(100),
+  is_verified BOOLEAN DEFAULT FALSE,
+  promoted_at TIMESTAMPTZ,
 
   -- Metriken
   upvotes INTEGER DEFAULT 0,
   downvotes INTEGER DEFAULT 0,
-  adoption_count INTEGER DEFAULT 0,  -- Unique Users die ihn genutzt haben
+  adoption_count INTEGER DEFAULT 0,
   execution_count INTEGER DEFAULT 0,
   avg_duration_ms INTEGER,
 
   -- Meta
   is_builtin BOOLEAN DEFAULT FALSE,
   is_active BOOLEAN DEFAULT TRUE,
-  category TEXT,
+  category VARCHAR(100),
   tags TEXT[],
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(tenant_id, slug)
 );
 
--- Schwarm-Bewertungen
 CREATE TABLE skill_votes (
   skill_id UUID NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES users(id),
-  vote INTEGER NOT NULL CHECK (vote IN (-1, 1)),
+  vote SMALLINT NOT NULL CHECK (vote IN (-1, 1)),
   comment TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (skill_id, user_id)
 );
 
--- Ausführungshistorie
 CREATE TABLE skill_executions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   skill_id UUID NOT NULL REFERENCES skills(id),
-  task_id UUID NOT NULL REFERENCES agent_tasks(id),
+  task_id UUID REFERENCES agent_tasks(id),
   user_id UUID NOT NULL REFERENCES users(id),
   inputs JSONB,
   outputs JSONB,
@@ -240,149 +251,114 @@ CREATE TABLE skill_executions (
   duration_ms INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+```
 
--- Indices
-CREATE INDEX idx_skills_scope ON skills(scope, is_active, category);
-CREATE INDEX idx_skills_department ON skills(department) WHERE scope = 'team';
-CREATE INDEX idx_skills_slug ON skills(tenant_id, slug);
-CREATE INDEX idx_skill_votes_skill ON skill_votes(skill_id);
-CREATE INDEX idx_skill_executions_skill ON skill_executions(skill_id, created_at DESC);
+### RLS
 
--- RLS: Skills sichtbar nach Scope
-ALTER TABLE skills ENABLE ROW LEVEL SECURITY;
+- **Personal Skills**: Nur Ersteller oder Admin
+- **Team Skills (aktiv)**: Gleiche Abteilung oder Admin
+- **Schwarm Skills (aktiv)**: Alle
+- **Built-in Skills**: Alle
+- Insert/Update/Delete: Nur Ersteller oder Admin
 
-CREATE POLICY skills_visibility ON skills FOR SELECT USING (
-  -- Personal: nur Ersteller
-  (scope = 'personal' AND created_by = current_setting('app.user_id', true)::uuid)
-  -- Team: gleiche Abteilung
-  OR (scope = 'team' AND department = current_setting('app.user_department', true))
-  -- Schwarm: alle
-  OR scope = 'swarm'
-  -- Built-in: alle
-  OR is_builtin = TRUE
-  -- Admin sieht alles
-  OR current_setting('app.user_role', true) = 'Admin'
+---
+
+## 3.6 Architektur-Übersicht
+
+```
+server/src/services/skills/
+  SkillRegistry.ts        ← CRUD + Discovery + getSkills/getSkillBySlug
+  SkillValidator.ts       ← Validiert Definitionen (content, tools, version)
+  SwarmPromotion.ts       ← Automatische Scope-Änderung basierend auf Votes
+  types.ts                ← SkillDefinition, Skill, SkillUserContext
+  index.ts                ← Initialization + seedBuiltinSkills
+  builtin/
+    skill-creator.json    ← Meta-Skill mit Sub-Agent Tests (v3)
+    document-summary.json ← Zusammenfassung
+    research-report.json  ← Strukturierter Recherche-Report
+
+server/src/services/agents/tools/
+  load-skill.ts           ← Progressive Disclosure Level 2
+  list-skills.ts          ← Discovery Tool
+  create-skill.ts         ← Skill-Erstellung
+  update-skill.ts         ← Skill-Aktualisierung
+  run-skill-test.ts       ← Sub-Agent Testing (A/B Vergleich)
+
+server/src/services/agents/
+  AgentExecutor.ts        ← System-Prompt mit Skill-Liste (Level 1)
+  ai-provider.ts          ← resolveModel() für Sub-Agenten
+```
+
+---
+
+## 3.7 Multi-Turn Agent-Konversationen
+
+Agent Tasks sind **Multi-Turn Konversationen** (wie Claude Cowork):
+
+- User sendet Nachricht → Agent antwortet (nutzt Tools) → User antwortet → Agent antwortet → ...
+- Status `awaiting_input`: Agent wartet auf nächste User-Nachricht
+- Volle Message-History wird bei jedem Turn an `generateText()` übergeben
+- Konversation kann explizit beendet werden
+
+Dies ist essentiell für den Skill Creator Workflow (Interview → Draft → Test → Feedback → Improve), der mehrere Gesprächsrunden erfordert.
+
+### Datenbank (Migration 012)
+
+```sql
+CREATE TABLE agent_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id UUID NOT NULL REFERENCES agent_tasks(id) ON DELETE CASCADE,
+  turn_number INTEGER NOT NULL,
+  role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant')),
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE agent_steps ADD COLUMN turn_number INTEGER DEFAULT 1;
+ALTER TABLE agent_tasks ADD CONSTRAINT agent_tasks_status_check
+  CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled', 'awaiting_input'));
+```
+
+### API
+
+```
+POST /api/agents/run                    → Neue Konversation starten (Turn 1)
+POST /api/agents/tasks/:id/message      → Follow-up Nachricht senden (Turn N)
+POST /api/agents/tasks/:id/complete     → Konversation beenden
+POST /api/agents/tasks/:id/cancel       → Konversation abbrechen
+GET  /api/agents/tasks/:id              → Task + Steps + Messages laden
+GET  /api/agents/tasks                  → Task-Liste (paginated)
 ```
 
 ---
 
-## 3.4 API Endpoints
+## 3.8 Frontend
 
-### Route `server/src/routes/skills.ts`
+### Agent Workspace (primäre Interaktion)
 
-```
-GET    /api/skills                        → Sichtbare Skills (gefiltert nach Scope/Rolle/Abteilung)
-  Query: ?scope=swarm&category=Berichte&search=bericht
-  Response: { skills: Skill[], total: number }
+Der Agent Workspace zeigt Multi-Turn Konversationen:
+- **User-Nachrichten**: Rechts-eingerückte Bubble (wie Claude Cowork)
+- **Agent-Antworten**: Markdown-formatiert, links
+- **Tool-Calls**: Collapsible mit Request/Ergebnis Badge
+- **Tool-Gruppen**: "5 Tools ausgeführt >" zusammenfassbar
+- **Chat-Input**: Sichtbar wenn Agent auf Input wartet (`awaiting_input`)
+- **"Beenden" Button**: Im Header um Konversation abzuschließen
 
-POST   /api/skills                        → Neuen Skill erstellen (personal)
-  Body: { name, description, definition, category, tags }
-  Response: { skill: Skill }
+### Sidebar
 
-PUT    /api/skills/:id                    → Skill aktualisieren (nur Owner)
-
-POST   /api/skills/:id/share              → Skill teilen (personal → team)
-  Body: { department: string }
-
-POST   /api/skills/:id/execute            → Skill ausführen
-  Body: { inputs: Record<string, any> }
-  Response: { taskId: string } + SSE-Stream
-
-POST   /api/skills/:id/vote               → Bewerten
-  Body: { vote: 1 | -1, comment?: string }
-
-GET    /api/skills/:id/votes              → Bewertungen anzeigen
-  Response: { upvotes, downvotes, ratio, comments: [] }
-
-GET    /api/skills/suggestions            → Skill-Vorschläge basierend auf User-Aktivität
-  Response: { skills: Skill[] }
-```
-
----
-
-## 3.5 Frontend
-
-### Chat-Integration (primäre Interaktion)
-
-- Agent erkennt passende Skills und schlägt sie inline vor
-- Bestätigungs-Card mit Input-Feldern direkt im Chat
-- Progress-Anzeige im Chat (Steps, Tools, Ergebnisse)
-- Kein separater Skills-Bereich nötig für die Ausführung
-
-### Command Palette (Cmd+K)
-
-- Globale Suche über alle sichtbaren Skills
-- Zeigt Scope-Badge (Personal/Team/Schwarm)
-- Schnelles Ausführen: Skill wählen → Input-Dialog → Start
-- Zeigt auch kürzlich genutzte Skills
-
-### Skill-Verwaltung (im Icon-Rail unter "Skills")
-
-Sidebar zeigt:
-- **Meine Skills** (personal, mit "Teilen"-Button)
-- **Team-Skills** (shared, mit Vote-Buttons)
-- **Schwarm-Skills** (verifiziert, Best Practices)
-- **Skill erstellen** Button
-
-Main Content zeigt:
-- Skill-Detail mit Definition, Metriken, Bewertungen
-- Einfacher Skill-Editor (Formular-basiert, nicht JSON)
-- Ausführungshistorie
-
-### Schwarm-Metriken auf Skill-Cards
-
-```
-┌──────────────────────────────────────┐
-│ 📄 Wochenbericht erstellen           │
-│ Fasst Aktivitäten der Woche zusammen │
-│                                      │
-│ 🐝 Schwarm-Skill  ✓ Verifiziert     │
-│ 👥 23 Nutzer  |  ▲ 18  ▼ 2  |  ⚡ 47x│
-│ ⏱ ~2 Min  |  📂 Berichte            │
-└──────────────────────────────────────┘
-```
-
-### Skill-Erstellung (alle Rollen)
-
-Einfaches Formular statt JSON-Editor:
-1. Name + Beschreibung
-2. Inputs definieren (Name, Typ, Pflicht)
-3. Schritte definieren (Prompt + Tools auswählen)
-4. Kategorie + Tags
-5. Vorschau → Speichern als Personal-Skill
-
----
-
-## Dateien-Übersicht
-
-### Neue Dateien
-| Datei | Zweck |
-|-------|-------|
-| `server/src/services/skills/SkillEngine.ts` | Skill-Ausführung über AgentExecutor |
-| `server/src/services/skills/SkillRegistry.ts` | CRUD + Discovery |
-| `server/src/services/skills/SkillValidator.ts` | Validierung |
-| `server/src/services/skills/SwarmPromotion.ts` | Automatische Scope-Änderung |
-| `server/src/services/skills/types.ts` | TypeScript-Interfaces |
-| `server/src/services/skills/builtin/*.json` | Seed-Skills |
-| `server/src/routes/skills.ts` | API-Endpoints |
-| `server/src/migrations/011_skills.sql` | DB-Schema |
-| `src/components/SkillSuggestionCard.tsx` | Inline-Vorschlag im Chat |
-| `src/components/SkillCard.tsx` | Skill-Karte mit Metriken |
-| `src/components/SkillEditor.tsx` | Formular-basierter Editor |
-| `src/components/SkillVoteButtons.tsx` | Upvote/Downvote |
-| `src/components/CommandPalette.tsx` | Cmd+K Suche |
+Zeigt alle Agent-Konversationen mit Status-Badge:
+- Wartend (Clock), Aktiv (Loader), Wartet (Clock/blau), Fertig (CheckCircle), Fehler (XCircle), Abgebrochen (Ban)
 
 ---
 
 ## Verifikation
 
-1. **Skill erstellen:** Mitarbeiter erstellt Personal-Skill → nur er sieht ihn
-2. **Skill teilen:** Personal → Team → Abteilung sieht ihn
-3. **Skill bewerten:** Team-Mitglieder voten → Votes werden gezählt
-4. **Schwarm-Promotion:** 5+ Nutzer + 80%+ positiv → automatisch Schwarm-Skill
-5. **Schwarm-Degradation:** Vote-Ratio unter 60% → zurück zu Team
-6. **Chat-Erkennung:** "Erstelle Wochenbericht" → Agent schlägt Skill vor
-7. **Command Palette:** Cmd+K → "wochen" → Skill finden → ausführen
-8. **RLS:** Employee sieht keine Personal-Skills anderer User
-9. **Multi-Channel:** `/skill wochenbericht KW12` in Slack → funktioniert
+1. **Skill erstellen:** User sagt "Erstelle einen Skill" → Agent lädt Skill Creator → Interview-Workflow
+2. **Skill testen:** Sub-Agent wird via `run_skill_test` gespawnt → A/B Vergleich mit/ohne Skill
+3. **Multi-Turn:** User gibt Feedback → Agent verbessert Skill → User gibt weiteres Feedback
+4. **Skill teilen:** Personal → Team → Abteilung sieht ihn
+5. **Skill bewerten:** Team-Mitglieder voten → Votes werden gezählt
+6. **Schwarm-Promotion:** 5+ Nutzer + 80%+ positiv → automatisch Schwarm-Skill
+7. **Schwarm-Degradation:** Vote-Ratio unter 60% → zurück zu Team
+8. **Progressive Disclosure:** Level 1 (System-Prompt) → Level 2 (load_skill) → Level 3 (Tools)
+9. **RLS:** Employee sieht keine Personal-Skills anderer User
