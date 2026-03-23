@@ -338,7 +338,7 @@ router.post('/refresh', asyncHandler(async (req: Request, res: Response) => {
  */
 router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
   try {
-    const refreshToken = req.body.refresh_token || (req as any).cookies?.refresh_token;
+    const refreshToken = req.body?.refresh_token || (req as any).cookies?.refresh_token;
     const authToken = req.headers['authorization']?.replace('Bearer ', '') || (req as any).cookies?.auth_token;
 
     // Get user info for audit log before revoking tokens

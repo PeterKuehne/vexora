@@ -85,6 +85,9 @@ const generalRateLimiter = createRateLimiter({ maxAttempts: 200, windowMs: 15 * 
 // ============================================
 
 // Auth & Admin
+// Login/register: strict rate limit (10/15min). Refresh/logout: generous (200/15min).
+app.use('/api/auth/refresh', generalRateLimiter, authRoutes)
+app.use('/api/auth/logout', generalRateLimiter, authRoutes)
 app.use('/api/auth', authRateLimiter, authRoutes)
 app.use('/api/admin', adminRateLimiter, adminRoutes)
 app.use('/api/admin/settings', adminRateLimiter, settingsRoutes)
