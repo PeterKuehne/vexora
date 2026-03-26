@@ -41,6 +41,8 @@ export interface AgentUserContext {
   department?: string;
   /** Document IDs the user is allowed to access (from RLS) */
   allowedDocumentIds?: string[];
+  /** Current task ID — set by AgentExecutor during execution */
+  taskId?: string;
 }
 
 export interface AgentTool {
@@ -50,6 +52,12 @@ export interface AgentTool {
   execute: (args: Record<string, unknown>, context: AgentUserContext) => Promise<ToolResult>;
   /** Roles that can use this tool. If empty/undefined, all roles can use it. */
   requiredRoles?: UserRole[];
+  /**
+   * Skill-gated tool: only available after the named skill has been loaded
+   * via load_skill. Follows Anthropic's allowed-tools pattern.
+   * Example: 'skill-creator' → tool only available after load_skill("skill-creator")
+   */
+  skillGated?: string;
 }
 
 // ============================================
@@ -169,6 +177,14 @@ export interface AgentSSEEvent {
     /** For task:complete — tells frontend if agent awaits more input */
     nextStatus?: 'awaiting_input' | 'completed';
     turnNumber?: number;
+    /** Model used for this turn (e.g. "qwen3:14b", "mistral:mistral-large-latest") */
+    model?: string;
+    /** Where the model ran: 'local' (Ollama) or 'cloud' (EU-Cloud API) */
+    modelLocation?: 'local' | 'cloud';
+    /** Estimated cost in EUR (only for cloud models) */
+    estimatedCost?: number;
+    /** What the query router decided: 'direct' | 'rag' | 'rag-complex' */
+    routingDecision?: string;
   };
 }
 

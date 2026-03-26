@@ -2,7 +2,7 @@
  * AgentTaskDetail - Multi-turn agent conversation workspace
  *
  * Renders a conversation thread: user messages + agent responses + tool calls.
- * Shows a chat input when the agent awaits follow-up input.
+ * Chat input is always visible — conversations stay open until deleted.
  */
 
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -10,6 +10,7 @@ import {
   useAgent,
   type AgentStep,
   type AgentMessage,
+  type TurnMeta,
 } from '../contexts/AgentContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { Markdown } from './Markdown';
@@ -26,9 +27,35 @@ import {
   X,
   Pencil,
   User,
-  Square,
+  ArrowDown,
+  Search,
+  FileText,
+  GitFork,
+  Database,
+  FilePlus,
+  Bell,
+  Sparkles,
+  List,
+  Wand2,
+  RefreshCw,
+  FlaskConical,
 } from 'lucide-react';
 import { cn } from '../utils';
+
+// ── Tool Icon Mapping ──
+const TOOL_ICONS: Record<string, typeof Pencil> = {
+  rag_search: Search,
+  read_chunk: FileText,
+  graph_query: GitFork,
+  sql_query: Database,
+  create_document: FilePlus,
+  send_notification: Bell,
+  load_skill: Sparkles,
+  list_skills: List,
+  create_skill: Wand2,
+  update_skill: RefreshCw,
+  run_skill_test: FlaskConical,
+};
 
 // ── Tool Call Block ──
 function ToolCallBlock({ step, isDark }: { step: AgentStep; isDark: boolean }) {
@@ -38,11 +65,12 @@ function ToolCallBlock({ step, isDark }: { step: AgentStep; isDark: boolean }) {
   const displayName = toolLabel.charAt(0).toUpperCase() + toolLabel.slice(1);
   const isRunning = step.status === 'tool_running';
   const hasResult = step.status === 'complete' && (step.toolInput || step.toolOutput);
+  const Icon = TOOL_ICONS[step.toolName || ''] || Pencil;
 
   return (
     <div className="my-3">
       <div className="flex items-center gap-2">
-        <Pencil size={14} className={cn('shrink-0', isDark ? 'text-white/30' : 'text-gray-400')} />
+        <Icon size={14} className={cn('shrink-0', isDark ? 'text-white/30' : 'text-gray-400')} />
         <span className={cn('text-sm', isDark ? 'text-white/45' : 'text-gray-400')}>
           {displayName}
         </span>
@@ -103,10 +131,12 @@ function ToolCallBlock({ step, isDark }: { step: AgentStep; isDark: boolean }) {
 }
 
 // ── Tool Group (collapsible) ──
-function ToolGroup({ steps, isDark, defaultOpen }: {
+function ToolGroup({ steps, isDark, defaultOpen, turnRunning }: {
   steps: AgentStep[];
   isDark: boolean;
   defaultOpen?: boolean;
+  /** Whether the parent turn is still running (more steps may arrive) */
+  turnRunning?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen ?? false);
 
@@ -114,10 +144,14 @@ function ToolGroup({ steps, isDark, defaultOpen }: {
   const completedCount = toolSteps.filter(s => s.status === 'complete').length;
   const runningCount = toolSteps.filter(s => s.status === 'tool_running').length;
   const isGroupRunning = runningCount > 0;
+  // "Fertig" only when no tools are running AND the turn itself is done
+  const isGroupDone = !isGroupRunning && !turnRunning;
 
   const label = isGroupRunning
     ? `${completedCount} ausgeführt, ${runningCount} aktiv...`
-    : `${completedCount} ${completedCount === 1 ? 'Tool ausgeführt' : 'Tools ausgeführt'}`;
+    : turnRunning
+      ? `${completedCount} ${completedCount === 1 ? 'Tool ausgeführt' : 'Tools ausgeführt'}...`
+      : `${completedCount} ${completedCount === 1 ? 'Tool ausgeführt' : 'Tools ausgeführt'}`;
 
   return (
     <div className="my-2">
@@ -125,19 +159,19 @@ function ToolGroup({ steps, isDark, defaultOpen }: {
         onClick={() => setIsOpen(!isOpen)}
         className={cn('flex items-center gap-1.5 text-sm transition-colors py-1', isDark ? 'text-white/60 hover:text-white/75' : 'text-gray-600 hover:text-gray-800')}
       >
-        {!isGroupRunning && <CheckCircle2 size={14} className={cn('shrink-0', isDark ? 'text-white/50' : 'text-gray-500')} />}
+        {isGroupDone && <CheckCircle2 size={14} className={cn('shrink-0', isDark ? 'text-white/50' : 'text-gray-500')} />}
         <span>{label}</span>
-        {isGroupRunning ? <Loader2 size={13} className="animate-spin" /> : isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        {(isGroupRunning || turnRunning) ? <Loader2 size={13} className="animate-spin" /> : isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </button>
 
-      {(isOpen || isGroupRunning) && (
+      {(isOpen || isGroupRunning || turnRunning) && (
         <div className="mt-1">
           {steps.map((step) => (
             <div key={step.stepNumber}>
               {step.toolName && <ToolCallBlock step={step} isDark={isDark} />}
             </div>
           ))}
-          {!isGroupRunning && (
+          {isGroupDone && (
             <div className="flex items-center gap-3 py-2">
               <CheckCircle2 size={16} className={cn('shrink-0', isDark ? 'text-white/50' : 'text-gray-500')} />
               <span className={cn('text-sm', isDark ? 'text-white/60' : 'text-gray-600')}>Fertig</span>
@@ -202,7 +236,7 @@ function StepStream({ steps, isRunning, isDark }: {
               {group.steps.length === 1 ? (
                 <ToolCallBlock step={group.steps[0]!} isDark={isDark} />
               ) : (
-                <ToolGroup steps={group.steps} isDark={isDark} defaultOpen={isRunning && isLastGroup} />
+                <ToolGroup steps={group.steps} isDark={isDark} defaultOpen={isRunning && isLastGroup} turnRunning={isRunning && isLastGroup} />
               )}
             </div>
           );
@@ -211,7 +245,7 @@ function StepStream({ steps, isRunning, isDark }: {
         return null;
       })}
 
-      {isRunning && steps.length > 0 && steps[steps.length - 1]?.status === 'complete' && (
+      {isRunning && (steps.length === 0 || steps[steps.length - 1]?.status === 'complete') && (
         <div className={cn('flex items-center gap-2.5 py-2', isDark ? 'text-white/35' : 'text-gray-400')}>
           <Loader2 size={15} className="animate-spin" />
           <span className="text-sm">Verarbeitet...</span>
@@ -237,6 +271,43 @@ function UserMessageBubble({ content, isDark }: { content: string; isDark: boole
   );
 }
 
+// ── Transparency Info ──
+function TransparencyInfo({ meta, isDark }: { meta: TurnMeta; isDark: boolean }) {
+  if (!meta.model) return null;
+
+  const isCloud = meta.modelLocation === 'cloud';
+  const modelName = meta.model.replace(/^(anthropic|mistral|openai):/, '');
+  const totalTokens = (meta.inputTokens || 0) + (meta.outputTokens || 0);
+  const tokenStr = totalTokens >= 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : String(totalTokens);
+  const costStr = meta.estimatedCost != null && meta.estimatedCost > 0
+    ? `~€${meta.estimatedCost < 0.01 ? meta.estimatedCost.toFixed(4) : meta.estimatedCost.toFixed(3)}`
+    : null;
+
+  return (
+    <div className={cn(
+      'flex items-center gap-2 text-xs py-1.5 mt-1',
+      isDark ? 'text-white/25' : 'text-gray-400'
+    )}>
+      <span>{isCloud ? '\u2601\uFE0F' : '\uD83D\uDD12'}</span>
+      <span>{modelName}</span>
+      <span className={cn('w-px h-3', isDark ? 'bg-white/10' : 'bg-gray-300')} />
+      <span>{isCloud ? 'EU-Cloud' : 'lokal'}</span>
+      {totalTokens > 0 && (
+        <>
+          <span className={cn('w-px h-3', isDark ? 'bg-white/10' : 'bg-gray-300')} />
+          <span>{tokenStr} Tokens</span>
+        </>
+      )}
+      {costStr && (
+        <>
+          <span className={cn('w-px h-3', isDark ? 'bg-white/10' : 'bg-gray-300')} />
+          <span>{costStr}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Assistant Answer ──
 function AssistantAnswer({ content, isDark }: { content: string; isDark: boolean }) {
   return (
@@ -248,31 +319,60 @@ function AssistantAnswer({ content, isDark }: { content: string; isDark: boolean
 
 // ── Main Component ──
 export function AgentTaskDetail() {
-  const { activeTaskId, tasks, cancelTask, completeTask, sendMessage, getTaskDetail, setActiveTaskId, startTask } = useAgent();
+  const { activeTaskId, tasks, cancelTask, sendMessage, getTaskDetail, setActiveTaskId, startTask } = useAgent();
   const { isDark } = useTheme();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const lastScrollTop = useRef(0);
+  const fetchedTaskIds = useRef<Set<string>>(new Set());
 
   const task = activeTaskId ? tasks.find(t => t.id === activeTaskId) : null;
 
-  // Load full details when selecting a non-running task
+  // Show button only when user scrolls UP and is not at the bottom
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const currentTop = el.scrollTop;
+    const distanceFromBottom = el.scrollHeight - currentTop - el.clientHeight;
+    const scrolledUp = currentTop < lastScrollTop.current;
+    lastScrollTop.current = currentTop;
+
+    if (scrolledUp && distanceFromBottom > 100) {
+      setShowScrollButton(true);
+    } else if (distanceFromBottom <= 20) {
+      setShowScrollButton(false);
+    }
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    setShowScrollButton(false);
+  }, []);
+
+  // Load full details when selecting a non-running task (once per task)
   useEffect(() => {
-    if (activeTaskId && !activeTaskId.startsWith('temp-') && task?.steps.length === 0 && task.status !== 'pending' && task.status !== 'running') {
+    if (activeTaskId && !activeTaskId.startsWith('temp-') && !fetchedTaskIds.current.has(activeTaskId) && task?.steps.length === 0 && task.status !== 'pending' && task.status !== 'running') {
+      fetchedTaskIds.current.add(activeTaskId);
       getTaskDetail(activeTaskId);
     }
-  }, [activeTaskId, task, getTaskDetail]);
+  }, [activeTaskId, task?.status, getTaskDetail]);
 
-  // Auto-scroll during execution
+  // Auto-scroll during execution (only if already at bottom)
   useEffect(() => {
     if (task?.status === 'running' && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const el = scrollRef.current;
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      if (distanceFromBottom < 150) {
+        el.scrollTop = el.scrollHeight;
+      }
     }
   }, [task?.steps, task?.status]);
 
-  const handleNewTask = useCallback((message: string) => {
-    startTask(message);
+  const handleNewTask = useCallback((message: string, skillSlug?: string) => {
+    startTask(message, undefined, undefined, skillSlug);
   }, [startTask]);
 
-  const handleFollowUp = useCallback((message: string) => {
+  const handleFollowUp = useCallback((message: string, _skillSlug?: string) => {
     if (task) {
       sendMessage(task.id, message);
     }
@@ -286,16 +386,16 @@ export function AgentTaskDetail() {
           <div className={cn('text-center px-6 max-w-md', isDark ? 'text-white/30' : 'text-gray-400')}>
             <Bot size={40} className="mx-auto mb-4 opacity-40" />
             <h3 className={cn('text-base font-medium mb-2', isDark ? 'text-white/60' : 'text-gray-600')}>
-              Agent Konversation starten
+              Neue Aufgabe starten
             </h3>
             <p className="text-sm leading-relaxed">
-              Der Agent durchsucht deine Dokumente, nutzt Skills und kann mehrstufige Aufgaben in einer Konversation ausführen.
+              Durchsuche Dokumente, nutze Skills und löse mehrstufige Aufgaben in einer Konversation.
             </p>
           </div>
         </div>
-        <div className={cn('shrink-0 border-t', isDark ? 'border-white/[0.06]' : 'border-gray-200/80')}>
+        <div className="shrink-0">
           <div className="p-4 max-w-4xl mx-auto w-full">
-            <ChatInput onSend={handleNewTask} placeholder="Agent-Aufgabe eingeben..." />
+            <ChatInput onSend={handleNewTask} placeholder="Aufgabe eingeben..." />
             <p className={cn('text-xs mt-2 text-center', isDark ? 'text-gray-500' : 'text-gray-400')}>
               Enter zum Senden, Shift+Enter für neue Zeile
             </p>
@@ -306,8 +406,7 @@ export function AgentTaskDetail() {
   }
 
   const isRunning = task.status === 'pending' || task.status === 'running';
-  const isAwaitingInput = task.status === 'awaiting_input';
-  const isTerminal = task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled';
+  const canSendMessage = !isRunning && task.status !== 'cancelled';
   const hasMessages = task.messages && task.messages.length > 0;
 
   // Build turn-based view from messages
@@ -375,27 +474,11 @@ export function AgentTaskDetail() {
             <X size={12} /> Abbrechen
           </button>
         )}
-        {isAwaitingInput && (
-          <button
-            onClick={() => completeTask(task.id)}
-            className={cn('px-2 py-1 rounded-md text-xs flex items-center gap-1', isDark ? 'text-white/40 hover:bg-white/[0.05]' : 'text-gray-400 hover:bg-gray-100')}
-          >
-            <Square size={12} /> Beenden
-          </button>
-        )}
       </div>
 
       {/* Conversation Content */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-6 py-6">
-
-          {/* Initial loading spinner */}
-          {isRunning && task.steps.length === 0 && turns.length <= 1 && !turns[0]?.steps.length && (
-            <div className={cn('flex items-center gap-2.5', isDark ? 'text-white/35' : 'text-gray-400')}>
-              <Loader2 size={16} className="animate-spin" />
-              <span className="text-sm">Agent startet...</span>
-            </div>
-          )}
 
           {/* Render turns */}
           {turns.map((turn, idx) => (
@@ -411,7 +494,7 @@ export function AgentTaskDetail() {
               )}
 
               {/* Steps (tool calls) for this turn */}
-              {turn.steps.length > 0 && (
+              {(turn.steps.length > 0 || (isRunning && idx === turns.length - 1)) && (
                 <StepStream
                   steps={turn.steps}
                   isRunning={isRunning && idx === turns.length - 1}
@@ -421,7 +504,12 @@ export function AgentTaskDetail() {
 
               {/* Assistant answer for this turn */}
               {turn.assistantMessage && !isRunning && (
-                <AssistantAnswer content={turn.assistantMessage} isDark={isDark} />
+                <>
+                  <AssistantAnswer content={turn.assistantMessage} isDark={isDark} />
+                  {task.turnMeta[turn.turnNumber] && (
+                    <TransparencyInfo meta={task.turnMeta[turn.turnNumber]} isDark={isDark} />
+                  )}
+                </>
               )}
             </div>
           ))}
@@ -434,6 +522,20 @@ export function AgentTaskDetail() {
                 <span className={cn('text-xs font-medium', isDark ? 'text-red-400' : 'text-red-600')}>Fehler</span>
               </div>
               <p className={cn('text-sm', isDark ? 'text-red-300' : 'text-red-700')}>{task.error}</p>
+              <button
+                onClick={() => {
+                  const lastUserMsg = task.messages.filter(m => m.role === 'user').pop();
+                  if (lastUserMsg) startTask(lastUserMsg.content);
+                }}
+                className={cn(
+                  'mt-3 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                  isDark
+                    ? 'bg-white/[0.08] text-white/60 hover:bg-white/[0.12] hover:text-white/80'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800'
+                )}
+              >
+                Erneut versuchen
+              </button>
             </div>
           )}
 
@@ -443,25 +545,34 @@ export function AgentTaskDetail() {
               <X size={14} /> Konversation wurde abgebrochen.
             </div>
           )}
-
-          {/* Meta info for terminal tasks */}
-          {isTerminal && task.totalSteps > 0 && (
-            <div className={cn('mt-8 pt-4 flex gap-4 text-xs border-t', isDark ? 'border-white/[0.04] text-white/20' : 'border-gray-100 text-gray-300')}>
-              <span>{task.totalSteps} {task.totalSteps === 1 ? 'Schritt' : 'Schritte'}</span>
-              {(task.inputTokens + task.outputTokens) > 0 && (
-                <span>{(task.inputTokens + task.outputTokens).toLocaleString()} Tokens</span>
-              )}
-              {turns.length > 1 && <span>{turns.length} Nachrichten</span>}
-            </div>
-          )}
         </div>
+
       </div>
 
-      {/* Chat Input — visible when awaiting input */}
-      {isAwaitingInput && (
-        <div className={cn('shrink-0 border-t', isDark ? 'border-white/[0.06]' : 'border-gray-200/80')}>
+      {/* Scroll to bottom — fixed above input */}
+      {showScrollButton && (
+        <div className="flex justify-center -mt-12 mb-2 pointer-events-none relative z-10">
+          <button
+            onClick={scrollToBottom}
+            className={cn(
+              'pointer-events-auto',
+              'w-8 h-8 rounded-full shadow-lg flex items-center justify-center',
+              'transition-all duration-200',
+              isDark
+                ? 'bg-white/10 hover:bg-white/20 text-white/60 border border-white/10'
+                : 'bg-white hover:bg-gray-50 text-gray-500 border border-gray-200 shadow-md'
+            )}
+          >
+            <ArrowDown size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* Chat Input — always visible except when running or cancelled */}
+      {canSendMessage && (
+        <div className="shrink-0">
           <div className="p-4 max-w-4xl mx-auto w-full">
-            <ChatInput onSend={handleFollowUp} placeholder="Antwort an den Agent..." />
+            <ChatInput onSend={handleFollowUp} placeholder="Nachricht eingeben..." />
           </div>
         </div>
       )}

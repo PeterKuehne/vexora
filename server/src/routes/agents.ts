@@ -11,6 +11,9 @@ import { ValidationError } from '../errors/index.js';
 import type { AuthenticatedRequest } from '../types/auth.js';
 import { agentExecutor, agentPersistence } from '../services/agents/index.js';
 import type { AgentUserContext, AgentSSEEvent } from '../services/agents/types.js';
+import { queryRouter } from '../services/agents/QueryRouter.js';
+import { env } from '../config/env.js';
+import { hasProvider } from '../services/agents/ai-provider.js';
 
 const router = Router();
 
@@ -82,7 +85,8 @@ function setupSSE(res: Response): {
  */
 router.post('/run', authenticateToken, (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
-  const { query, model, conversationId } = req.body;
+  const { query, model, conversationId, skillSlug } = req.body;
+  console.log(`[AgentRoute] POST /run — model from request: ${JSON.stringify(model)}, LOCAL_MODEL: ${env.LOCAL_MODEL}`);
 
   if (!query || typeof query !== 'string' || query.trim().length === 0) {
     res.status(400).json({ error: 'query ist erforderlich' });
@@ -99,17 +103,40 @@ router.post('/run', authenticateToken, (req: Request, res: Response) => {
 
   const { emitSSE, cleanup, isDisconnected } = setupSSE(res);
 
-  const effectiveModel = model || (
-    process.env.ANTHROPIC_API_KEY
-      ? 'anthropic:claude-sonnet-4-6'
-      : process.env.OLLAMA_DEFAULT_MODEL || 'qwen3:8b'
-  );
+  // Route query through cascade router (unless model explicitly provided)
+  const routeAndExecute = async () => {
+    let effectiveModel = model;
+    let routingDecision: string | undefined;
 
-  agentExecutor.execute(query.trim(), context, {
-    model: effectiveModel,
-    conversationId,
-    emitSSE,
-  }).catch(error => {
+    if (!effectiveModel) {
+      const routing = await queryRouter.route(query.trim());
+      routingDecision = routing.route;
+
+      if (routing.model === 'cloud') {
+        // Try cloud model, fall back to local if unavailable
+        const cloudModel = env.CLOUD_MODEL;
+        const { provider } = await import('../services/agents/ai-provider.js').then(m => m.parseModelString(cloudModel));
+        if (hasProvider(provider)) {
+          effectiveModel = cloudModel;
+        } else {
+          console.warn(`[AgentRoute] Cloud model ${cloudModel} nicht verfügbar, Fallback auf lokal`);
+          effectiveModel = env.LOCAL_MODEL;
+        }
+      } else {
+        effectiveModel = env.LOCAL_MODEL;
+      }
+    }
+
+    return agentExecutor.execute(query.trim(), context, {
+      model: effectiveModel,
+      conversationId,
+      emitSSE,
+      routingDecision,
+      skillSlug: skillSlug || undefined,
+    });
+  };
+
+  routeAndExecute().catch(error => {
     console.error('[AgentRoute] Execution error:', error);
     if (!isDisconnected()) {
       res.write(`event: task:error\ndata: ${JSON.stringify({ error: String(error) })}\n\n`);
@@ -234,6 +261,26 @@ router.post('/tasks/:id/cancel', authenticateToken, async (req: Request, res: Re
   } catch (error) {
     console.error('[AgentRoute] Cancel error:', error);
     res.status(500).json({ error: 'Fehler beim Abbrechen' });
+  }
+});
+
+/**
+ * DELETE /api/agents/tasks/:id - Delete a single task
+ */
+router.delete('/tasks/:id', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const context = getUserContext(authReq);
+    const deleted = await agentPersistence.deleteTask(context, req.params.id!);
+
+    if (deleted) {
+      res.json({ success: true, taskId: req.params.id });
+    } else {
+      res.status(404).json({ error: 'Task nicht gefunden' });
+    }
+  } catch (error) {
+    console.error('[AgentRoute] DELETE /tasks/:id error:', error);
+    res.status(500).json({ error: 'Fehler beim Löschen' });
   }
 });
 

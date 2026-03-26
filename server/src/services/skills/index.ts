@@ -2,15 +2,17 @@
  * Skill System - Barrel export and initialization
  */
 
-import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { skillRegistry } from './SkillRegistry.js';
+import { skillLoader } from './SkillLoader.js';
 import { databaseService } from '../DatabaseService.js';
 
 export { skillRegistry } from './SkillRegistry.js';
 export { skillValidator } from './SkillValidator.js';
 export { swarmPromotion } from './SwarmPromotion.js';
+export { skillLoader } from './SkillLoader.js';
+export type { SkillContent } from './SkillRegistry.js';
 export type {
   Skill,
   SkillDefinition,
@@ -23,24 +25,36 @@ export type {
 } from './types.js';
 
 /**
- * Load built-in skill definitions from JSON files
+ * Load built-in skill definitions from SKILL.md files in server/skills/
  */
 function loadBuiltinSkills(): Array<{
   slug: string;
   name: string;
   description: string;
-  definition: any;
+  filePath: string;
   category: string;
   tags: string[];
 }> {
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const builtinDir = join(__dirname, 'builtin');
+  // server/src/services/skills/ → server/skills/
+  const skillsDir = join(__dirname, '..', '..', '..', 'skills');
 
-  const files = ['skill-creator.json', 'document-summary.json', 'research-report.json'];
+  const scanned = skillLoader.scanSkillDirectory(skillsDir);
 
-  return files.map(file => {
-    const content = readFileSync(join(builtinDir, file), 'utf-8');
-    return JSON.parse(content);
+  return scanned.map(({ folderName, skillFile }) => {
+    const category = skillFile.metadata?.category || 'analyse';
+    const tags = skillFile.metadata?.tags
+      ? skillFile.metadata.tags.split(/\s+/).filter(Boolean)
+      : [];
+
+    return {
+      slug: skillFile.name,
+      name: skillFile.displayName,
+      description: skillFile.description,
+      filePath: `server/skills/${folderName}`,
+      category,
+      tags,
+    };
   });
 }
 

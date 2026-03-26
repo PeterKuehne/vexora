@@ -49,8 +49,30 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       offset,
     });
 
+    // Build virtual definition for skills that use filesystem (SKILL.md)
+    const skillsWithDefinition = await Promise.all(
+      result.skills.map(async (skill) => {
+        if (!skill.definition && skill.filePath) {
+          try {
+            const content = await skillRegistry.getSkillContent(skill);
+            return {
+              ...skill,
+              definition: {
+                content: content.body,
+                tools: content.tools,
+                version: content.version,
+              },
+            };
+          } catch {
+            return skill;
+          }
+        }
+        return skill;
+      })
+    );
+
     res.json({
-      skills: result.skills,
+      skills: skillsWithDefinition,
       total: result.total,
       limit,
       offset,
@@ -124,7 +146,7 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
     const context = getUserContext(authReq);
-    const { name, description, definition, category, tags } = req.body;
+    const { name, description, definition, category, tags, disableAutoInvocation } = req.body;
 
     if (definition) {
       const validation = skillValidator.validateDefinition(definition);
@@ -140,6 +162,7 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response) => {
       definition,
       category,
       tags,
+      disableAutoInvocation,
     });
 
     if (!skill) {

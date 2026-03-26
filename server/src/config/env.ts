@@ -36,11 +36,32 @@ export const env = {
 
   // Authentication
   JWT_SECRET: process.env.JWT_SECRET ?? 'your-super-secret-jwt-key-change-in-production',
-  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN ?? '15m',
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN ?? '1h',
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN ?? '30d',
+  /** Access token lifetime in milliseconds (parsed from JWT_EXPIRES_IN) */
+  get JWT_EXPIRES_MS(): number {
+    const val = this.JWT_EXPIRES_IN;
+    const match = val.match(/^(\d+)(m|h|d)$/);
+    if (!match) return 60 * 60 * 1000; // default 1h
+    const num = parseInt(match[1]!);
+    const unit = match[2]!;
+    if (unit === 'm') return num * 60 * 1000;
+    if (unit === 'h') return num * 60 * 60 * 1000;
+    if (unit === 'd') return num * 24 * 60 * 60 * 1000;
+    return 60 * 60 * 1000;
+  },
 
   // LLM Providers
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? '',
+  MISTRAL_API_KEY: process.env.MISTRAL_API_KEY ?? '',
+
+  // Model Tiering
+  LOCAL_MODEL: process.env.LOCAL_MODEL ?? 'qwen3:8b',
+  CLOUD_MODEL: process.env.CLOUD_MODEL ?? 'mistral:mistral-large-latest',
+  CLOUD_FALLBACK_MODEL: process.env.CLOUD_FALLBACK_MODEL ?? '',
+
+  // Query Routing
+  ROUTING_EMBEDDING_THRESHOLD: parseFloat(process.env.ROUTING_EMBEDDING_THRESHOLD ?? '0.75'),
 
   // PII Guard (Presidio)
   PII_GUARD_ENABLED: process.env.PII_GUARD_ENABLED !== 'false',

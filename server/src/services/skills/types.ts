@@ -38,7 +38,9 @@ export interface Skill {
   name: string;
   slug: string;
   description?: string;
-  definition: SkillDefinition;
+  definition?: SkillDefinition;
+  filePath?: string;
+  sourceUrl?: string;
   scope: SkillScope;
   department?: string;
   isVerified: boolean;
@@ -50,6 +52,7 @@ export interface Skill {
   avgDurationMs: number;
   isBuiltin: boolean;
   isActive: boolean;
+  disableAutoInvocation: boolean;
   category?: string;
   tags: string[];
   createdAt: Date;

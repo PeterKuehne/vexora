@@ -47,20 +47,30 @@ class ToolRegistryImpl {
   }
 
   /**
-   * Get all tools available for a given user context (respects requiredRoles)
+   * Get all tools available for a given user context.
+   * Respects requiredRoles and skill-gating (allowed-tools pattern).
+   * Skill-gated tools are excluded unless their parent skill slug
+   * is in the loadedSkills set.
    */
-  getAvailableTools(context: AgentUserContext): AgentTool[] {
+  getAvailableTools(context: AgentUserContext, loadedSkills?: Set<string>): AgentTool[] {
     return Array.from(this.tools.values()).filter(tool => {
-      if (!tool.requiredRoles || tool.requiredRoles.length === 0) return true;
-      return tool.requiredRoles.includes(context.userRole);
+      // Role check
+      if (tool.requiredRoles && tool.requiredRoles.length > 0) {
+        if (!tool.requiredRoles.includes(context.userRole)) return false;
+      }
+      // Skill-gating check: exclude unless the required skill was loaded
+      if (tool.skillGated) {
+        if (!loadedSkills || !loadedSkills.has(tool.skillGated)) return false;
+      }
+      return true;
     });
   }
 
   /**
    * Get tool definitions in Anthropic format (for Claude API)
    */
-  getAnthropicTools(context: AgentUserContext): AnthropicToolDefinition[] {
-    return this.getAvailableTools(context).map(tool => ({
+  getAnthropicTools(context: AgentUserContext, loadedSkills?: Set<string>): AnthropicToolDefinition[] {
+    return this.getAvailableTools(context, loadedSkills).map(tool => ({
       name: tool.name,
       description: tool.description,
       input_schema: tool.parameters,
@@ -70,8 +80,8 @@ class ToolRegistryImpl {
   /**
    * Get tool definitions in OpenAI/Ollama format
    */
-  getOllamaTools(context: AgentUserContext): OllamaToolDefinition[] {
-    return this.getAvailableTools(context).map(tool => ({
+  getOllamaTools(context: AgentUserContext, loadedSkills?: Set<string>): OllamaToolDefinition[] {
+    return this.getAvailableTools(context, loadedSkills).map(tool => ({
       type: 'function' as const,
       function: {
         name: tool.name,
@@ -82,10 +92,12 @@ class ToolRegistryImpl {
   }
 
   /**
-   * Get tools in Vercel AI SDK format (Tool) for use with generateText/streamText
+   * Get tools in Vercel AI SDK format (Tool) for use with generateText/streamText.
+   * loadedSkills: set of skill slugs that have been loaded via load_skill — their
+   * gated tools become available (Anthropic allowed-tools pattern).
    */
-  getAISDKTools(context: AgentUserContext, allowedTools?: string[]): Record<string, Tool> {
-    let tools = this.getAvailableTools(context);
+  getAISDKTools(context: AgentUserContext, allowedTools?: string[], loadedSkills?: Set<string>): Record<string, Tool> {
+    let tools = this.getAvailableTools(context, loadedSkills);
     if (allowedTools) {
       const allowed = new Set(allowedTools);
       tools = tools.filter(t => allowed.has(t.name));

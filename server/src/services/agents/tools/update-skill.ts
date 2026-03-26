@@ -1,16 +1,21 @@
 /**
- * Update Skill Tool - Updates an existing skill in the database
+ * Update Skill Tool - Updates an existing skill
  *
- * Used during the skill iteration loop: after testing and getting feedback,
- * the agent updates the skill's content, description, or other fields.
+ * For filesystem-based skills (filePath set): reads SKILL.md, merges changes,
+ * writes back, and updates DB timestamp.
+ * For legacy DB skills: updates definition in DB directly.
  */
 
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import type { AgentTool, AgentUserContext, ToolResult } from '../types.js';
 import { skillRegistry } from '../../skills/SkillRegistry.js';
 import { skillValidator } from '../../skills/SkillValidator.js';
+import { skillLoader } from '../../skills/SkillLoader.js';
 
 export const updateSkillTool: AgentTool = {
   name: 'update_skill',
+  skillGated: 'skill-creator',
   description: 'Update an existing skill. Use this during the iterate-and-improve loop after testing a skill and receiving feedback. You can update content, description, tools, or any other field.',
   parameters: {
     type: 'object',
@@ -62,7 +67,7 @@ export const updateSkillTool: AgentTool = {
         return { output: `Skill "${slug}" nicht gefunden.`, error: 'not found' };
       }
 
-      // Build update data
+      // Build update data for DB fields (name, description, category, tags)
       const updateData: Record<string, any> = {};
 
       if (args.name) updateData.name = args.name;
@@ -75,10 +80,83 @@ export const updateSkillTool: AgentTool = {
         } catch { /* ignore */ }
       }
 
-      // Update definition if content or tools changed
+      // Filesystem-based skill: update SKILL.md on disk
+      if (skill.filePath) {
+        const __dirname = dirname(fileURLToPath(import.meta.url));
+        const projectRoot = join(__dirname, '..', '..', '..', '..', '..');
+        const skillDirAbsolute = join(projectRoot, skill.filePath);
+        const skillMdPath = join(skillDirAbsolute, 'SKILL.md');
+
+        // Read current SKILL.md
+        const current = skillLoader.parseSkillFile(skillMdPath);
+
+        // Merge changes
+        const newDescription = (args.description as string) || current.description;
+        const newContent = (args.content as string) || current.body;
+
+        let newTools = current.allowedTools || '';
+        if (args.tools) {
+          try {
+            const toolsArr = typeof args.tools === 'string' ? JSON.parse(args.tools) : args.tools;
+            newTools = (toolsArr as string[]).join(' ');
+          } catch { /* keep existing */ }
+        }
+
+        const newCategory = (args.category as string) || current.metadata?.category;
+        let newTags = current.metadata?.tags || '';
+        if (args.tags) {
+          try {
+            const tagsArr = typeof args.tags === 'string' ? JSON.parse(args.tags) : args.tags;
+            newTags = (tagsArr as string[]).join(' ');
+          } catch { /* keep existing */ }
+        }
+
+        // Write updated SKILL.md
+        skillLoader.writeSkillFile(skillDirAbsolute, {
+          name: current.name,
+          description: newDescription,
+          allowedTools: newTools,
+          metadata: {
+            ...current.metadata,
+            category: newCategory || current.metadata?.category || '',
+            tags: newTags,
+          },
+          license: current.license,
+          compatibility: current.compatibility,
+          body: newContent,
+          displayName: (args.name as string) || current.displayName,
+        });
+
+        // Update DB metadata (description, name, category, tags, updated_at)
+        // Force an updated_at touch even if no DB-level fields changed
+        if (Object.keys(updateData).length === 0) {
+          // Touch updated_at by doing a no-op update
+          await skillRegistry.updateSkill(ctx, skill.id, { name: args.name as string || skill.name });
+        } else {
+          await skillRegistry.updateSkill(ctx, skill.id, updateData);
+        }
+
+        const changedFields = [
+          ...(args.content ? ['content (SKILL.md)'] : []),
+          ...(args.tools ? ['tools (SKILL.md)'] : []),
+          ...Object.keys(updateData).map(k => `${k} (DB)`),
+        ];
+
+        return {
+          output: `Skill "${skill.name}" erfolgreich aktualisiert!\n\nGeänderte Felder: ${changedFields.join(', ') || 'SKILL.md aktualisiert'}\nSlug: ${skill.slug}`,
+          metadata: { skillId: skill.id, slug: skill.slug },
+        };
+      }
+
+      // Legacy DB-based skill: update definition in DB
       if (args.content || args.tools) {
-        const newContent = (args.content as string) || skill.definition.content;
-        let newTools = skill.definition.tools;
+        const currentDef = skill.definition;
+        if (!currentDef) {
+          return { output: 'Skill hat keine Definition und keinen Dateipfad.', error: 'no definition' };
+        }
+
+        const newContent = (args.content as string) || currentDef.content;
+        let newTools = currentDef.tools;
         if (args.tools) {
           try {
             newTools = typeof args.tools === 'string' ? JSON.parse(args.tools) : args.tools;
@@ -88,7 +166,7 @@ export const updateSkillTool: AgentTool = {
         const newDefinition = {
           content: newContent,
           tools: newTools,
-          version: skill.definition.version,
+          version: currentDef.version,
         };
 
         const validation = skillValidator.validateDefinition(newDefinition);

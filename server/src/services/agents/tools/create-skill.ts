@@ -1,18 +1,26 @@
 /**
- * Create Skill Tool - Saves a new skill to the database
+ * Create Skill Tool - Saves a new skill as SKILL.md + DB pointer
  *
  * Used by the Skill Creator workflow: after the agent drafts a skill,
  * it calls this tool to persist it. The skill is created as 'personal'
  * scope and can later be shared/promoted.
+ *
+ * Writes SKILL.md to disk at server/user-skills/{tenant}/{slug}/
+ * and creates a DB record with file_path pointing to it.
  */
 
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import type { AgentTool, AgentUserContext, ToolResult } from '../types.js';
 import { skillRegistry } from '../../skills/SkillRegistry.js';
 import { skillValidator } from '../../skills/SkillValidator.js';
+import { skillLoader } from '../../skills/SkillLoader.js';
+import type { SkillFile } from '../../skills/SkillLoader.js';
 
 export const createSkillTool: AgentTool = {
   name: 'create_skill',
-  description: 'Save a new skill to the database. Provide name, description (with trigger phrases), category, tags, the Markdown instruction body, recommended tools, and version. The skill is created as personal scope.',
+  skillGated: 'skill-creator',
+  description: 'Create a NEW skill. Only call this ONCE per skill — if the skill already exists, use update_skill instead. Provide name, description (with trigger phrases), Markdown instruction body, and recommended tools. Returns the slug for further operations (load_skill, update_skill, run_skill_test).',
   parameters: {
     type: 'object',
     required: ['name', 'description', 'content', 'tools'],
@@ -71,24 +79,52 @@ export const createSkillTool: AgentTool = {
         tags = [];
       }
 
-      const definition = { content, tools, version: '1.0.0' };
+      // Generate slug from name
+      const slug = skillValidator.generateSlug(name);
 
-      // Validate
-      const validation = skillValidator.validateDefinition(definition);
-      if (!validation.valid) {
+      // Check for duplicate: does a skill with the same base slug already exist?
+      const ctx = { userId: context.userId, userRole: context.userRole, department: context.department };
+      const { skills: existing } = await skillRegistry.getSkills(ctx, { search: name, limit: 10 });
+      const duplicate = existing.find(s => s.slug.startsWith(slug));
+      if (duplicate) {
         return {
-          output: `Skill-Definition ungültig:\n${validation.errors.join('\n')}\n\nBitte korrigiere die Definition.`,
-          error: 'validation failed',
+          output: `Ein Skill mit ähnlichem Namen existiert bereits:\n\n- **${duplicate.name}** [slug: ${duplicate.slug}]\n\nNutze update_skill(slug: "${duplicate.slug}") um ihn zu aktualisieren, oder wähle einen anderen Namen.`,
+          error: 'duplicate',
+          metadata: { existingSkillId: duplicate.id, existingSlug: duplicate.slug },
         };
       }
 
+      // Build SKILL.md content
+      const skillFile: SkillFile = {
+        name: slug,
+        description,
+        allowedTools: tools.join(' '),
+        metadata: {
+          version: '1.0.0',
+          category,
+          tags: tags.join(' '),
+        },
+        body: content,
+        displayName: name,
+      };
+
+      // Write SKILL.md to disk
+      const __dirname = dirname(fileURLToPath(import.meta.url));
+      const projectRoot = join(__dirname, '..', '..', '..', '..', '..');
+      const tenant = context.tenantId || 'default';
+      const skillDirRelative = `server/user-skills/${tenant}/${slug}`;
+      const skillDirAbsolute = join(projectRoot, skillDirRelative);
+
+      skillLoader.writeSkillFile(skillDirAbsolute, skillFile);
+
+      // Create DB record with file_path pointer (no definition in DB)
       const skill = await skillRegistry.createSkill(
         { userId: context.userId, userRole: context.userRole, department: context.department },
-        { name, description, definition, category, tags }
+        { name, description, filePath: skillDirRelative, category, tags }
       );
 
       return {
-        output: `Skill "${skill.name}" erfolgreich erstellt!\n\nSlug: ${skill.slug}\nScope: personal\nTools: ${tools.join(', ')}\nKategorie: ${category}\n\nDer Skill ist jetzt als persönlicher Skill verfügbar. Du kannst ihn mit load_skill("${skill.slug}") laden und testen.`,
+        output: `Skill "${skill.name}" erfolgreich erstellt!\n\nSlug: ${skill.slug}\nScope: personal\nTools: ${tools.join(', ')}\nKategorie: ${category}\nSKILL.md: ${skillDirRelative}/SKILL.md\n\nDer Skill ist jetzt als persönlicher Skill verfügbar. Du kannst ihn mit load_skill("${skill.slug}") laden und testen.`,
         metadata: { skillId: skill.id, slug: skill.slug },
       };
     } catch (error) {

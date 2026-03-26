@@ -42,6 +42,15 @@ export interface AgentMessage {
   content: string;
 }
 
+export interface TurnMeta {
+  model?: string;
+  modelLocation?: 'local' | 'cloud';
+  inputTokens?: number;
+  outputTokens?: number;
+  estimatedCost?: number;
+  routingDecision?: string;
+}
+
 export interface AgentTask {
   id: string;
   status: AgentTaskStatus;
@@ -54,6 +63,8 @@ export interface AgentTask {
   outputTokens: number;
   steps: AgentStep[];
   messages: AgentMessage[];
+  /** Per-turn metadata (model, tokens) keyed by turnNumber */
+  turnMeta: Record<number, TurnMeta>;
   createdAt: string;
   completedAt?: string;
 }
@@ -62,10 +73,11 @@ interface AgentContextValue {
   tasks: AgentTask[];
   activeTaskId: string | null;
   isLoading: boolean;
-  startTask: (query: string, model?: string, conversationId?: string) => Promise<string | null>;
+  startTask: (query: string, model?: string, conversationId?: string, skillSlug?: string) => Promise<string | null>;
   sendMessage: (taskId: string, message: string) => Promise<void>;
   cancelTask: (taskId: string) => Promise<void>;
   completeTask: (taskId: string) => Promise<void>;
+  deleteTask: (taskId: string) => Promise<void>;
   loadTasks: () => Promise<void>;
   getTaskDetail: (taskId: string) => Promise<AgentTask | null>;
   setActiveTaskId: (id: string | null) => void;
@@ -93,6 +105,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
         ...t,
         steps: [],
         messages: [],
+        turnMeta: {},
         createdAt: t.createdAt || t.created_at,
         completedAt: t.completedAt || t.completed_at,
       })));
@@ -111,6 +124,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
       const task: AgentTask = {
         ...data.task,
+        turnMeta: {},
         steps: (data.steps || []).map((s: any) => ({
           stepNumber: s.step_number || s.stepNumber,
           turnNumber: s.turn_number || s.turnNumber || 1,
@@ -162,13 +176,13 @@ export function AgentProvider({ children }: { children: ReactNode }) {
           return {
             ...task,
             status: 'running' as const,
-            steps: upsertStep({ stepNumber: data.stepNumber, status: 'thinking' }),
+            steps: upsertStep({ stepNumber: data.stepNumber, turnNumber: data.turnNumber, status: 'thinking' }),
           };
 
         case 'step:thinking':
           return {
             ...task,
-            steps: upsertStep({ stepNumber: data.stepNumber, status: 'thinking', thought: data.thought }),
+            steps: upsertStep({ stepNumber: data.stepNumber, turnNumber: data.turnNumber, status: 'thinking', thought: data.thought }),
           };
 
         case 'step:tool_start':
@@ -176,6 +190,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
             ...task,
             steps: upsertStep({
               stepNumber: data.stepNumber,
+              turnNumber: data.turnNumber,
               status: 'tool_running',
               toolName: data.toolName,
               toolInput: data.toolInput,
@@ -187,6 +202,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
             ...task,
             steps: upsertStep({
               stepNumber: data.stepNumber,
+              turnNumber: data.turnNumber,
               status: 'complete',
               toolName: data.toolName,
               toolInput: data.toolInput,
@@ -201,6 +217,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
             totalSteps: data.stepNumber,
             steps: upsertStep({
               stepNumber: data.stepNumber,
+              turnNumber: data.turnNumber,
               status: 'complete',
               thought: data.thought || task.steps.find(s => s.stepNumber === data.stepNumber)?.thought,
               duration: data.duration,
@@ -220,6 +237,19 @@ export function AgentProvider({ children }: { children: ReactNode }) {
             });
           }
 
+          // Store per-turn model metadata
+          const newTurnMeta = { ...task.turnMeta };
+          if (data.turnNumber) {
+            newTurnMeta[data.turnNumber] = {
+              model: data.model,
+              modelLocation: data.modelLocation,
+              inputTokens: data.inputTokens,
+              outputTokens: data.outputTokens,
+              estimatedCost: data.estimatedCost,
+              routingDecision: data.routingDecision,
+            };
+          }
+
           return {
             ...task,
             status: nextStatus,
@@ -228,6 +258,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
             inputTokens: (data.inputTokens || 0) + task.inputTokens,
             outputTokens: (data.outputTokens || 0) + task.outputTokens,
             messages: newMessages,
+            turnMeta: newTurnMeta,
             completedAt: nextStatus === 'completed' ? new Date().toISOString() : task.completedAt,
           };
         }
@@ -323,7 +354,8 @@ export function AgentProvider({ children }: { children: ReactNode }) {
   const startTask = useCallback(async (
     query: string,
     model?: string,
-    conversationId?: string
+    conversationId?: string,
+    skillSlug?: string,
   ): Promise<string | null> => {
     const tempId = `temp-${Date.now()}`;
     const newTask: AgentTask = {
@@ -336,6 +368,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       outputTokens: 0,
       steps: [],
       messages: [{ turnNumber: 1, role: 'user', content: query }],
+      turnMeta: {},
       createdAt: new Date().toISOString(),
     };
 
@@ -348,11 +381,17 @@ export function AgentProvider({ children }: { children: ReactNode }) {
         activeReaderRef.current = null;
       }
 
+      // Ensure valid auth token before starting SSE (no auto-retry on streams)
+      const authOk = await httpClient.ensureAuth();
+      if (!authOk) {
+        throw new Error('Sitzung abgelaufen. Bitte erneut anmelden.');
+      }
+
       const response = await fetch(`${env.API_URL}/api/agents/run`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, model, conversationId }),
+        body: JSON.stringify({ query, model, conversationId, skillSlug }),
       });
 
       if (!response.ok) {
@@ -392,6 +431,9 @@ export function AgentProvider({ children }: { children: ReactNode }) {
         activeReaderRef.current = null;
       }
 
+      // Ensure valid auth token before SSE
+      await httpClient.ensureAuth();
+
       const response = await fetch(`${env.API_URL}/api/agents/tasks/${taskId}/message`, {
         method: 'POST',
         credentials: 'include',
@@ -427,6 +469,17 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Delete a task
+  const deleteTask = useCallback(async (taskId: string) => {
+    try {
+      await httpClient.delete(`${env.API_URL}/api/agents/tasks/${taskId}`);
+      setTasks(prev => prev.filter(t => t.id !== taskId));
+      if (activeTaskId === taskId) setActiveTaskId(null);
+    } catch (error) {
+      console.error('[AgentContext] Failed to delete task:', error);
+    }
+  }, [activeTaskId]);
+
   // Cancel a running task
   const cancelTask = useCallback(async (taskId: string) => {
     try {
@@ -454,6 +507,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
         sendMessage,
         cancelTask,
         completeTask,
+        deleteTask,
         loadTasks,
         getTaskDetail,
         setActiveTaskId,

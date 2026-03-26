@@ -9,6 +9,7 @@
 import { databaseService } from '../DatabaseService.js';
 import { swarmPromotion } from './SwarmPromotion.js';
 import { skillValidator } from './SkillValidator.js';
+import { skillLoader } from './SkillLoader.js';
 import type {
   Skill,
   SkillExecution,
@@ -16,6 +17,12 @@ import type {
   SkillQueryOptions,
   SkillDefinition,
 } from './types.js';
+
+export interface SkillContent {
+  body: string;
+  tools: string[];
+  version: string;
+}
 
 function mapSkill(row: any): Skill {
   return {
@@ -26,6 +33,8 @@ function mapSkill(row: any): Skill {
     slug: row.slug,
     description: row.description,
     definition: row.definition,
+    filePath: row.file_path || undefined,
+    sourceUrl: row.source_url || undefined,
     scope: row.scope,
     department: row.department,
     isVerified: row.is_verified,
@@ -37,6 +46,7 @@ function mapSkill(row: any): Skill {
     avgDurationMs: row.avg_duration_ms,
     isBuiltin: row.is_builtin,
     isActive: row.is_active,
+    disableAutoInvocation: row.disable_auto_invocation ?? false,
     category: row.category,
     tags: row.tags || [],
     createdAt: row.created_at,
@@ -77,6 +87,50 @@ export class SkillRegistry {
   }
 
   /**
+   * Resolve skill content from filesystem (SKILL.md) or DB definition.
+   * Filesystem takes priority if filePath is set.
+   */
+  async getSkillContent(skill: Skill): Promise<SkillContent> {
+    if (skill.filePath) {
+      const { join, dirname } = await import('path');
+      const { existsSync } = await import('fs');
+      const { fileURLToPath } = await import('url');
+
+      // Resolve relative to project root (server/ parent)
+      const __dirname = dirname(fileURLToPath(import.meta.url));
+      const projectRoot = join(__dirname, '..', '..', '..', '..');
+      const skillMdPath = join(projectRoot, skill.filePath, 'SKILL.md');
+
+      if (!existsSync(skillMdPath)) {
+        // Fallback: try filePath as full path to SKILL.md
+        const altPath = join(projectRoot, skill.filePath);
+        if (existsSync(altPath) && altPath.endsWith('SKILL.md')) {
+          const parsed = skillLoader.parseSkillFile(altPath);
+          const tools = parsed.allowedTools ? parsed.allowedTools.split(/\s+/).filter(Boolean) : [];
+          const version = parsed.metadata?.version || '1.0.0';
+          return { body: parsed.body, tools, version };
+        }
+        throw new Error(`SKILL.md not found at ${skillMdPath}`);
+      }
+
+      const parsed = skillLoader.parseSkillFile(skillMdPath);
+      const tools = parsed.allowedTools ? parsed.allowedTools.split(/\s+/).filter(Boolean) : [];
+      const version = parsed.metadata?.version || '1.0.0';
+      return { body: parsed.body, tools, version };
+    }
+
+    if (skill.definition) {
+      return {
+        body: skill.definition.content,
+        tools: skill.definition.tools,
+        version: skill.definition.version,
+      };
+    }
+
+    throw new Error(`Skill "${skill.slug}" has neither filePath nor definition`);
+  }
+
+  /**
    * Create a new personal skill
    */
   async createSkill(
@@ -84,7 +138,8 @@ export class SkillRegistry {
     data: {
       name: string;
       description?: string;
-      definition: SkillDefinition;
+      definition?: SkillDefinition;
+      filePath?: string;
       category?: string;
       tags?: string[];
     }
@@ -92,8 +147,8 @@ export class SkillRegistry {
     const slug = skillValidator.generateSlug(data.name) + '-' + Date.now().toString(36);
 
     const result = await this.queryWithRLS(context,
-      `INSERT INTO skills (created_by, tenant_id, name, slug, description, definition, scope, department, category, tags)
-       VALUES ($1, $2, $3, $4, $5, $6, 'personal', $7, $8, $9)
+      `INSERT INTO skills (created_by, tenant_id, name, slug, description, definition, file_path, scope, department, category, tags)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'personal', $8, $9, $10)
        RETURNING *`,
       [
         context.userId,
@@ -101,7 +156,8 @@ export class SkillRegistry {
         data.name,
         slug,
         data.description || null,
-        JSON.stringify(data.definition),
+        data.definition ? JSON.stringify(data.definition) : null,
+        data.filePath || null,
         context.department || null,
         data.category || null,
         data.tags || [],
@@ -123,6 +179,7 @@ export class SkillRegistry {
       definition: SkillDefinition;
       category: string;
       tags: string[];
+      disableAutoInvocation: boolean;
     }>
   ): Promise<Skill | null> {
     const sets: string[] = [];
@@ -134,6 +191,7 @@ export class SkillRegistry {
     if (data.definition !== undefined) { sets.push(`definition = $${paramIdx}`); values.push(JSON.stringify(data.definition)); paramIdx++; }
     if (data.category !== undefined) { sets.push(`category = $${paramIdx}`); values.push(data.category); paramIdx++; }
     if (data.tags !== undefined) { sets.push(`tags = $${paramIdx}`); values.push(data.tags); paramIdx++; }
+    if (data.disableAutoInvocation !== undefined) { sets.push(`disable_auto_invocation = $${paramIdx}`); values.push(data.disableAutoInvocation); paramIdx++; }
 
     if (sets.length === 0) return null;
 
@@ -280,7 +338,9 @@ export class SkillRegistry {
     const downvotes = counts.rows[0].downvotes;
 
     await databaseService.query(
-      'UPDATE skills SET upvotes = $2, downvotes = $3 WHERE id = $1',
+      `UPDATE skills SET upvotes = $2, downvotes = $3, adoption_count = (
+        SELECT COUNT(*) FROM skill_votes WHERE skill_id = $1 AND vote = 1
+      ) WHERE id = $1`,
       [skillId, upvotes, downvotes]
     );
 
@@ -358,19 +418,21 @@ export class SkillRegistry {
     slug: string;
     name: string;
     description: string;
-    definition: SkillDefinition;
+    definition?: SkillDefinition;
+    filePath?: string;
     category: string;
     tags: string[];
   }>, systemUserId: string): Promise<void> {
     for (const skill of skills) {
       await databaseService.query(
-        `INSERT INTO skills (created_by, name, slug, description, definition, scope, is_builtin, is_active, category, tags)
-         VALUES ($1, $2, $3, $4, $5, 'swarm', true, true, $6, $7)
+        `INSERT INTO skills (created_by, name, slug, description, definition, file_path, scope, is_builtin, is_active, category, tags)
+         VALUES ($1, $2, $3, $4, $5, $6, 'swarm', true, true, $7, $8)
          ON CONFLICT (COALESCE(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid), slug)
          DO UPDATE SET
            name = EXCLUDED.name,
            description = EXCLUDED.description,
            definition = EXCLUDED.definition,
+           file_path = EXCLUDED.file_path,
            category = EXCLUDED.category,
            tags = EXCLUDED.tags,
            updated_at = NOW()`,
@@ -379,7 +441,8 @@ export class SkillRegistry {
           skill.name,
           skill.slug,
           skill.description,
-          JSON.stringify(skill.definition),
+          skill.definition ? JSON.stringify(skill.definition) : null,
+          skill.filePath || null,
           skill.category,
           skill.tags,
         ]

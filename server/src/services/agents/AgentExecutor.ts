@@ -1,13 +1,14 @@
 /**
  * AgentExecutor - Multi-turn agent conversations using Vercel AI SDK 6
  *
- * Supports multi-turn conversations: execute() starts a new task,
- * continueTask() handles follow-up messages with full conversation history.
- * Each turn runs generateText() with tools and persists messages + steps to DB.
+ * Uses ToolLoopAgent for structured agent execution with:
+ * - prepareStep for dynamic model/tool selection per step
+ * - Lifecycle callbacks for SSE streaming and persistence
+ * - Multi-turn support via execute() and continueTask()
  */
 
-import { generateText, stepCountIs, type StepResult } from 'ai';
-import { resolveModel, getProviderOptions } from './ai-provider.js';
+import { ToolLoopAgent, stepCountIs } from 'ai';
+import { resolveModel, getProviderOptions, isCloudModel, estimateCost } from './ai-provider.js';
 import { toolRegistry } from './ToolRegistry.js';
 import { agentPersistence } from './AgentPersistence.js';
 import type {
@@ -44,6 +45,8 @@ export class AgentExecutor {
       systemPrompt?: string;
       allowedTools?: string[];
       emitSSE?: SSEEmitter;
+      routingDecision?: string;
+      skillSlug?: string;
     }
   ): Promise<AgentTask> {
     const model = options?.model || this.config.defaultModel;
@@ -119,6 +122,8 @@ export class AgentExecutor {
 
   /**
    * Core turn execution — shared by execute() and continueTask()
+   *
+   * Creates a ToolLoopAgent per turn with lifecycle callbacks for SSE + persistence.
    */
   private async runTurn(
     task: AgentTask,
@@ -130,6 +135,8 @@ export class AgentExecutor {
     options?: {
       systemPrompt?: string;
       allowedTools?: string[];
+      routingDecision?: string;
+      skillSlug?: string;
     }
   ): Promise<AgentTask> {
     let stepNumber = task.totalSteps; // Continue step numbering across turns
@@ -137,12 +144,43 @@ export class AgentExecutor {
     try {
       await agentPersistence.updateTaskStatus(task.id, 'running');
 
-      // Build tools
-      const tools = toolRegistry.getAISDKTools(context, options?.allowedTools);
+      // Enrich context with taskId so tools can reference it
+      const toolContext = { ...context, taskId: task.id };
+
+      // Determine which skills have been loaded in previous turns
+      // by scanning step history for load_skill calls.
+      // Skill-gated tools (e.g. create_skill) become available only
+      // after their parent skill was loaded (Anthropic allowed-tools pattern).
+      const loadedSkills = new Set<string>();
+
+      // If slash-command invoked a skill, treat it as loaded
+      if (options?.skillSlug) {
+        loadedSkills.add(options.skillSlug);
+      }
+
+      // Scan previous steps for load_skill calls
+      if (turnNumber > 1) {
+        const { databaseService } = await import('../DatabaseService.js');
+        const stepsResult = await databaseService.query(
+          `SELECT tool_input FROM agent_steps WHERE task_id = $1 AND tool_name = 'load_skill'`,
+          [task.id]
+        );
+        for (const row of stepsResult.rows) {
+          const slug = row.tool_input?.slug as string;
+          if (slug) loadedSkills.add(slug);
+        }
+      }
+
+      if (loadedSkills.size > 0) {
+        console.log(`[AgentExecutor] Loaded skills for tool-gating: ${[...loadedSkills].join(', ')}`);
+      }
+
+      // Build tools (skill-gated tools only available when their skill is loaded)
+      const tools = toolRegistry.getAISDKTools(toolContext, options?.allowedTools, loadedSkills);
       const toolNames = Object.keys(tools);
 
-      // Build system prompt
-      const systemPrompt = options?.systemPrompt || await this.buildSystemPrompt(toolNames, context);
+      // Build system prompt (with optional skill injection from slash-command)
+      const instructions = options?.systemPrompt || await this.buildSystemPrompt(toolNames, toolContext, options?.skillSlug);
 
       // Build message history from all previous messages
       const allMessages = await agentPersistence.getMessages(task.id);
@@ -152,96 +190,124 @@ export class AgentExecutor {
       }));
 
       const stepStartTimes: Map<number, number> = new Map();
+      // Map toolCallId → stepNumber to correctly correlate parallel tool calls
+      const toolCallStepMap: Map<string, number> = new Map();
 
-      const result = await generateText({
+      // Create a ToolLoopAgent for this turn
+      const agent = new ToolLoopAgent({
         model: resolveModel(model),
-        system: systemPrompt,
-        messages,
+        instructions,
         tools,
         stopWhen: stepCountIs(this.config.maxIterations),
-        abortSignal: signal,
         temperature: 0.1,
         maxOutputTokens: 4096,
         providerOptions: getProviderOptions(model),
 
-        onStepFinish: async (step: StepResult<typeof tools>) => {
+        // SSE + persistence via lifecycle callbacks
+        experimental_onToolCallStart: ({ toolCall }) => {
           stepNumber++;
-          const stepStart = stepStartTimes.get(stepNumber) || Date.now();
-          const durationMs = Date.now() - stepStart;
-
-          console.log(`[AgentExecutor] Turn ${turnNumber}, Step ${stepNumber}: toolCalls=${step.toolCalls?.length || 0}, text=${(step.text || '').substring(0, 100) || '(empty)'}`);
+          const myStep = stepNumber;
+          stepStartTimes.set(myStep, Date.now());
+          toolCallStepMap.set(toolCall.toolCallId, myStep);
 
           emitSSE({
             event: 'step:start',
-            data: { taskId: task.id, stepNumber },
+            data: { taskId: task.id, stepNumber: myStep, turnNumber },
           });
+          emitSSE({
+            event: 'step:tool_start',
+            data: {
+              taskId: task.id,
+              stepNumber: myStep,
+              turnNumber,
+              toolName: toolCall.toolName,
+              toolInput: toolCall.input as Record<string, unknown>,
+            },
+          });
+        },
 
-          if (step.toolCalls && step.toolCalls.length > 0) {
-            for (let i = 0; i < step.toolCalls.length; i++) {
-              const tc = step.toolCalls[i]!;
-              const tr = step.toolResults?.[i];
+        experimental_onToolCallFinish: async ({ toolCall, durationMs, ...result }) => {
+          // Look up the correct stepNumber for this specific tool call
+          const myStep = toolCallStepMap.get(toolCall.toolCallId) ?? stepNumber;
+          toolCallStepMap.delete(toolCall.toolCallId);
 
-              emitSSE({
-                event: 'step:tool_start',
-                data: {
-                  taskId: task.id,
-                  stepNumber,
-                  toolName: tc.toolName,
-                  toolInput: tc.input as Record<string, unknown>,
-                },
-              });
+          const toolOutput = 'output' in result
+            ? (typeof result.output === 'string' ? result.output : JSON.stringify(result.output || ''))
+            : ('error' in result ? String(result.error) : '');
 
-              const toolOutput = typeof tr?.output === 'string'
-                ? tr.output
-                : JSON.stringify(tr?.output || '');
+          const truncatedOutput = toolOutput.length > this.config.maxToolOutputLength
+            ? toolOutput.substring(0, this.config.maxToolOutputLength) + '\n\n(Ausgabe gekürzt...)'
+            : toolOutput;
 
-              const truncatedOutput = toolOutput.length > this.config.maxToolOutputLength
-                ? toolOutput.substring(0, this.config.maxToolOutputLength) + '\n\n(Ausgabe gekürzt...)'
-                : toolOutput;
+          console.log(`[AgentExecutor] Turn ${turnNumber}, Step ${myStep}: ${toolCall.toolName} (${durationMs}ms)`);
 
-              await agentPersistence.createStep({
-                taskId: task.id,
-                stepNumber,
-                turnNumber,
-                thought: step.text || undefined,
-                toolName: tc.toolName,
-                toolInput: tc.input as Record<string, unknown>,
-                toolOutput: truncatedOutput,
-                tokensUsed: (step.usage?.inputTokens || 0) + (step.usage?.outputTokens || 0),
-                durationMs,
-              });
-
-              emitSSE({
-                event: 'step:tool_complete',
-                data: {
-                  taskId: task.id,
-                  stepNumber,
-                  toolName: tc.toolName,
-                  toolInput: tc.input as Record<string, unknown>,
-                  toolOutput: truncatedOutput.substring(0, 500),
-                  duration: durationMs,
-                },
-              });
-            }
+          try {
+            await agentPersistence.createStep({
+              taskId: task.id,
+              stepNumber: myStep,
+              turnNumber,
+              toolName: toolCall.toolName,
+              toolInput: toolCall.input as Record<string, unknown>,
+              toolOutput: truncatedOutput,
+              tokensUsed: 0,
+              durationMs: Math.round(durationMs ?? 0),
+            });
+          } catch (persistError) {
+            console.error(`[AgentExecutor] Failed to persist step ${myStep}:`, persistError instanceof Error ? persistError.message : persistError);
           }
 
           emitSSE({
-            event: 'step:complete',
+            event: 'step:tool_complete',
             data: {
               taskId: task.id,
-              stepNumber,
-              thought: step.text || undefined,
+              stepNumber: myStep,
+              turnNumber,
+              toolName: toolCall.toolName,
+              toolInput: toolCall.input as Record<string, unknown>,
+              toolOutput: truncatedOutput.substring(0, 500),
               duration: durationMs,
             },
           });
+        },
 
-          stepStartTimes.set(stepNumber + 1, Date.now());
+        onStepFinish: async ({ toolCalls, text, usage }) => {
+          const hasToolCalls = toolCalls && toolCalls.length > 0;
+
+          if (hasToolCalls) {
+            emitSSE({
+              event: 'step:complete',
+              data: {
+                taskId: task.id,
+                stepNumber,
+                turnNumber,
+                thought: text || undefined,
+                duration: Date.now() - (stepStartTimes.get(stepNumber) || Date.now()),
+              },
+            });
+          } else if (text) {
+            // Final answer step — don't emit as step, it comes via task:complete
+            console.log(`[AgentExecutor] Turn ${turnNumber}, Final answer: ${text.substring(0, 100)}...`);
+          }
         },
       });
 
-      const finalAnswer = result.text || '';
+      // Run the agent
+      const result = await agent.generate({
+        messages,
+        abortSignal: signal,
+      });
+
+      const finalAnswer = result.text || (
+        stepNumber === task.totalSteps
+          ? 'Das Modell hat keine Antwort generiert. Bitte versuche es erneut oder formuliere die Frage anders.'
+          : ''
+      );
       const turnInputTokens = result.usage?.inputTokens || 0;
       const turnOutputTokens = result.usage?.outputTokens || 0;
+
+      if (!result.text && stepNumber === task.totalSteps) {
+        console.warn(`[AgentExecutor] Task ${task.id}: Model returned empty response (no text, no tool calls)`);
+      }
 
       // Save assistant message
       await agentPersistence.createMessage(task.id, turnNumber, 'assistant', finalAnswer);
@@ -254,6 +320,9 @@ export class AgentExecutor {
         outputTokens: turnOutputTokens,
       });
 
+      const cloud = isCloudModel(model);
+      const cost = cloud ? estimateCost(model, turnInputTokens, turnOutputTokens) : null;
+
       emitSSE({
         event: 'task:complete',
         data: {
@@ -264,6 +333,10 @@ export class AgentExecutor {
           outputTokens: turnOutputTokens,
           nextStatus: 'awaiting_input',
           turnNumber,
+          model,
+          modelLocation: cloud ? 'cloud' : 'local',
+          estimatedCost: cost ?? undefined,
+          routingDecision: options?.routingDecision,
         },
       });
 
@@ -341,21 +414,27 @@ export class AgentExecutor {
   /**
    * Build the system prompt with available tools and skill descriptions
    */
-  private async buildSystemPrompt(toolNames: string[], context: AgentUserContext): Promise<string> {
+  private async buildSystemPrompt(toolNames: string[], context: AgentUserContext, skillSlug?: string): Promise<string> {
     const hasSkills = toolNames.includes('load_skill');
 
-    let prompt = `You are an agent with access to tools. You MUST use the tools to answer questions.
-This is a multi-turn conversation. The user can send follow-up messages after you respond.
+    let prompt = `Du bist ein hilfreicher Assistent mit Zugriff auf Tools. Dies ist eine Multi-Turn-Konversation.
 
-Available tools: ${toolNames.join(', ')}
+Verfügbare Tools: ${toolNames.join(', ')}
 
-CRITICAL RULES:
-- You MUST call rag_search tool for EVERY question to search the document database
-- NEVER answer from your own knowledge - ONLY use information returned by tools
-- If the tools return no results, respond with: "Ich habe keine Informationen zu dieser Anfrage in der Wissensdatenbank gefunden."
-- Do NOT invent, guess, or hallucinate information that was not returned by the tools
-- Cite sources (document name, page number) in your answer
-- Answer in German (Deutsch)`;
+REGELN:
+- Antworte auf Deutsch
+- Wenn die Frage Unternehmenswissen betrifft (Dokumente, Verträge, Mitarbeiter, interne Prozesse), nutze rag_search
+- Bei allgemeinem Wissen (Definitionen, öffentliche Fakten, Erklärungen) kannst du direkt antworten
+- Im Zweifel: Nutze rag_search — lieber einmal zu viel suchen als falsch antworten
+- Zitiere Quellen (Dokumentname, Seitenzahl) wenn du Dokumente nutzt
+- Wenn du keine relevanten Dokumente findest, sage das ehrlich
+- Nutze NUR Informationen aus den Tool-Ergebnissen, erfinde nichts dazu
+
+FORMATIERUNG:
+- Strukturiere Antworten mit Überschriften (##), Aufzählungen und **Fettdruck** für Schlüsselbegriffe
+- Bei Zusammenfassungen: Nummerierte Abschnitte mit klaren Überschriften
+- Bei Listen: Bullet Points mit kurzen Erklärungen
+- Längere Antworten immer in Abschnitte gliedern`;
 
     if (hasSkills) {
       let skillSummary = '';
@@ -365,9 +444,14 @@ CRITICAL RULES:
           { userId: context.userId, userRole: context.userRole, department: context.department },
           { limit: 20 }
         );
-        if (skills.length > 0) {
-          skillSummary = skills
-            .map(s => `- ${s.name} [${s.slug}]: ${s.description || '(keine Beschreibung)'}`)
+        const autoSkills = skills.filter(s => !s.disableAutoInvocation);
+        if (autoSkills.length > 0) {
+          // Truncate descriptions to keep prompt compact for smaller models
+          skillSummary = autoSkills
+            .map(s => {
+              const desc = (s.description || '').split('.')[0] || '(keine Beschreibung)';
+              return `- ${s.name} [${s.slug}]: ${desc}`;
+            })
             .join('\n');
         }
       } catch {
@@ -376,30 +460,49 @@ CRITICAL RULES:
 
       prompt += `
 
-SKILLS (pre-built workflows):
-${skillSummary || '(keine Skills verfügbar)'}
+<available_skills>
+${skillSummary || '(keine)'}
+</available_skills>
 
-When a skill matches the user's request:
-1. Call load_skill with the skill's slug to get the full instructions
-2. Follow the instructions step by step using the recommended tools
-3. The skill instructions will tell you exactly what to do
+Wenn eine Aufgabe zu einem Skill passt: ZUERST load_skill(slug) aufrufen um die vollständigen Instruktionen zu laden, DANN den Instruktionen folgen. Ohne load_skill hast du nur die Kurzbeschreibung — die reicht nicht für gute Ergebnisse.`;
+    }
 
-IMPORTANT: Tools like create_skill, update_skill, and run_skill_test are meant to be used
-WITHIN a skill workflow (e.g. the Skill Creator skill), not directly. If the user wants to
-create, improve, or test a skill, ALWAYS load the appropriate skill first via load_skill.
+    // If a skill was explicitly invoked via slash-command, inject its instructions directly
+    if (skillSlug) {
+      try {
+        const { skillRegistry } = await import('../skills/SkillRegistry.js');
+        const skill = await skillRegistry.getSkillBySlug(
+          { userId: context.userId, userRole: context.userRole, department: context.department },
+          skillSlug
+        );
+        if (skill) {
+          const content = await skillRegistry.getSkillContent(skill);
+          const toolList = content.tools.length > 0
+            ? `Empfohlene Tools: ${content.tools.join(', ')}`
+            : '';
+          prompt += `
 
-If no skill matches, use the tools directly (rag_search, read_chunk, etc.)`;
+AKTIVER SKILL: ${skill.name}
+${toolList}
+
+Folge diesen Instruktionen Schritt für Schritt:
+
+${content.body}`;
+          console.log(`[AgentExecutor] Skill "${skillSlug}" direkt injiziert (Slash-Command)`);
+          return prompt;
+        }
+      } catch {
+        // Skill not found, continue with normal workflow
+      }
     }
 
     prompt += `
 
 WORKFLOW:
-1. Check if a skill from the list above matches the user's request
-2. If yes: call load_skill(slug) and follow the returned instructions
-3. If no: call rag_search with relevant keywords from the user's question
-4. If needed, use read_chunk for more details on a specific result
-5. Formulate your answer ONLY based on actual tool results
-6. If no relevant documents were found, say so - do not make up an answer`;
+1. Passt ein Skill? → load_skill(slug) aufrufen und Instruktionen folgen
+2. Unternehmenswissen nötig? → rag_search
+3. Allgemeinwissen? → Direkt antworten
+4. Quellen zitieren wenn Dokumente genutzt`;
 
     return prompt;
   }

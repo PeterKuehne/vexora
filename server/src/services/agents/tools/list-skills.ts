@@ -60,12 +60,18 @@ export const listSkillsTool: AgentTool = {
         return { output: 'Keine Skills gefunden.', metadata: { count: 0 } };
       }
 
-      const formatted = skills.map(skill => {
-        const tools = skill.definition.tools.length > 0
-          ? ` | Tools: ${skill.definition.tools.join(', ')}`
-          : '';
+      const formatted = await Promise.all(skills.map(async skill => {
+        let tools = '';
+        try {
+          const content = await skillRegistry.getSkillContent(skill);
+          if (content.tools.length > 0) {
+            tools = ` | Tools: ${content.tools.join(', ')}`;
+          }
+        } catch {
+          // Fallback if content can't be resolved
+        }
         return `- **${skill.name}** [slug: ${skill.slug}]${tools}\n  ${skill.description || '(keine Beschreibung)'}`;
-      });
+      }));
 
       return {
         output: `${skills.length} Skills verfügbar:\n\n${formatted.join('\n\n')}\n\nNutze load_skill mit dem Slug um die vollständigen Instruktionen zu laden.`,

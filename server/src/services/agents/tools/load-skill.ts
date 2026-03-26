@@ -11,8 +11,11 @@
  * - Level 3: agent uses tools (rag_search, etc.) as instructed
  */
 
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import type { AgentTool, AgentUserContext, ToolResult } from '../types.js';
 import { skillRegistry } from '../../skills/SkillRegistry.js';
+import { skillLoader } from '../../skills/SkillLoader.js';
 
 export const loadSkillTool: AgentTool = {
   name: 'load_skill',
@@ -50,19 +53,34 @@ export const loadSkillTool: AgentTool = {
       // Track that this skill was loaded (increment execution count)
       await skillRegistry.recordExecution(skill.id, null, context.userId, { loaded: true });
 
-      // Return the full Markdown instructions
+      // Resolve content from SKILL.md or DB definition
+      const content = await skillRegistry.getSkillContent(skill);
+
       const header = `# ${skill.name}\n\n`;
-      const toolHint = skill.definition.tools.length > 0
-        ? `**Empfohlene Tools:** ${skill.definition.tools.join(', ')}\n\n`
+      const toolHint = content.tools.length > 0
+        ? `**Empfohlene Tools:** ${content.tools.join(', ')}\n\n`
         : '';
 
+      // List references if skill has a filePath
+      const metadataExtras: Record<string, unknown> = {};
+      if (skill.filePath) {
+        const __dirname = dirname(fileURLToPath(import.meta.url));
+        const projectRoot = join(__dirname, '..', '..', '..', '..', '..');
+        const skillDirPath = join(projectRoot, skill.filePath);
+        const refs = skillLoader.listReferences(skillDirPath);
+        if (refs.length > 0) {
+          metadataExtras.references = refs;
+        }
+      }
+
       return {
-        output: header + toolHint + skill.definition.content,
+        output: header + toolHint + content.body,
         metadata: {
           skillName: skill.name,
           skillSlug: slug,
           skillId: skill.id,
-          tools: skill.definition.tools,
+          tools: content.tools,
+          ...metadataExtras,
         },
       };
     } catch (error) {

@@ -16,6 +16,7 @@ import type { AgentTool, AgentUserContext, ToolResult } from '../types.js';
 
 export const runSkillTestTool: AgentTool = {
   name: 'run_skill_test',
+  skillGated: 'skill-creator',
   description: 'Testet einen Skill indem ein unabhängiger Sub-Agent gestartet wird der einen Test-Prompt mit (oder ohne) dem Skill ausführt. Nutze dieses Tool um Skills zu evaluieren und zu vergleichen.',
   parameters: {
     type: 'object',
@@ -80,15 +81,18 @@ REGELN:
         }
 
         skillName = skill.name;
-        skillTools = skill.definition.tools;
+
+        // Resolve content from SKILL.md or DB definition
+        const content = await skillRegistry.getSkillContent(skill);
+        skillTools = content.tools;
 
         // Inject skill instructions into system prompt
         systemPrompt += `
 
 === SKILL: ${skill.name} ===
-Empfohlene Tools: ${skill.definition.tools.join(', ')}
+Empfohlene Tools: ${content.tools.join(', ')}
 
-${skill.definition.content}
+${content.body}
 === ENDE SKILL ===
 
 Befolge die Skill-Instruktionen oben um die Aufgabe zu lösen.`;
