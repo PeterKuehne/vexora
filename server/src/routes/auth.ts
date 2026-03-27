@@ -12,6 +12,9 @@ import { LoggerService } from '../services/LoggerService.js';
 
 const router = express.Router();
 
+/** Access token cookie maxAge — derived from JWT_EXPIRES_IN env */
+const ACCESS_TOKEN_MAX_AGE = env.JWT_EXPIRES_MS;
+
 /**
  * GET /api/auth/microsoft/login
  * Redirect to Microsoft OAuth2 authorization with CSRF protection
@@ -77,7 +80,7 @@ router.get('/microsoft/callback', asyncHandler(async (req: Request, res: Respons
       httpOnly: true,
       secure: env.isProduction,
       sameSite: env.isProduction ? 'strict' : 'lax',
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: ACCESS_TOKEN_MAX_AGE,
       path: '/',
       domain: env.isProduction ? undefined : undefined // Let browser handle domain
     });
@@ -179,7 +182,7 @@ router.get('/google/callback', asyncHandler(async (req: Request, res: Response) 
       httpOnly: true,
       secure: env.isProduction,
       sameSite: env.isProduction ? 'strict' : 'lax',
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: ACCESS_TOKEN_MAX_AGE,
       path: '/',
       domain: env.isProduction ? undefined : undefined // Let browser handle domain
     });
@@ -301,7 +304,7 @@ router.post('/refresh', asyncHandler(async (req: Request, res: Response) => {
       httpOnly: true,
       secure: env.isProduction,
       sameSite: env.isProduction ? 'strict' : 'lax',
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: ACCESS_TOKEN_MAX_AGE,
       path: '/',
       domain: env.isProduction ? undefined : undefined
     });

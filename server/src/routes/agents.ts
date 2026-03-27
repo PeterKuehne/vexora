@@ -113,11 +113,21 @@ router.post('/run', authenticateToken, (req: Request, res: Response) => {
       routingDecision = routing.route;
 
       if (routing.model === 'cloud') {
-        // Try cloud model, fall back to local if unavailable
+        // Try cloud model, fall back to fallback cloud model, then local
         const cloudModel = env.CLOUD_MODEL;
         const { provider } = await import('../services/agents/ai-provider.js').then(m => m.parseModelString(cloudModel));
         if (hasProvider(provider)) {
           effectiveModel = cloudModel;
+        } else if (env.CLOUD_FALLBACK_MODEL) {
+          const fallback = env.CLOUD_FALLBACK_MODEL;
+          const { provider: fbProvider } = await import('../services/agents/ai-provider.js').then(m => m.parseModelString(fallback));
+          if (hasProvider(fbProvider)) {
+            console.warn(`[AgentRoute] Cloud model ${cloudModel} nicht verfügbar, Fallback auf ${fallback}`);
+            effectiveModel = fallback;
+          } else {
+            console.warn(`[AgentRoute] Kein Cloud-Model verfügbar, Fallback auf lokal`);
+            effectiveModel = env.LOCAL_MODEL;
+          }
         } else {
           console.warn(`[AgentRoute] Cloud model ${cloudModel} nicht verfügbar, Fallback auf lokal`);
           effectiveModel = env.LOCAL_MODEL;

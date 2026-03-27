@@ -30,6 +30,8 @@ export interface AgentStep {
   turnNumber?: number;
   status: StepStatus;
   thought?: string;
+  /** Reasoning content from reasoning models (gpt-oss-120b etc.) */
+  reasoning?: string;
   toolName?: string;
   toolInput?: Record<string, unknown>;
   toolOutput?: string;
@@ -38,8 +40,11 @@ export interface AgentStep {
 
 export interface AgentMessage {
   turnNumber: number;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'tool';
   content: string;
+  /** Structured content (tool-call blocks, tool results) — present for tool context messages */
+  contentJson?: unknown;
+  toolCallId?: string;
 }
 
 export interface TurnMeta {
@@ -122,9 +127,39 @@ export function AgentProvider({ children }: { children: ReactNode }) {
     try {
       const response = await httpClient.get(`${env.API_URL}/api/agents/tasks/${taskId}`);
       const data = await response.json();
+      // Reconstruct turnMeta from task data (model, tokens are stored globally)
+      const taskRow = data.task;
+      const modelStr = taskRow.model || '';
+      const isCloud = modelStr.startsWith('anthropic:') || modelStr.startsWith('mistral:') || modelStr.startsWith('ovh:');
+      const maxTurn = Math.max(1, ...(data.messages || []).map((m: any) => m.turn_number || m.turnNumber || 1));
+      const reconstructedTurnMeta: Record<number, TurnMeta> = {};
+      // Assign model info to the last turn (most relevant)
+      if (modelStr) {
+        const inTok = taskRow.input_tokens || taskRow.inputTokens || 0;
+        const outTok = taskRow.output_tokens || taskRow.outputTokens || 0;
+        // Estimate cost from known model pricing (EUR per M tokens)
+        const pricing: Record<string, [number, number]> = {
+          'ovh:gpt-oss-120b': [0.08, 0.40],
+          'mistral:mistral-large-latest': [2.0, 6.0],
+          'mistral:mistral-small-latest': [0.2, 0.6],
+          'anthropic:claude-sonnet-4-6': [3.0, 15.0],
+          'anthropic:claude-haiku-4-5': [0.8, 4.0],
+        };
+        const [inPrice, outPrice] = pricing[modelStr] || [0, 0];
+        const cost = isCloud ? (inTok / 1_000_000) * inPrice + (outTok / 1_000_000) * outPrice : undefined;
+
+        reconstructedTurnMeta[maxTurn] = {
+          model: modelStr,
+          modelLocation: isCloud ? 'cloud' : 'local',
+          inputTokens: inTok,
+          outputTokens: outTok,
+          estimatedCost: cost,
+        };
+      }
+
       const task: AgentTask = {
         ...data.task,
-        turnMeta: {},
+        turnMeta: reconstructedTurnMeta,
         steps: (data.steps || []).map((s: any) => ({
           stepNumber: s.step_number || s.stepNumber,
           turnNumber: s.turn_number || s.turnNumber || 1,
@@ -135,11 +170,16 @@ export function AgentProvider({ children }: { children: ReactNode }) {
           toolOutput: s.tool_output || s.toolOutput,
           duration: s.duration_ms || s.durationMs,
         })),
-        messages: (data.messages || []).map((m: any) => ({
-          turnNumber: m.turn_number || m.turnNumber,
-          role: m.role,
-          content: m.content,
-        })),
+        messages: (data.messages || [])
+          // Filter out structured tool context messages — those are only for the LLM, not the UI
+          .filter((m: any) => m.role !== 'tool' && !(m.role === 'assistant' && (m.content_json || m.contentJson) && !m.content))
+          .map((m: any) => ({
+            turnNumber: m.turn_number || m.turnNumber,
+            role: m.role,
+            content: m.content || '',
+            contentJson: m.content_json || m.contentJson,
+            toolCallId: m.tool_call_id || m.toolCallId,
+          })),
         createdAt: data.task.createdAt || data.task.created_at,
         completedAt: data.task.completedAt || data.task.completed_at,
       };
@@ -179,11 +219,24 @@ export function AgentProvider({ children }: { children: ReactNode }) {
             steps: upsertStep({ stepNumber: data.stepNumber, turnNumber: data.turnNumber, status: 'thinking' }),
           };
 
-        case 'step:thinking':
+        case 'step:thinking': {
+          // Attach reasoning to the existing step (same stepNumber) rather than creating a new one
+          const existingStep = task.steps.find(s => s.stepNumber === data.stepNumber);
+          if (existingStep) {
+            return {
+              ...task,
+              steps: task.steps.map(s => s.stepNumber === data.stepNumber
+                ? { ...s, reasoning: data.thought }
+                : s
+              ),
+            };
+          }
+          // If no matching step yet, create a standalone thinking step
           return {
             ...task,
-            steps: upsertStep({ stepNumber: data.stepNumber, turnNumber: data.turnNumber, status: 'thinking', thought: data.thought }),
+            steps: upsertStep({ stepNumber: data.stepNumber, turnNumber: data.turnNumber, status: 'thinking', thought: data.thought, reasoning: data.thought }),
           };
+        }
 
         case 'step:tool_start':
           return {

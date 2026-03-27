@@ -7,7 +7,8 @@
  * - Multi-turn support via execute() and continueTask()
  */
 
-import { ToolLoopAgent, stepCountIs } from 'ai';
+import { ToolLoopAgent, stepCountIs, pruneMessages } from 'ai';
+import type { ModelMessage } from '@ai-sdk/provider-utils';
 import { resolveModel, getProviderOptions, isCloudModel, estimateCost } from './ai-provider.js';
 import { toolRegistry } from './ToolRegistry.js';
 import { agentPersistence } from './AgentPersistence.js';
@@ -182,12 +183,31 @@ export class AgentExecutor {
       // Build system prompt (with optional skill injection from slash-command)
       const instructions = options?.systemPrompt || await this.buildSystemPrompt(toolNames, toolContext, options?.skillSlug);
 
-      // Build message history from all previous messages
+      // Build message history from all previous messages (including tool context)
       const allMessages = await agentPersistence.getMessages(task.id);
-      const messages = allMessages.map(m => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      }));
+      const messages: ModelMessage[] = allMessages.map(m => {
+        // Structured content (tool-call blocks, tool-result arrays) takes precedence
+        if (m.contentJson) {
+          if (m.role === 'tool') {
+            return { role: 'tool' as const, content: m.contentJson as any };
+          }
+          return { role: 'assistant' as const, content: m.contentJson as any };
+        }
+        // Legacy plain text messages
+        if (m.role === 'tool') {
+          // Should not happen for legacy, but handle gracefully
+          return { role: 'tool' as const, content: [{ type: 'tool-result' as const, toolCallId: m.toolCallId || '', toolName: '', result: m.content }] };
+        }
+        return { role: m.role as 'user' | 'assistant', content: m.content };
+      });
+
+      // Prune older tool results to stay within context limits
+      const prunedMessages = pruneMessages({
+        messages,
+        toolCalls: 'before-last-3-messages',
+        reasoning: 'before-last-message',
+        emptyMessages: 'remove',
+      });
 
       const stepStartTimes: Map<number, number> = new Map();
       // Map toolCallId → stepNumber to correctly correlate parallel tool calls
@@ -270,8 +290,31 @@ export class AgentExecutor {
           });
         },
 
-        onStepFinish: async ({ toolCalls, text, usage }) => {
+        onStepFinish: async (stepResult) => {
+          const { toolCalls, text, usage } = stepResult;
           const hasToolCalls = toolCalls && toolCalls.length > 0;
+
+          // Extract reasoning from content array (reasoning models like gpt-oss-120b)
+          // The content field may be on stepResult directly or nested
+          const contentArray = (stepResult as any).content || (stepResult as any).response?.content || [];
+          const reasoningParts = (Array.isArray(contentArray) ? contentArray : [])
+            .filter((p: any) => p.type === 'reasoning' && p.text);
+
+          const reasoning = reasoningParts.length > 0
+            ? reasoningParts.map((p: any) => p.text).join('\n')
+            : undefined;
+
+          if (reasoning) {
+            emitSSE({
+              event: 'step:thinking',
+              data: {
+                taskId: task.id,
+                stepNumber,
+                turnNumber,
+                thought: reasoning,
+              },
+            });
+          }
 
           if (hasToolCalls) {
             emitSSE({
@@ -293,9 +336,20 @@ export class AgentExecutor {
 
       // Run the agent
       const result = await agent.generate({
-        messages,
+        messages: prunedMessages,
         abortSignal: signal,
       });
+
+      // Persist the full tool conversation from this turn (response.messages)
+      const responseMessages = result.response?.messages || [];
+      if (responseMessages.length > 0) {
+        try {
+          await agentPersistence.createStructuredMessages(task.id, turnNumber, responseMessages as any);
+          console.log(`[AgentExecutor] Persisted ${responseMessages.length} structured messages for turn ${turnNumber}`);
+        } catch (persistError) {
+          console.error(`[AgentExecutor] Failed to persist structured messages:`, persistError instanceof Error ? persistError.message : persistError);
+        }
+      }
 
       const finalAnswer = result.text || (
         stepNumber === task.totalSteps

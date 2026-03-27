@@ -37,9 +37,9 @@ export const createDocumentTool: AgentTool = {
       const id = randomUUID();
 
       await databaseService.query(
-        `INSERT INTO documents (id, original_name, mime_type, file_size, owner_id, classification, status, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, 'ready', NOW())`,
-        [id, title, 'text/plain', Buffer.byteLength(content, 'utf8'), context.userId, classification]
+        `INSERT INTO documents (id, original_name, mime_type, file_size, owner_id, classification, status, source_type, source_task_id, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, 'ready', 'agent', $7, NOW())`,
+        [id, title, 'text/plain', Buffer.byteLength(content, 'utf8'), context.userId, classification, context.taskId || null]
       );
 
       return {

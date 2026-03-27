@@ -138,8 +138,12 @@ export interface AgentMessage {
   id: string;
   taskId: string;
   turnNumber: number;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'tool';
   content: string;
+  /** Structured content (assistant tool_use blocks, tool results) — takes precedence over content */
+  contentJson?: unknown;
+  /** Tool call ID for tool-result messages */
+  toolCallId?: string;
   createdAt: Date;
 }
 
@@ -200,7 +204,7 @@ export interface AgentConfig {
 }
 
 export const DEFAULT_AGENT_CONFIG: AgentConfig = {
-  maxIterations: parseInt(process.env.MAX_AGENT_ITERATIONS || '10', 10),
+  maxIterations: parseInt(process.env.MAX_AGENT_ITERATIONS || '25', 10),
   defaultModel: process.env.AGENT_DEFAULT_MODEL || 'anthropic:claude-sonnet-4-6',
   timeoutMs: parseInt(process.env.AGENT_TIMEOUT_MS || '300000', 10),
   maxToolOutputLength: 10000,

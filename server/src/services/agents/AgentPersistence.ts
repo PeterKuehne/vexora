@@ -48,6 +48,8 @@ function mapMessage(row: any): AgentMessage {
     turnNumber: row.turn_number,
     role: row.role,
     content: row.content,
+    contentJson: row.content_json ?? undefined,
+    toolCallId: row.tool_call_id ?? undefined,
     createdAt: row.created_at,
   };
 }
@@ -167,7 +169,48 @@ export class AgentPersistence {
   }
 
   /**
-   * Get all messages for a task (ordered by turn)
+   * Persist structured AI SDK response.messages (tool-call + tool-result messages) for a turn.
+   * Filters out the final text-only assistant message (that one is saved separately via createMessage).
+   */
+  async createStructuredMessages(
+    taskId: string,
+    turnNumber: number,
+    messages: Array<{ role: string; content: unknown; providerOptions?: unknown }>
+  ): Promise<void> {
+    for (const msg of messages) {
+      const content = msg.content;
+
+      if (msg.role === 'assistant') {
+        // Skip pure-text assistant messages — those are saved via createMessage()
+        if (typeof content === 'string') continue;
+        if (Array.isArray(content)) {
+          const hasToolCall = content.some((p: any) => p.type === 'tool-call');
+          if (!hasToolCall) continue; // text-only assistant, skip
+        }
+
+        await databaseService.query(
+          `INSERT INTO agent_messages (task_id, turn_number, role, content, content_json)
+           VALUES ($1, $2, 'assistant', '', $3)`,
+          [taskId, turnNumber, JSON.stringify(content)]
+        );
+      } else if (msg.role === 'tool') {
+        // Tool result message — content is an array of ToolResultPart
+        const parts = Array.isArray(content) ? content : [];
+        for (const part of parts) {
+          const toolCallId = (part as any).toolCallId || (part as any).tool_call_id || null;
+          await databaseService.query(
+            `INSERT INTO agent_messages (task_id, turn_number, role, content, content_json, tool_call_id)
+             VALUES ($1, $2, 'tool', '', $3, $4)`,
+            [taskId, turnNumber, JSON.stringify([part]), toolCallId]
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * Get all messages for a task (ordered by turn).
+   * Returns messages in AI SDK ModelMessage format when content_json is available.
    */
   async getMessages(taskId: string): Promise<AgentMessage[]> {
     const result = await databaseService.query(
@@ -278,6 +321,18 @@ export class AgentPersistence {
       [taskId]
     );
     return result.rows.length > 0 ? mapTask(result.rows[0]) : null;
+  }
+
+  /**
+   * Delete a task and all associated steps/messages (with RLS)
+   */
+  async deleteTask(context: AgentUserContext, taskId: string): Promise<boolean> {
+    await this.setUserContext(context.userId, context.userRole);
+    // Steps and messages cascade-delete via FK, but delete explicitly for safety
+    await databaseService.query('DELETE FROM agent_messages WHERE task_id = $1', [taskId]);
+    await databaseService.query('DELETE FROM agent_steps WHERE task_id = $1', [taskId]);
+    const result = await databaseService.query('DELETE FROM agent_tasks WHERE id = $1', [taskId]);
+    return (result.rowCount ?? 0) > 0;
   }
 
   /**

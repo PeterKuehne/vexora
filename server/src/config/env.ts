@@ -54,11 +54,13 @@ export const env = {
   // LLM Providers
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? '',
   MISTRAL_API_KEY: process.env.MISTRAL_API_KEY ?? '',
+  OVH_AI_API_KEY: process.env.OVH_AI_API_KEY ?? '',
+  OVH_AI_BASE_URL: process.env.OVH_AI_BASE_URL ?? 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1',
 
   // Model Tiering
   LOCAL_MODEL: process.env.LOCAL_MODEL ?? 'qwen3:8b',
-  CLOUD_MODEL: process.env.CLOUD_MODEL ?? 'mistral:mistral-large-latest',
-  CLOUD_FALLBACK_MODEL: process.env.CLOUD_FALLBACK_MODEL ?? '',
+  CLOUD_MODEL: process.env.CLOUD_MODEL ?? 'ovh:gpt-oss-120b',
+  CLOUD_FALLBACK_MODEL: process.env.CLOUD_FALLBACK_MODEL ?? 'mistral:mistral-large-latest',
 
   // Query Routing
   ROUTING_EMBEDDING_THRESHOLD: parseFloat(process.env.ROUTING_EMBEDDING_THRESHOLD ?? '0.75'),

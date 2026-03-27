@@ -11,8 +11,6 @@ import { IconRail, type WorkspaceSection } from './IconRail';
 import { WorkspaceSidebar } from './WorkspaceSidebar';
 
 export interface WorkspaceLayoutProps {
-  /** Content for the chat sidebar (conversation list) */
-  chatSidebar?: ReactNode;
   /** Content for the tasks sidebar (agent task list) */
   tasksSidebar?: ReactNode;
   /** Content for the skills sidebar (skill list) */
@@ -32,14 +30,13 @@ export interface WorkspaceLayoutProps {
 }
 
 export function WorkspaceLayout({
-  chatSidebar,
   tasksSidebar,
   skillsSidebar,
   children,
   onSettingsClick,
   userName,
   onLogout,
-  defaultSection = 'chat',
+  defaultSection = 'tasks',
   onSectionChange,
 }: WorkspaceLayoutProps) {
   const { isDark } = useTheme();
@@ -78,7 +75,6 @@ export function WorkspaceLayout({
       {/* Column 2: Context Sidebar (260px) */}
       <WorkspaceSidebar
         activeSection={activeSection}
-        chatSidebar={chatSidebar}
         tasksSidebar={tasksSidebar}
         skillsSidebar={skillsSidebar}
         isCollapsed={isSidebarCollapsed}

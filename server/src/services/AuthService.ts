@@ -37,10 +37,22 @@ import { LoggerService } from './LoggerService.js';
 
 export class AuthService {
   private readonly jwtSecret: string;
-  private readonly jwtExpiresIn = '15m'; // 15 minutes
+  private readonly jwtExpiresIn: string;
+  private readonly jwtExpiresMs: number;
   private readonly refreshExpiresIn = 24 * 60 * 60 * 1000; // 24 hours (OAuth 2.1 best practice)
 
   constructor() {
+    // Token lifetime from env (default: 1h)
+    this.jwtExpiresIn = process.env.JWT_EXPIRES_IN || '1h';
+    const match = this.jwtExpiresIn.match(/^(\d+)(m|h|d)$/);
+    if (match) {
+      const num = parseInt(match[1]!);
+      const unit = match[2]!;
+      this.jwtExpiresMs = unit === 'm' ? num * 60 * 1000 : unit === 'h' ? num * 3600 * 1000 : num * 86400 * 1000;
+    } else {
+      this.jwtExpiresMs = 3600 * 1000; // fallback 1h
+    }
+
     this.jwtSecret = process.env.JWT_SECRET || '';
 
     if (!this.jwtSecret) {
@@ -551,7 +563,7 @@ export class AuthService {
       user,
       access_token: accessToken,
       refresh_token: refreshToken.token_hash, // Plain token
-      expires_at: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+      expires_at: new Date(Date.now() + this.jwtExpiresMs),
     };
   }
 

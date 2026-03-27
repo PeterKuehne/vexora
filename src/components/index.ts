@@ -3,59 +3,10 @@
  * Central export point for all components
  */
 
-// Chat components
-export { ChatContainer } from './ChatContainer';
+// Chat input (used by Agent)
 export { ChatInput } from './ChatInput';
-export { MessageBubble } from './MessageBubble';
-
-// Chat Textarea
-export {
-  ChatTextarea,
-  ChatTextareaStandalone,
-  ChatTextareaWithControls,
-  type ChatTextareaProps,
-  type ChatTextareaRef,
-  type ChatTextareaStandaloneProps,
-  type ChatTextareaWithControlsProps,
-} from './ChatTextarea';
-
-// Message List
-export {
-  MessageList,
-  MessageListItem,
-  MessageListLoadingIndicator,
-  MessageListEmptyState,
-  type MessageListProps,
-  type MessageListRef,
-  type MessageListItemProps,
-  type MessageListLoadingIndicatorProps,
-  type MessageListEmptyStateProps,
-} from './MessageList';
-
-// User Message
-export {
-  UserMessage,
-  UserMessageCompact,
-  UserMessageBubble,
-  type UserMessageProps,
-  type UserMessageCompactProps,
-  type UserMessageBubbleProps,
-} from './UserMessage';
-
-// AI Message
-export {
-  AIMessage,
-  AIMessageCompact,
-  AIMessageBubble,
-  AIMessageStreaming,
-  type AIMessageProps,
-  type AIMessageCompactProps,
-  type AIMessageBubbleProps,
-  type AIMessageStreamingProps,
-} from './AIMessage';
 
 // Layout components
-export { ConversationSidebar } from './ConversationSidebar';
 export {
   AppShell,
   AppShellHeaderSection,
@@ -65,7 +16,7 @@ export {
   HeaderDivider,
   HeaderSection,
   type SidebarControls,
-  // Workspace Layout (Hive Mind Phase 1)
+  // Workspace Layout
   WorkspaceLayout,
   IconRail,
   WorkspaceSidebar,
@@ -73,7 +24,6 @@ export {
 } from './layout';
 
 // Error components
-export { OllamaConnectionError } from './OllamaConnectionError';
 export { ErrorBoundary } from './ErrorBoundary';
 
 // Status components
@@ -175,35 +125,6 @@ export {
   LoadingButtonContent,
 } from './Spinner';
 
-// New Chat Button
-export {
-  NewChatButton,
-  NewChatButtonIcon,
-  NewChatFAB,
-  type NewChatButtonProps,
-  type NewChatButtonIconProps,
-  type NewChatFABProps,
-} from './NewChatButton';
-
-// Conversation List
-export {
-  ConversationList,
-  ConversationItem,
-  type ConversationListProps,
-  type ConversationItemProps,
-} from './ConversationList';
-
-// Conversation Group
-export {
-  ConversationGroup,
-  ConversationGroupHeader,
-  ConversationGroupCompact,
-  ConversationGroupStatic,
-  type ConversationGroupProps,
-  type ConversationGroupHeaderProps,
-  type DateGroupType,
-} from './ConversationGroup';
-
 // Search Input
 export {
   SearchInput,
@@ -215,58 +136,6 @@ export {
   type SearchInputWithResultsProps,
   type SearchResult,
 } from './SearchInput';
-
-// Conversation Search
-export {
-  ConversationSearch,
-  ConversationSearchCompact,
-  ConversationSearchBar,
-  type ConversationSearchProps,
-  type ConversationSearchCompactProps,
-  type ConversationSearchBarProps,
-} from './ConversationSearch';
-
-// Send Button
-export {
-  SendButton,
-  SendButtonIcon,
-  StopButton,
-  SendButtonWithLoading,
-  type SendButtonProps,
-  type SendButtonIconProps,
-  type StopButtonProps,
-  type SendButtonWithLoadingProps,
-  type SendButtonSize,
-  type SendButtonVariant,
-} from './SendButton';
-
-// Regenerate Button
-export {
-  RegenerateButton,
-  RegenerateButtonIcon,
-  RegenerateButtonCompact,
-  type RegenerateButtonProps,
-  type RegenerateButtonIconProps,
-  type RegenerateButtonCompactProps,
-} from './RegenerateButton';
-
-// Typing Indicator
-export {
-  TypingIndicator,
-  TypingDots,
-  TypingPulse,
-  TypingWave,
-  TypingIndicatorWithAvatar,
-  TypingIndicatorInline,
-  TypingIndicatorBubble,
-  type TypingIndicatorProps,
-  type TypingIndicatorDotsProps,
-  type TypingIndicatorWithAvatarProps,
-  type TypingIndicatorInlineProps,
-  type TypingIndicatorBubbleProps,
-  type TypingIndicatorSize,
-  type TypingIndicatorVariant,
-} from './TypingIndicator';
 
 // Copy Button
 export {
@@ -280,19 +149,6 @@ export {
   type CopyButtonProps,
 } from './CopyButton';
 
-// Welcome Screen
-export {
-  WelcomeScreen,
-  WelcomeScreenCompact,
-  WelcomeScreenMinimal,
-  type WelcomeScreenProps,
-  type ExamplePrompt,
-  DEFAULT_EXAMPLE_PROMPTS,
-} from './WelcomeScreen';
-
-// export { Layout } from './Layout';
-// export { ChatArea } from './ChatArea';
-
 // Navigation components
 export { NavigationLinks, NavigationDivider } from './NavigationLinks';
 
@@ -300,16 +156,8 @@ export { NavigationLinks, NavigationDivider } from './NavigationLinks';
 export { DocumentUpload } from './DocumentUpload';
 export { DocumentList } from './DocumentList';
 export { DocumentSidebar } from './DocumentSidebar';
-export { RAGSidebar } from './RAGSidebar';
-export { MainSidebar } from './MainSidebar';
 export { SidebarTabs, type SidebarTab } from './SidebarTabs';
 export { UploadModal } from './UploadModal';
-
-// RAG components
-export { RAGToggle } from './RAGToggle';
-export { RAGModeSelector } from './RAGModeSelector';
-export { RAGSources } from './RAGSources';
-export { SourceDetailModal } from './SourceDetailModal';
 
 // Authentication components
 export { ProtectedRoute } from './ProtectedRoute';
@@ -317,7 +165,3 @@ export { UserMenu, UserMenuSkeleton, type UserMenuProps } from './UserMenu';
 
 // Admin components
 export { AdminPageHeader, type AdminPageHeaderProps } from './AdminPageHeader';
-
-// UI components will be exported here
-// export { Button } from './ui/Button';
-// export { Input } from './ui/Input';

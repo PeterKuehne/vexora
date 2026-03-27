@@ -17,6 +17,7 @@ import { Markdown } from './Markdown';
 import { ChatInput } from './ChatInput';
 import {
   Bot,
+  Lightbulb,
   CheckCircle2,
   XCircle,
   Loader2,
@@ -41,6 +42,52 @@ import {
   FlaskConical,
 } from 'lucide-react';
 import { cn } from '../utils';
+
+// ── Reasoning Block (Claude-style "Thinking") ──
+function ReasoningBlock({ text, isDark, isStreaming }: { text: string; isDark: boolean; isStreaming?: boolean }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const label = isStreaming ? 'Denkt nach...' : 'Gedankengang';
+
+  return (
+    <div
+      className="my-1.5"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'flex items-center gap-1.5 text-xs transition-colors py-1 rounded-md px-1.5 -ml-1.5',
+          isDark
+            ? 'text-white/35 hover:text-white/55 hover:bg-white/[0.04]'
+            : 'text-gray-400 hover:text-gray-500 hover:bg-gray-50'
+        )}
+      >
+        {isStreaming ? (
+          <Loader2 size={13} className="shrink-0 animate-spin" />
+        ) : isHovered ? (
+          isOpen ? <ChevronDown size={13} className="shrink-0" /> : <ChevronRight size={13} className="shrink-0" />
+        ) : (
+          <Lightbulb size={13} className="shrink-0" />
+        )}
+        <span>{label}</span>
+      </button>
+
+      {isOpen && (
+        <div className={cn(
+          'mt-1 rounded-lg px-3 py-2.5 text-xs leading-relaxed whitespace-pre-wrap border',
+          isDark
+            ? 'text-white/35 border-white/[0.06] bg-white/[0.02]'
+            : 'text-gray-400 border-gray-100 bg-gray-50/60'
+        )}>
+          {text}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Tool Icon Mapping ──
 const TOOL_ICONS: Record<string, typeof Pencil> = {
@@ -130,127 +177,120 @@ function ToolCallBlock({ step, isDark }: { step: AgentStep; isDark: boolean }) {
   );
 }
 
-// ── Tool Group (collapsible) ──
-function ToolGroup({ steps, isDark, defaultOpen, turnRunning }: {
-  steps: AgentStep[];
-  isDark: boolean;
-  defaultOpen?: boolean;
-  /** Whether the parent turn is still running (more steps may arrive) */
-  turnRunning?: boolean;
-}) {
-  const [isOpen, setIsOpen] = useState(defaultOpen ?? false);
-
-  const toolSteps = steps.filter(s => s.toolName);
-  const completedCount = toolSteps.filter(s => s.status === 'complete').length;
-  const runningCount = toolSteps.filter(s => s.status === 'tool_running').length;
-  const isGroupRunning = runningCount > 0;
-  // "Fertig" only when no tools are running AND the turn itself is done
-  const isGroupDone = !isGroupRunning && !turnRunning;
-
-  const label = isGroupRunning
-    ? `${completedCount} ausgeführt, ${runningCount} aktiv...`
-    : turnRunning
-      ? `${completedCount} ${completedCount === 1 ? 'Tool ausgeführt' : 'Tools ausgeführt'}...`
-      : `${completedCount} ${completedCount === 1 ? 'Tool ausgeführt' : 'Tools ausgeführt'}`;
-
-  return (
-    <div className="my-2">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn('flex items-center gap-1.5 text-sm transition-colors py-1', isDark ? 'text-white/60 hover:text-white/75' : 'text-gray-600 hover:text-gray-800')}
-      >
-        {isGroupDone && <CheckCircle2 size={14} className={cn('shrink-0', isDark ? 'text-white/50' : 'text-gray-500')} />}
-        <span>{label}</span>
-        {(isGroupRunning || turnRunning) ? <Loader2 size={13} className="animate-spin" /> : isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-      </button>
-
-      {(isOpen || isGroupRunning || turnRunning) && (
-        <div className="mt-1">
-          {steps.map((step) => (
-            <div key={step.stepNumber}>
-              {step.toolName && <ToolCallBlock step={step} isDark={isDark} />}
-            </div>
-          ))}
-          {isGroupDone && (
-            <div className="flex items-center gap-3 py-2">
-              <CheckCircle2 size={16} className={cn('shrink-0', isDark ? 'text-white/50' : 'text-gray-500')} />
-              <span className={cn('text-sm', isDark ? 'text-white/60' : 'text-gray-600')}>Fertig</span>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Step Stream ──
+// ── Step Stream (Option A: entire execution block is collapsible) ──
 function StepStream({ steps, isRunning, isDark }: {
   steps: AgentStep[];
   isRunning: boolean;
   isDark: boolean;
 }) {
-  const groups: Array<{ type: 'thought' | 'thinking' | 'tools'; steps: AgentStep[] }> = [];
+  // Open during execution, collapsed after completion (including page refresh)
+  const [isOpen, setIsOpen] = useState(isRunning);
+
+  const toolSteps = steps.filter(s => s.toolName);
+  const completedCount = toolSteps.filter(s => s.status === 'complete').length;
+  const runningCount = toolSteps.filter(s => s.status === 'tool_running').length;
+  const isStillRunning = runningCount > 0 || isRunning;
+  const isDone = !isStillRunning && completedCount > 0;
+
+  // Build interleaved groups: [reasoning] → [tool] → [reasoning] → [tool] → ...
+  const groups: Array<
+    | { type: 'reasoning'; text: string }
+    | { type: 'thinking' }
+    | { type: 'tool'; step: AgentStep }
+  > = [];
 
   for (const step of steps) {
-    if (step.status === 'thinking' && !step.thought && !step.toolName) {
-      groups.push({ type: 'thinking', steps: [step] });
-    } else if (step.thought && !step.toolName) {
-      groups.push({ type: 'thought', steps: [step] });
-    } else if (step.toolName) {
+    if (step.status === 'thinking' && !step.thought && !step.toolName && !step.reasoning) {
+      groups.push({ type: 'thinking' });
+      continue;
+    }
+
+    if (step.reasoning) {
       const lastGroup = groups[groups.length - 1];
-      if (lastGroup?.type === 'tools') {
-        lastGroup.steps.push(step);
+      if (lastGroup?.type === 'reasoning') {
+        lastGroup.text += '\n\n' + step.reasoning;
       } else {
-        groups.push({ type: 'tools', steps: [step] });
+        groups.push({ type: 'reasoning', text: step.reasoning });
       }
+    }
+
+    if (step.toolName) {
+      groups.push({ type: 'tool', step });
+    }
+
+    if (step.thought && !step.toolName && !step.reasoning) {
+      groups.push({ type: 'reasoning', text: step.thought });
     }
   }
 
+  // Summary label for the collapsed header
+  const label = isStillRunning
+    ? runningCount > 0
+      ? `${completedCount} ausgeführt, ${runningCount} aktiv...`
+      : `${completedCount} ${completedCount === 1 ? 'Tool ausgeführt' : 'Tools ausgeführt'}...`
+    : `${completedCount} ${completedCount === 1 ? 'Tool ausgeführt' : 'Tools ausgeführt'}`;
+
+  if (steps.length === 0 && isRunning) {
+    return (
+      <div className={cn('flex items-center gap-2.5 py-2', isDark ? 'text-white/35' : 'text-gray-400')}>
+        <Loader2 size={15} className="animate-spin" />
+        <span className="text-sm">Verarbeitet...</span>
+      </div>
+    );
+  }
+
+  if (steps.length === 0) return null;
+
   return (
-    <div>
-      {groups.map((group, idx) => {
-        if (group.type === 'thought') {
-          return (
-            <div key={idx} className="flex gap-3 py-2">
-              <Clock size={16} className={cn('shrink-0 mt-0.5', isDark ? 'text-white/20' : 'text-gray-300')} />
-              <p className={cn('text-sm leading-relaxed', isDark ? 'text-white/45' : 'text-gray-500')}>
-                {group.steps[0]!.thought}
-              </p>
-            </div>
-          );
-        }
+    <div className="my-2">
+      {/* Collapsible header */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn('flex items-center gap-1.5 text-sm transition-colors py-1', isDark ? 'text-white/60 hover:text-white/75' : 'text-gray-600 hover:text-gray-800')}
+      >
+        {isDone && <CheckCircle2 size={14} className={cn('shrink-0', isDark ? 'text-white/50' : 'text-gray-500')} />}
+        {isStillRunning && <Loader2 size={14} className="shrink-0 animate-spin" />}
+        <span>{label}</span>
+        {!isStillRunning && (isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />)}
+      </button>
 
-        if (group.type === 'thinking') {
-          return (
-            <div key={idx} className={cn('flex items-center gap-2.5 py-2', isDark ? 'text-white/35' : 'text-gray-400')}>
-              <Loader2 size={15} className="animate-spin" />
-              <span className="text-sm">Denkt nach...</span>
-            </div>
-          );
-        }
+      {/* Expanded content: vertical line + interleaved reasoning/tools */}
+      {(isOpen || isStillRunning) && (
+        <div className="flex ml-[6px] mt-1">
+          <div className={cn('w-px shrink-0 ml-px', isDark ? 'bg-white/[0.08]' : 'bg-gray-200')} />
+          <div className="ml-3 pb-1 min-w-0 flex-1">
+            {groups.map((group, idx) => {
+              if (group.type === 'reasoning') {
+                return <ReasoningBlock key={idx} text={group.text} isDark={isDark} />;
+              }
+              if (group.type === 'thinking') {
+                return <ReasoningBlock key={idx} text="" isDark={isDark} isStreaming />;
+              }
+              if (group.type === 'tool') {
+                return <ToolCallBlock key={idx} step={group.step} isDark={isDark} />;
+              }
+              return null;
+            })}
 
-        if (group.type === 'tools') {
-          const isLastGroup = idx === groups.length - 1;
-          return (
-            <div key={idx}>
-              {group.steps.length === 1 ? (
-                <ToolCallBlock step={group.steps[0]!} isDark={isDark} />
-              ) : (
-                <ToolGroup steps={group.steps} isDark={isDark} defaultOpen={isRunning && isLastGroup} turnRunning={isRunning && isLastGroup} />
-              )}
-            </div>
-          );
-        }
+            {/* "Fertig" indicator at bottom */}
+            {isDone && (
+              <div className="flex items-center gap-2 py-1.5">
+                <CheckCircle2 size={13} className={cn('shrink-0', isDark ? 'text-white/30' : 'text-gray-400')} />
+                <span className={cn('text-xs', isDark ? 'text-white/30' : 'text-gray-400')}>Fertig</span>
+              </div>
+            )}
 
-        return null;
-      })}
-
-      {isRunning && (steps.length === 0 || steps[steps.length - 1]?.status === 'complete') && (
-        <div className={cn('flex items-center gap-2.5 py-2', isDark ? 'text-white/35' : 'text-gray-400')}>
-          <Loader2 size={15} className="animate-spin" />
-          <span className="text-sm">Verarbeitet...</span>
+            {/* Streaming indicator when waiting for next step */}
+            {isRunning && !runningCount && steps[steps.length - 1]?.status === 'complete' && (
+              <div className={cn('flex items-center gap-2 py-1.5', isDark ? 'text-white/30' : 'text-gray-400')}>
+                <Loader2 size={13} className="animate-spin" />
+                <span className="text-xs">Verarbeitet...</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
+
     </div>
   );
 }
@@ -503,7 +543,8 @@ export function AgentTaskDetail() {
               )}
 
               {/* Assistant answer for this turn */}
-              {turn.assistantMessage && !isRunning && (
+              {/* Show previous turns' answers always; hide current turn's answer only while running */}
+              {turn.assistantMessage && !(isRunning && idx === turns.length - 1) && (
                 <>
                   <AssistantAnswer content={turn.assistantMessage} isDark={isDark} />
                   {task.turnMeta[turn.turnNumber] && (

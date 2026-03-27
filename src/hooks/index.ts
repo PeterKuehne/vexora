@@ -6,17 +6,6 @@
 export { useSocket } from './useSocket';
 export type { UseSocketReturn, UseSocketOptions } from './useSocket';
 
-export { useChatStream } from './useChatStream';
-export type { UseChatStreamOptions, UseChatStreamReturn } from './useChatStream';
-
-export { useOllama } from './useOllama';
-export type {
-  UseOllamaOptions,
-  UseOllamaReturn,
-  OllamaModel,
-  OllamaHealthStatus,
-} from './useOllama';
-
 export {
   useLocalStorage,
   useLocalStorageState,

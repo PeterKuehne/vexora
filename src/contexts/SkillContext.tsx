@@ -48,6 +48,7 @@ export interface Skill {
   avgDurationMs: number;
   isBuiltin: boolean;
   isActive: boolean;
+  disableAutoInvocation: boolean;
   category?: string;
   tags: string[];
   createdBy: string;
@@ -62,6 +63,7 @@ interface SkillContextValue {
 
   loadSkills: (filters?: { scope?: string; category?: string; search?: string }) => Promise<void>;
   createSkill: (data: { name: string; description?: string; definition: SkillDefinition; category?: string; tags?: string[] }) => Promise<Skill | null>;
+  updateSkill: (id: string, data: Partial<{ disableAutoInvocation: boolean }>) => Promise<boolean>;
   deleteSkill: (id: string) => Promise<boolean>;
   shareSkill: (id: string, department?: string) => Promise<boolean>;
   voteSkill: (id: string, vote: -1 | 1, comment?: string) => Promise<boolean>;
@@ -96,6 +98,7 @@ export function SkillProvider({ children }: { children: ReactNode }) {
     avgDurationMs: s.avgDurationMs ?? s.avg_duration_ms ?? 0,
     isBuiltin: s.isBuiltin ?? s.is_builtin ?? false,
     isActive: s.isActive ?? s.is_active ?? true,
+    disableAutoInvocation: s.disableAutoInvocation ?? s.disable_auto_invocation ?? false,
     category: s.category,
     tags: s.tags || [],
     createdBy: s.createdBy ?? s.created_by,
@@ -139,6 +142,21 @@ export function SkillProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('[SkillContext] Failed to create skill:', error);
       return null;
+    }
+  }, []);
+
+  // Update skill
+  const updateSkill = useCallback(async (id: string, data: Partial<{ disableAutoInvocation: boolean }>): Promise<boolean> => {
+    try {
+      const response = await httpClient.put(`${env.API_URL}/api/skills/${id}`, data);
+      const result = await response.json();
+      if (result.skill) {
+        setSkills(prev => prev.map(s => s.id === id ? mapSkill(result.skill) : s));
+      }
+      return true;
+    } catch (error) {
+      console.error('[SkillContext] Failed to update skill:', error);
+      return false;
     }
   }, []);
 
@@ -198,6 +216,7 @@ export function SkillProvider({ children }: { children: ReactNode }) {
         isLoading,
         loadSkills,
         createSkill,
+        updateSkill,
         deleteSkill,
         shareSkill,
         voteSkill,

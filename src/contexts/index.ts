@@ -3,7 +3,6 @@
  * Central export point for all contexts
  */
 
-export { ConversationProvider, useConversations } from './ConversationContext';
 export {
   ThemeProvider,
   useTheme,
@@ -20,15 +19,6 @@ export {
 } from './SettingsContext';
 
 export {
-  ChatProvider,
-  useChat,
-  useChatMessages,
-  useChatStreaming,
-  useChatError,
-  useChatActions,
-} from './ChatContext';
-
-export {
   ToastProvider,
   useToast,
   useToasts,
@@ -40,20 +30,13 @@ export {
 } from './DocumentContext';
 
 export {
-  RAGProvider,
-  useRAG,
-} from './RAGContext';
-
-export {
   AuthProvider,
   useAuth,
 } from './AuthContext';
 
 export type { SettingsContextValue } from './SettingsContext';
-export type { ChatContextValue } from './ChatContext';
 export type { Toast, ToastType } from './ToastContext';
 export type { DocumentContextValue, DocumentMetadata, UploadProgress } from './DocumentContext';
-export type { RAGContextType } from './RAGContext';
 
 export { AgentProvider, useAgent } from './AgentContext';
 export type { AgentTask, AgentStep, AgentTaskStatus } from './AgentContext';

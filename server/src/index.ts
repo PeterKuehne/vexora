@@ -26,13 +26,11 @@ import quotaRoutes from './routes/quota.js'
 import settingsRoutes from './routes/settings.js'
 import evaluationRoutes from './routes/evaluation.js'
 import { createMonitoringRouter } from './routes/monitoring.js'
-import chatRoutes from './routes/chat.js'
 import modelRoutes from './routes/models.js'
 import documentRoutes from './routes/documents.js'
 import ragRoutes from './routes/rag.js'
 import ollamaRoutes from './routes/ollama.js'
 import processingRoutes from './routes/processing.js'
-import conversationRoutes from './routes/conversations.js'
 import usageRoutes from './routes/usage.js'
 import agentRoutes from './routes/agents.js'
 import skillRoutes from './routes/skills.js'
@@ -103,13 +101,11 @@ redisCache.initialize().catch((err: Error) => {
 });
 
 // Core API
-app.use('/api/chat', chatRoutes)
 app.use('/api/models', modelRoutes)
 app.use('/api/documents', documentRoutes)
 app.use('/api/rag', ragRoutes)
 app.use('/api/ollama', ollamaRoutes)
 app.use('/api/processing', processingRoutes)
-app.use('/api/conversations', conversationRoutes)
 app.use('/api/admin/usage', adminRateLimiter, usageRoutes)
 app.use('/api/agents', generalRateLimiter, agentRoutes)
 app.use('/api/skills', generalRateLimiter, skillRoutes)
@@ -147,7 +143,6 @@ app.get('/', (_req: Request, res: Response) => {
     endpoints: {
       health: '/api/health',
       models: '/api/models',
-      chat: '/api/chat',
       websocket: `ws://localhost:${env.PORT}`,
     },
   })
@@ -185,20 +180,6 @@ io.on('connection', (socket) => {
   socket.emit('processing:active_jobs', {
     jobs: processingJobService.getActiveJobs(),
     timestamp: new Date().toISOString(),
-  })
-
-  socket.on('chat:message', (data: { conversationId: string; message: string }) => {
-    socket.emit('chat:message:ack', {
-      conversationId: data.conversationId,
-      status: 'received',
-      timestamp: new Date().toISOString(),
-    })
-    socket.emit('chat:stream:start', { conversationId: data.conversationId })
-    socket.emit('chat:stream:token', {
-      conversationId: data.conversationId,
-      token: 'Socket.io connection working!',
-    })
-    socket.emit('chat:stream:end', { conversationId: data.conversationId })
   })
 
   socket.on('disconnect', () => {})

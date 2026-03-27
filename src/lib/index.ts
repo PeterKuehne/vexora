@@ -9,34 +9,12 @@ export {
   connectSocket,
   disconnectSocket,
   isSocketConnected,
-  sendChatMessage,
-  onChatMessageAck,
-  onChatStreamStart,
-  onChatStreamToken,
-  onChatStreamEnd,
-} from './socket';
-
-export type {
-  ChatMessagePayload,
-  ChatMessageAck,
-  ChatStreamToken,
-  ChatStreamEvent,
 } from './socket';
 
 // API Client
 export {
-  streamChat,
   fetchModels,
   checkHealth,
-} from './api';
-
-export type {
-  ChatMessage,
-  ChatOptions,
-  ChatRequest,
-  StreamChunk,
-  StreamCallbacks,
-  StreamMetadata,
 } from './api';
 
 // Storage Service

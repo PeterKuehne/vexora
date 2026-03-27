@@ -92,11 +92,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       clearTimeout(refreshTimerRef.current);
     }
 
-    // Access token lifetime: 15 minutes
-    // Refresh 5 minutes before expiry = refresh every 10 minutes
-    const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
+    // Refresh at half the token lifetime (token = 1h → refresh every 30min)
+    // This gives a wide margin even if a refresh fails once
+    const REFRESH_INTERVAL = 30 * 60 * 1000; // 30 minutes
 
-    console.log('⏰ Scheduling proactive token refresh in 10 minutes');
+    console.log('⏰ Scheduling proactive token refresh in 30 minutes');
 
     refreshTimerRef.current = setTimeout(async () => {
       console.log('🔄 Proactive token refresh triggered');

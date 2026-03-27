@@ -116,6 +116,26 @@ class HttpClient {
   }
 
   /**
+   * Ensure a valid auth token exists, refreshing if needed.
+   * Use before raw fetch() calls (e.g. SSE streams) that bypass httpClient.
+   * Returns true if auth is valid, false if user should re-login.
+   */
+  async ensureAuth(): Promise<boolean> {
+    // Quick check: try a lightweight request
+    const resp = await fetch(`${env.API_URL}/api/auth/me`, {
+      credentials: 'include',
+    });
+    if (resp.ok) return true;
+    if (resp.status === 401) {
+      const result = await this.handleUnauthorized();
+      if (result === true) return true;
+      if (result === 'rate_limited') return true; // token may still work
+      return false;
+    }
+    return true; // non-auth error, let the caller handle it
+  }
+
+  /**
    * Handle 401 unauthorized response
    * Attempts token refresh and returns success/failure/'rate_limited'
    */

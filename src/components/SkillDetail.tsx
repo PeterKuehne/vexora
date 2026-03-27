@@ -36,6 +36,7 @@ export function SkillDetail() {
     voteSkill,
     shareSkill,
     deleteSkill,
+    updateSkill,
   } = useSkill();
   const { isDark } = useTheme();
 
@@ -203,6 +204,35 @@ export function SkillDetail() {
               {tag}
             </span>
           ))}
+        </div>
+
+        {/* Auto-Invocation Toggle */}
+        <div className={cn(
+          'flex items-center justify-between rounded-lg border px-4 py-3',
+          isDark ? 'border-white/[0.06] bg-white/[0.02]' : 'border-gray-200 bg-gray-50'
+        )}>
+          <div>
+            <div className={cn('text-sm font-medium', isDark ? 'text-white/80' : 'text-gray-700')}>
+              Nur per /Befehl aufrufbar
+            </div>
+            <div className={cn('text-xs mt-0.5', isDark ? 'text-white/40' : 'text-gray-500')}>
+              Wenn aktiv, wird der Skill nicht automatisch vom Agenten erkannt
+            </div>
+          </div>
+          <button
+            onClick={() => updateSkill(activeSkill.id, { disableAutoInvocation: !activeSkill.disableAutoInvocation })}
+            className={cn(
+              'relative w-10 h-5 rounded-full transition-colors shrink-0 ml-4',
+              activeSkill.disableAutoInvocation
+                ? (isDark ? 'bg-blue-500' : 'bg-blue-600')
+                : (isDark ? 'bg-white/10' : 'bg-gray-300')
+            )}
+          >
+            <span className={cn(
+              'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform',
+              activeSkill.disableAutoInvocation ? 'translate-x-5' : 'translate-x-0.5'
+            )} />
+          </button>
         </div>
 
         {/* Metrics */}

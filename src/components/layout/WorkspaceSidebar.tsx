@@ -16,8 +16,6 @@ const FULL_WIDTH_SECTIONS: WorkspaceSection[] = ['documents'];
 
 interface WorkspaceSidebarProps {
   activeSection: WorkspaceSection;
-  /** Content for the chat section sidebar */
-  chatSidebar?: ReactNode;
   /** Content for the tasks section sidebar */
   tasksSidebar?: ReactNode;
   /** Content for the skills section sidebar */
@@ -28,7 +26,6 @@ interface WorkspaceSidebarProps {
 
 export function WorkspaceSidebar({
   activeSection,
-  chatSidebar,
   tasksSidebar,
   skillsSidebar,
   isCollapsed = false,
@@ -40,8 +37,6 @@ export function WorkspaceSidebar({
 
   const renderContent = () => {
     switch (activeSection) {
-      case 'chat':
-        return chatSidebar || null;
       case 'tasks':
         return tasksSidebar || null;
       case 'skills':

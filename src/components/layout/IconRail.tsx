@@ -6,7 +6,6 @@
  */
 
 import {
-  MessageSquare,
   Bot,
   Zap,
   FileText,
@@ -17,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../contexts';
 
-export type WorkspaceSection = 'chat' | 'tasks' | 'skills' | 'documents' | 'knowledge';
+export type WorkspaceSection = 'tasks' | 'skills' | 'documents' | 'knowledge';
 
 interface IconRailProps {
   activeSection: WorkspaceSection;
@@ -36,7 +35,6 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'chat', icon: MessageSquare, label: 'Chat' },
   { id: 'tasks', icon: Bot, label: 'Tasks' },
   { id: 'skills', icon: Zap, label: 'Skills' },
   { id: 'documents', icon: FileText, label: 'Dokumente' },
