@@ -14,6 +14,8 @@ import { MonitoringService, type DashboardMetrics } from '../services/monitoring
 import { RedisCache } from '../services/cache/index.js';
 import { TracingService } from '../services/observability/index.js';
 import { databaseService } from '../services/DatabaseService.js';
+import { authenticateToken } from '../middleware/index.js';
+import type { AuthenticatedRequest } from '../types/auth.js';
 
 type DatabaseServiceType = typeof databaseService;
 
@@ -24,6 +26,17 @@ export function createMonitoringRouter(
 ): Router {
   const router = Router();
   const monitoringService = new MonitoringService(db, tracingService, cache);
+
+  // All monitoring endpoints require authentication + admin role
+  router.use(authenticateToken);
+  router.use((req: Request, res: Response, next) => {
+    const authReq = req as AuthenticatedRequest;
+    if (!authReq.user || authReq.user.role !== 'Admin') {
+      res.status(403).json({ error: 'Admin-Zugriff erforderlich' });
+      return;
+    }
+    next();
+  });
 
   /**
    * GET /api/monitoring/dashboard

@@ -1074,10 +1074,10 @@ export class AuthService {
           al.created_at
         FROM audit_logs al
         LEFT JOIN users u ON al.user_id = u.id
-        WHERE al.created_at >= NOW() - INTERVAL '${daysBack} days'
+        WHERE al.created_at >= NOW() - ($3 || ' days')::INTERVAL
         ORDER BY al.created_at DESC
         LIMIT $1 OFFSET $2
-      `, [limit, offset]);
+      `, [limit, offset, daysBack]);
 
       return result.rows.map(row => ({
         id: row.id,
@@ -1218,10 +1218,10 @@ export class AuthService {
         FROM audit_logs al
         LEFT JOIN users u ON al.user_id = u.id
         WHERE al.user_id = $1
-        AND al.created_at >= NOW() - INTERVAL '${daysBack} days'
+        AND al.created_at >= NOW() - ($4 || ' days')::INTERVAL
         ORDER BY al.created_at DESC
         LIMIT $2 OFFSET $3
-      `, [userId, limit, offset]);
+      `, [userId, limit, offset, daysBack]);
 
       // Get statistics for this user
       const statsResult = await databaseService.query(`
@@ -1231,9 +1231,9 @@ export class AuthService {
           COUNT(*) as count
         FROM audit_logs
         WHERE user_id = $1
-        AND created_at >= NOW() - INTERVAL '${daysBack} days'
+        AND created_at >= NOW() - ($2 || ' days')::INTERVAL
         GROUP BY result, action
-      `, [userId]);
+      `, [userId, daysBack]);
 
       // Calculate statistics
       const statistics = {

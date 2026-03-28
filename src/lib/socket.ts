@@ -156,6 +156,7 @@ export function getSocket(): Socket {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20000,
+      withCredentials: true,
     })
 
     // Debug logging in development

@@ -29,13 +29,13 @@ export const env = {
   POSTGRES_PORT: parseInt(process.env.POSTGRES_PORT ?? '5432', 10),
   POSTGRES_DB: process.env.POSTGRES_DB ?? 'cor7ex',
   POSTGRES_USER: process.env.POSTGRES_USER ?? 'cor7ex',
-  POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD ?? 'cor7ex_dev_password',
+  POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD || (() => { throw new Error('POSTGRES_PASSWORD env var required'); })(),
 
   // Weaviate
   WEAVIATE_URL: process.env.WEAVIATE_URL ?? 'http://localhost:8080',
 
   // Authentication
-  JWT_SECRET: process.env.JWT_SECRET ?? 'your-super-secret-jwt-key-change-in-production',
+  JWT_SECRET: process.env.JWT_SECRET || (() => { throw new Error('JWT_SECRET env var required'); })(),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN ?? '1h',
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN ?? '30d',
   /** Access token lifetime in milliseconds (parsed from JWT_EXPIRES_IN) */
