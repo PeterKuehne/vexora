@@ -34,6 +34,23 @@ export interface ToolResult {
   metadata?: Record<string, unknown>;
 }
 
+// ============================================
+// Hybrid Pipeline Types
+// ============================================
+
+export interface ClassificationResult {
+  complexity: 'simple' | 'complex';
+  /** Skip pre-search for queries that obviously don't need RAG (translations, math) */
+  skipPreSearch: boolean;
+  reason: string;
+}
+
+export type AgentStrategy = 'hybrid' | 'cloud-only' | 'local-only';
+
+// ============================================
+// User Context
+// ============================================
+
 export interface AgentUserContext {
   userId: string;
   userRole: UserRole;
@@ -189,6 +206,8 @@ export interface AgentSSEEvent {
     estimatedCost?: number;
     /** What the query router decided: 'direct' | 'rag' | 'rag-complex' */
     routingDecision?: string;
+    /** Hybrid pipeline strategy used for this turn */
+    strategy?: AgentStrategy;
   };
 }
 

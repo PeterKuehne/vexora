@@ -49,7 +49,18 @@ export const ragSearchTool: AgentTool = {
       });
 
       if (results.results.length === 0) {
-        return { output: 'Keine relevanten Dokumente gefunden.' };
+        const hasRestrictions = context.allowedDocumentIds && context.allowedDocumentIds.length > 0;
+        const noAccess = context.allowedDocumentIds && context.allowedDocumentIds.length === 0;
+
+        if (noAccess) {
+          return { output: 'Keine Ergebnisse: Der Benutzer hat aktuell keinen Zugriff auf Dokumente in der Wissensdatenbank. Teile dem Benutzer mit, dass er keine Berechtigung für Dokumente hat und sich ggf. an einen Administrator wenden soll.' };
+        }
+
+        return {
+          output: hasRestrictions
+            ? 'Keine relevanten Dokumente gefunden. Hinweis: Die Suche wurde auf Dokumente eingeschränkt, für die der Benutzer eine Berechtigung hat. Es könnten weitere Dokumente existieren, auf die der Benutzer keinen Zugriff hat.'
+            : 'Keine relevanten Dokumente gefunden.',
+        };
       }
 
       let output = `Gefunden: ${results.results.length} Ergebnisse\n\n`;

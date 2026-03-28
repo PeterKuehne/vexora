@@ -622,46 +622,122 @@ class DocumentService {
    * Set user context for Row Level Security (RLS)
    * Must be called before any document access queries that require permissions
    */
+  /** Stored user context for application-level permission filtering */
+  private userContext: { userId: string; userRole: string; userDepartment: string } | null = null;
+
   async setUserContext(userId: string, userRole: string, userDepartment?: string): Promise<void> {
     await this.initialize();
-
-    await databaseService.query(
-      'SELECT set_user_context($1, $2, $3)',
-      [userId, userRole, userDepartment || '']
-    );
-
-    console.log(`🔐 Set user context: ${userRole} (${userDepartment}) for RLS`);
+    this.userContext = { userId, userRole, userDepartment: userDepartment || '' };
+    console.log(`🔐 Set user context: ${userRole} (${userDepartment}) for document access`);
   }
 
   /**
-   * Get accessible document IDs for the current user context
-   * Uses PostgreSQL RLS policies to filter documents based on:
-   * - Role hierarchy (Admin > Manager > Employee)
-   * - Department access
-   * - Owner permissions
-   * - Explicit allowed roles/users
-   * - Classification level access
+   * Get accessible document IDs for the current user context.
+   * Application-level filtering — does not rely on PostgreSQL RLS
+   * (RLS is bypassed when connecting as table owner).
+   *
+   * Rules (mirroring the original RLS policies):
+   * 1. Admin: access to all documents
+   * 2. Owner: always has access to own documents
+   * 3. visibility='only_me': only the owner can see it
+   * 4. visibility='specific_users': owner + allowed_users
+   * 5. classification check: Employee=public/internal, Manager=+confidential, Admin=all
+   * 6. allowed_roles: if set, user role must be included
+   * 7. allowed_users: if set, user must be included
+   * 8. department: for department-scoped docs, user department must match
    */
   async getAccessibleDocumentIds(): Promise<string[]> {
     await this.initialize();
 
-    // Query uses RLS - will automatically filter based on current user context
+    if (!this.userContext) {
+      console.warn('🔍 getAccessibleDocumentIds called without user context — returning empty');
+      return [];
+    }
+
+    const { userId, userRole, userDepartment } = this.userContext;
+
+    // Admin sees everything
+    if (userRole === 'Admin') {
+      const result = await databaseService.query(
+        `SELECT id FROM documents WHERE status = 'completed'`
+      );
+      const ids = result.rows.map(row => row.id);
+      console.log(`🔍 Admin access: ${ids.length} documents`);
+      return ids;
+    }
+
+    // For non-admin users: fetch all completed docs and filter in application
     const result = await databaseService.query(
-      `SELECT id FROM documents WHERE status = 'completed'`
+      `SELECT id, owner_id, department, classification, visibility, allowed_roles, allowed_users
+       FROM documents WHERE status = 'completed'`
     );
 
-    const documentIds = result.rows.map(row => row.id);
+    const classificationAccess: Record<string, string[]> = {
+      'Employee': ['public', 'internal'],
+      'Manager': ['public', 'internal', 'confidential'],
+    };
+    const allowedClassifications = classificationAccess[userRole] || ['public'];
 
-    console.log(`🔍 Found ${documentIds.length} accessible documents for current user context`);
+    const accessibleIds: string[] = [];
 
-    return documentIds;
+    for (const doc of result.rows) {
+      const isOwner = String(doc.owner_id) === String(userId);
+
+      // Rule: owner always has access
+      if (isOwner) {
+        accessibleIds.push(doc.id);
+        continue;
+      }
+
+      // Rule: only_me — only the owner can see it (and we're not the owner)
+      if (doc.visibility === 'only_me') {
+        continue;
+      }
+
+      // Rule: specific_users — only owner + explicitly listed users
+      if (doc.visibility === 'specific_users') {
+        const allowedUsers: string[] = doc.allowed_users || [];
+        if (!allowedUsers.includes(userId)) {
+          continue;
+        }
+      }
+
+      // Rule: classification must be accessible for this role
+      const classification = doc.classification || 'internal';
+      if (!allowedClassifications.includes(classification)) {
+        continue;
+      }
+
+      // Rule: allowed_roles — if set, user role must match
+      const allowedRoles: string[] = doc.allowed_roles || [];
+      if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
+        continue;
+      }
+
+      // Rule: department-scoped docs — user department must match (unless public)
+      if (doc.visibility === 'department' && doc.department && userDepartment) {
+        if (doc.department !== userDepartment && classification !== 'public') {
+          continue;
+        }
+      }
+
+      accessibleIds.push(doc.id);
+    }
+
+    console.log(`🔍 ${userRole} (${userDepartment}): ${accessibleIds.length}/${result.rows.length} documents accessible`);
+
+    return accessibleIds;
   }
 
   /**
-   * Get full accessible documents with metadata for the current user context
+   * Get full accessible documents with metadata for the current user context.
+   * Uses getAccessibleDocumentIds() for permission filtering, then fetches metadata.
    */
   async getAccessibleDocuments(): Promise<DocumentMetadata[]> {
     await this.initialize();
+
+    const accessibleIds = await this.getAccessibleDocumentIds();
+    if (accessibleIds.length === 0) return [];
 
     const result = await databaseService.query(
       `SELECT
@@ -669,8 +745,9 @@ class DocumentService {
         upload_date, updated_at, chunk_count, category, tags,
         owner_id, department, classification, visibility, allowed_roles, allowed_users
        FROM documents
-       WHERE status = 'completed'
-       ORDER BY upload_date DESC`
+       WHERE status = 'completed' AND id = ANY($1)
+       ORDER BY upload_date DESC`,
+      [accessibleIds]
     );
 
     return result.rows.map(row => ({
@@ -684,7 +761,6 @@ class DocumentService {
       pages: Math.ceil(row.chunk_count / 2),
       category: (row.category || 'Allgemein') as DocumentCategory,
       tags: row.tags || [],
-      // Permission metadata (nested for frontend compatibility)
       metadata: {
         classification: row.classification || 'internal',
         visibility: row.visibility || 'department',
@@ -701,13 +777,7 @@ class DocumentService {
    * Clear user context (for cleanup)
    */
   async clearUserContext(): Promise<void> {
-    await this.initialize();
-
-    await databaseService.query(
-      `SELECT set_config('app.user_id', NULL, true),
-              set_config('app.user_role', NULL, true),
-              set_config('app.user_department', NULL, true)`
-    );
+    this.userContext = null;
   }
 }
 

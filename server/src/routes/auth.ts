@@ -424,39 +424,63 @@ router.get('/status', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 /**
- * GET /api/auth/test-logger
- * Test LoggerService functionality
+ * POST /api/auth/dev-login
+ * Development-only: Login as any user by email (no OAuth required).
+ * Only available when NODE_ENV !== 'production'.
  */
-router.get('/test-logger', asyncHandler(async (_req: Request, res: Response) => {
-  try {
-    // Test all logger methods
-    LoggerService.logInfo('LoggerService test started', { test: true, timestamp: new Date().toISOString() });
-    LoggerService.logWarning('Test warning message', { level: 'warning' });
-    LoggerService.logError('Test error message', { level: 'error', sensitive_password: 'secret123' });
+if (!env.isProduction) {
+  router.post('/dev-login', asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'email ist erforderlich' });
+    }
 
-    // Test auth logging
-    LoggerService.logAuth('login', {
-      userId: 'test-user-123',
-      email: 'test@example.com',
-      ip: '127.0.0.1'
+    // Look up user directly
+    const { databaseService } = await import('../services/DatabaseService.js');
+    const result = await databaseService.query(
+      'SELECT * FROM users WHERE email = $1 AND is_active = true',
+      [email]
+    );
+    const rows = Array.isArray(result) ? result : result.rows || [];
+    const user = rows[0];
+
+    if (!user) {
+      return res.status(404).json({ error: `User "${email}" nicht gefunden` });
+    }
+
+    // Generate tokens
+    const accessToken = authService.generateAccessToken(user);
+    const refreshTokenRecord = await authService.generateRefreshToken(user.id);
+
+    // Set cookies (same pattern as OAuth callback)
+    res.cookie('auth_token', accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: ACCESS_TOKEN_MAX_AGE,
+      path: '/',
+    });
+    res.cookie('refresh_token', refreshTokenRecord.token_hash, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      path: '/',
     });
 
-    // Test redaction function
-    const redactionResult = LoggerService.testRedaction();
+    console.log(`[DEV-LOGIN] ${user.email} (${user.role}) logged in`);
 
     return res.json({
-      success: true,
-      message: 'LoggerService test completed',
-      redactionTest: redactionResult,
-      timestamp: new Date().toISOString()
+      access_token: accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        department: user.department,
+      },
     });
-  } catch (error) {
-    LoggerService.logError(error instanceof Error ? error : new Error('LoggerService test failed'));
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-}));
+  }));
+}
 
 export default router;

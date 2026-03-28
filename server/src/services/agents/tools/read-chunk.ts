@@ -5,7 +5,7 @@
  * then finds the target chunk and surrounding chunks for context.
  */
 
-import type { AgentTool, ToolResult } from '../types.js';
+import type { AgentTool, AgentUserContext, ToolResult } from '../types.js';
 import { vectorServiceV2 } from '../../VectorServiceV2.js';
 
 export const readChunkTool: AgentTool = {
@@ -26,7 +26,7 @@ export const readChunkTool: AgentTool = {
     },
   },
 
-  async execute(args: Record<string, unknown>): Promise<ToolResult> {
+  async execute(args: Record<string, unknown>, context: AgentUserContext): Promise<ToolResult> {
     try {
       const chunkId = args.chunkId as string;
       const expandContext = (args.expandContext as boolean) ?? true;
@@ -38,6 +38,14 @@ export const readChunkTool: AgentTool = {
 
       const documentId = parts.slice(0, -1).join(':');
       const chunkIndex = parseInt(parts[parts.length - 1]!, 10);
+
+      // Permission check: verify user has access to this document
+      if (context.allowedDocumentIds && !context.allowedDocumentIds.includes(documentId)) {
+        return {
+          output: 'ZUGRIFF VERWEIGERT: Der Benutzer hat keine Berechtigung, dieses Dokument zu lesen. Teile dem Benutzer mit, dass er keinen Zugriff auf dieses Dokument hat und sich ggf. an einen Administrator wenden soll.',
+          error: 'access_denied',
+        };
+      }
 
       if (isNaN(chunkIndex)) {
         return { output: 'Ungültiger chunkIndex. Muss eine Zahl sein.', error: 'invalid_chunk_index' };

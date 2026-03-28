@@ -3,6 +3,7 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
+import jwt from 'jsonwebtoken'
 import { env } from './config/env.js'
 import {
   errorHandler,
@@ -33,6 +34,7 @@ import ollamaRoutes from './routes/ollama.js'
 import processingRoutes from './routes/processing.js'
 import usageRoutes from './routes/usage.js'
 import agentRoutes from './routes/agents.js'
+import agentEvalRoutes from './routes/agent-evaluation.js'
 import skillRoutes from './routes/skills.js'
 import { PIIGuard } from './services/llm/PIIGuard.js'
 import { setPIIGuard } from './services/agents/ai-middleware.js'
@@ -101,13 +103,14 @@ redisCache.initialize().catch((err: Error) => {
 });
 
 // Core API
-app.use('/api/models', modelRoutes)
-app.use('/api/documents', documentRoutes)
-app.use('/api/rag', ragRoutes)
+app.use('/api/models', generalRateLimiter, modelRoutes)
+app.use('/api/documents', generalRateLimiter, documentRoutes)
+app.use('/api/rag', generalRateLimiter, ragRoutes)
 app.use('/api/ollama', ollamaRoutes)
-app.use('/api/processing', processingRoutes)
+app.use('/api/processing', generalRateLimiter, processingRoutes)
 app.use('/api/admin/usage', adminRateLimiter, usageRoutes)
 app.use('/api/agents', generalRateLimiter, agentRoutes)
+app.use('/api/agent-eval', adminRateLimiter, agentEvalRoutes)
 app.use('/api/skills', generalRateLimiter, skillRoutes)
 
 // ============================================
@@ -175,6 +178,26 @@ documentEventService.on('document:permissions_changed', (event) => {
 documentEventService.on('documents:bulk_deleted', (event) => {
   io.emit('documents:bulk_deleted', event)
 })
+
+// Socket.IO authentication middleware
+io.use((socket, next) => {
+  // Try auth.token first (explicit), then fall back to httpOnly cookie
+  let token: string | undefined = socket.handshake.auth?.token;
+  if (!token && socket.handshake.headers.cookie) {
+    const match = socket.handshake.headers.cookie.match(/(?:^|;\s*)auth_token=([^;]*)/);
+    if (match?.[1]) token = decodeURIComponent(match[1]);
+  }
+  if (!token) {
+    return next(new Error('Authentication required'));
+  }
+  try {
+    const decoded = jwt.verify(token, env.JWT_SECRET, { algorithms: ['HS256'] });
+    (socket as any).user = decoded;
+    next();
+  } catch {
+    next(new Error('Invalid token'));
+  }
+});
 
 io.on('connection', (socket) => {
   socket.emit('processing:active_jobs', {

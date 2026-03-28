@@ -397,9 +397,16 @@ class VectorServiceV2 {
       // Build filters
       const filters: any[] = [];
 
-      // Permission filter
+      // Permission filter — documentId is TEXT, so use OR of equal() filters
       if (allowedDocumentIds && allowedDocumentIds.length > 0) {
-        filters.push(collection.filter.byProperty('documentId').containsAny(allowedDocumentIds));
+        const docFilters = allowedDocumentIds.map(id =>
+          collection.filter.byProperty('documentId').equal(id)
+        );
+        filters.push(
+          docFilters.length === 1
+            ? docFilters[0]
+            : Filters.or(...docFilters)
+        );
       }
 
       // Level filter (e.g., only search paragraph-level chunks)
@@ -628,9 +635,12 @@ class VectorServiceV2 {
     try {
       const collection = this.client.collections.get<DocumentChunkV2Properties>(COLLECTION_NAME_V2);
 
-      // Build filter for document IDs
+      // Build filter for document IDs — TEXT property, use OR of equal()
+      const docFilters = documentIds.map(id =>
+        collection.filter.byProperty('documentId').equal(id)
+      );
       const filters: any[] = [
-        collection.filter.byProperty('documentId').containsAny(documentIds)
+        docFilters.length === 1 ? docFilters[0] : Filters.or(...docFilters)
       ];
 
       // Optional level filter

@@ -11,21 +11,37 @@ import { ValidationError } from '../errors/index.js';
 import type { AuthenticatedRequest } from '../types/auth.js';
 import { agentExecutor, agentPersistence } from '../services/agents/index.js';
 import type { AgentUserContext, AgentSSEEvent } from '../services/agents/types.js';
-import { queryRouter } from '../services/agents/QueryRouter.js';
+import { queryClassifier } from '../services/agents/QueryClassifier.js';
 import { env } from '../config/env.js';
 import { hasProvider } from '../services/agents/ai-provider.js';
+import { documentService } from '../services/index.js';
 
 const router = Router();
 
 /**
- * Helper: Extract AgentUserContext from authenticated request
+ * Helper: Extract AgentUserContext from authenticated request.
+ * Loads allowedDocumentIds via RLS so agent tools respect document permissions.
  */
-function getUserContext(req: AuthenticatedRequest): AgentUserContext {
+async function getUserContext(req: AuthenticatedRequest): Promise<AgentUserContext> {
   if (!req.user) throw new ValidationError('Nicht authentifiziert');
+
+  // Load document permissions via RLS — same pattern as rag.ts
+  let allowedDocumentIds: string[] | undefined;
+  try {
+    await documentService.setUserContext(req.user.user_id, req.user.role, req.user.department);
+    allowedDocumentIds = await documentService.getAccessibleDocumentIds();
+    await documentService.clearUserContext();
+  } catch (error) {
+    console.error('[AgentRoute] Failed to load document permissions:', error);
+    // Fail closed: empty array means no documents accessible
+    allowedDocumentIds = [];
+  }
+
   return {
     userId: req.user.user_id,
     userRole: req.user.role,
     department: req.user.department,
+    allowedDocumentIds,
   };
 }
 
@@ -93,56 +109,47 @@ router.post('/run', authenticateToken, (req: Request, res: Response) => {
     return;
   }
 
-  let context: AgentUserContext;
-  try {
-    context = getUserContext(authReq);
-  } catch {
-    res.status(401).json({ error: 'Nicht authentifiziert' });
-    return;
-  }
-
   const { emitSSE, cleanup, isDisconnected } = setupSSE(res);
 
-  // Route query through cascade router (unless model explicitly provided)
+  // Hybrid pipeline: classify → route to local (search-first) or cloud (tool-autonomous)
   const routeAndExecute = async () => {
-    let effectiveModel = model;
-    let routingDecision: string | undefined;
-
-    if (!effectiveModel) {
-      const routing = await queryRouter.route(query.trim());
-      routingDecision = routing.route;
-
-      if (routing.model === 'cloud') {
-        // Try cloud model, fall back to fallback cloud model, then local
-        const cloudModel = env.CLOUD_MODEL;
-        const { provider } = await import('../services/agents/ai-provider.js').then(m => m.parseModelString(cloudModel));
-        if (hasProvider(provider)) {
-          effectiveModel = cloudModel;
-        } else if (env.CLOUD_FALLBACK_MODEL) {
-          const fallback = env.CLOUD_FALLBACK_MODEL;
-          const { provider: fbProvider } = await import('../services/agents/ai-provider.js').then(m => m.parseModelString(fallback));
-          if (hasProvider(fbProvider)) {
-            console.warn(`[AgentRoute] Cloud model ${cloudModel} nicht verfügbar, Fallback auf ${fallback}`);
-            effectiveModel = fallback;
-          } else {
-            console.warn(`[AgentRoute] Kein Cloud-Model verfügbar, Fallback auf lokal`);
-            effectiveModel = env.LOCAL_MODEL;
-          }
-        } else {
-          console.warn(`[AgentRoute] Cloud model ${cloudModel} nicht verfügbar, Fallback auf lokal`);
-          effectiveModel = env.LOCAL_MODEL;
-        }
-      } else {
-        effectiveModel = env.LOCAL_MODEL;
-      }
+    let context: AgentUserContext;
+    try {
+      context = await getUserContext(authReq);
+    } catch {
+      res.status(401).json({ error: 'Nicht authentifiziert' });
+      return;
     }
 
-    return agentExecutor.execute(query.trim(), context, {
-      model: effectiveModel,
+    // If model explicitly provided (e.g. from frontend model selector), use direct execution
+    if (model) {
+      return agentExecutor.execute(query.trim(), context, {
+        model,
+        conversationId,
+        emitSSE,
+        skillSlug: skillSlug || undefined,
+      });
+    }
+
+    // Hybrid pipeline: classify and route
+    const classification = queryClassifier.classify(query.trim());
+    console.log(`[AgentRoute] Classification: ${classification.complexity} — ${classification.reason}`);
+
+    // Skills always go to cloud (they need tool autonomy to load_skill + execute)
+    if (skillSlug) {
+      return agentExecutor.execute(query.trim(), context, {
+        model: env.CLOUD_MODEL,
+        conversationId,
+        emitSSE,
+        routingDecision: 'rag-complex',
+        skillSlug,
+        strategy: 'hybrid',
+      });
+    }
+
+    return agentExecutor.executeHybrid(query.trim(), context, classification, {
       conversationId,
       emitSSE,
-      routingDecision,
-      skillSlug: skillSlug || undefined,
     });
   };
 
@@ -169,19 +176,14 @@ router.post('/tasks/:id/message', authenticateToken, (req: Request, res: Respons
     return;
   }
 
-  let context: AgentUserContext;
-  try {
-    context = getUserContext(authReq);
-  } catch {
-    res.status(401).json({ error: 'Nicht authentifiziert' });
-    return;
-  }
-
   const { emitSSE, cleanup, isDisconnected } = setupSSE(res);
 
-  agentExecutor.continueTask(taskId, message.trim(), context, {
-    emitSSE,
-  }).catch(error => {
+  const continueExecution = async () => {
+    const context = await getUserContext(authReq);
+    return agentExecutor.continueTask(taskId, message.trim(), context, { emitSSE });
+  };
+
+  continueExecution().catch(error => {
     console.error('[AgentRoute] Continue error:', error);
     if (!isDisconnected()) {
       res.write(`event: task:error\ndata: ${JSON.stringify({ error: String(error) })}\n\n`);
@@ -196,7 +198,17 @@ router.post('/tasks/:id/message', authenticateToken, (req: Request, res: Respons
  */
 router.post('/tasks/:id/complete', authenticateToken, async (req: Request, res: Response) => {
   try {
+    const authReq = req as AuthenticatedRequest;
+    const context = await getUserContext(authReq);
     const taskId = req.params.id!;
+
+    // Ownership check via RLS — returns null if task doesn't belong to user
+    const task = await agentPersistence.getTaskWithSteps(context, taskId);
+    if (!task) {
+      res.status(404).json({ error: 'Task nicht gefunden' });
+      return;
+    }
+
     await agentExecutor.completeTask(taskId);
     res.json({ status: 'completed', taskId });
   } catch (error) {
@@ -211,7 +223,7 @@ router.post('/tasks/:id/complete', authenticateToken, async (req: Request, res: 
 router.get('/tasks', authenticateToken, async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
-    const context = getUserContext(authReq);
+    const context = await getUserContext(authReq);
     const status = req.query.status as string | undefined;
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
     const offset = parseInt(req.query.offset as string) || 0;
@@ -240,7 +252,7 @@ router.get('/tasks', authenticateToken, async (req: Request, res: Response) => {
 router.get('/tasks/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
-    const context = getUserContext(authReq);
+    const context = await getUserContext(authReq);
     const result = await agentPersistence.getTaskWithSteps(context, req.params.id!);
 
     if (!result) {
@@ -260,7 +272,17 @@ router.get('/tasks/:id', authenticateToken, async (req: Request, res: Response) 
  */
 router.post('/tasks/:id/cancel', authenticateToken, async (req: Request, res: Response) => {
   try {
+    const authReq = req as AuthenticatedRequest;
+    const context = await getUserContext(authReq);
     const taskId = req.params.id!;
+
+    // Ownership check via RLS — returns null if task doesn't belong to user
+    const task = await agentPersistence.getTaskWithSteps(context, taskId);
+    if (!task) {
+      res.status(404).json({ error: 'Task nicht gefunden' });
+      return;
+    }
+
     const cancelled = agentExecutor.cancel(taskId);
 
     if (cancelled) {
@@ -280,7 +302,7 @@ router.post('/tasks/:id/cancel', authenticateToken, async (req: Request, res: Re
 router.delete('/tasks/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
-    const context = getUserContext(authReq);
+    const context = await getUserContext(authReq);
     const deleted = await agentPersistence.deleteTask(context, req.params.id!);
 
     if (deleted) {
@@ -300,7 +322,7 @@ router.delete('/tasks/:id', authenticateToken, async (req: Request, res: Respons
 router.get('/tasks/:id/stream', authenticateToken, async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
-    const context = getUserContext(authReq);
+    const context = await getUserContext(authReq);
     const result = await agentPersistence.getTaskWithSteps(context, req.params.id!);
 
     if (!result) {
