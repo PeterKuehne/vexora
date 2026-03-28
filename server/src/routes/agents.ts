@@ -11,9 +11,7 @@ import { ValidationError } from '../errors/index.js';
 import type { AuthenticatedRequest } from '../types/auth.js';
 import { agentExecutor, agentPersistence } from '../services/agents/index.js';
 import type { AgentUserContext, AgentSSEEvent } from '../services/agents/types.js';
-import { queryClassifier } from '../services/agents/QueryClassifier.js';
 import { env } from '../config/env.js';
-import { hasProvider } from '../services/agents/ai-provider.js';
 import { documentService } from '../services/index.js';
 
 const router = Router();
@@ -102,7 +100,7 @@ function setupSSE(res: Response): {
 router.post('/run', authenticateToken, (req: Request, res: Response) => {
   const authReq = req as AuthenticatedRequest;
   const { query, model, conversationId, skillSlug } = req.body;
-  console.log(`[AgentRoute] POST /run — model from request: ${JSON.stringify(model)}, LOCAL_MODEL: ${env.LOCAL_MODEL}`);
+  console.log(`[AgentRoute] POST /run — model: ${env.MODEL}`);
 
   if (!query || typeof query !== 'string' || query.trim().length === 0) {
     res.status(400).json({ error: 'query ist erforderlich' });
@@ -111,7 +109,6 @@ router.post('/run', authenticateToken, (req: Request, res: Response) => {
 
   const { emitSSE, cleanup, isDisconnected } = setupSSE(res);
 
-  // Hybrid pipeline: classify → route to local (search-first) or cloud (tool-autonomous)
   const routeAndExecute = async () => {
     let context: AgentUserContext;
     try {
@@ -121,35 +118,11 @@ router.post('/run', authenticateToken, (req: Request, res: Response) => {
       return;
     }
 
-    // If model explicitly provided (e.g. from frontend model selector), use direct execution
-    if (model) {
-      return agentExecutor.execute(query.trim(), context, {
-        model,
-        conversationId,
-        emitSSE,
-        skillSlug: skillSlug || undefined,
-      });
-    }
-
-    // Hybrid pipeline: classify and route
-    const classification = queryClassifier.classify(query.trim());
-    console.log(`[AgentRoute] Classification: ${classification.complexity} — ${classification.reason}`);
-
-    // Skills always go to cloud (they need tool autonomy to load_skill + execute)
-    if (skillSlug) {
-      return agentExecutor.execute(query.trim(), context, {
-        model: env.CLOUD_MODEL,
-        conversationId,
-        emitSSE,
-        routingDecision: 'rag-complex',
-        skillSlug,
-        strategy: 'hybrid',
-      });
-    }
-
-    return agentExecutor.executeHybrid(query.trim(), context, classification, {
+    return agentExecutor.execute(query.trim(), context, {
+      model: model || env.MODEL,
       conversationId,
       emitSSE,
+      skillSlug: skillSlug || undefined,
     });
   };
 

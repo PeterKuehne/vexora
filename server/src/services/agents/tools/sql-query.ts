@@ -4,6 +4,7 @@
  * Security: SELECT-only regex, 10s timeout, 1000 row limit
  */
 
+import { z } from 'zod';
 import type { AgentTool, ToolResult } from '../types.js';
 import { databaseService } from '../../DatabaseService.js';
 
@@ -16,6 +17,9 @@ const QUERY_TIMEOUT_MS = 10000;
 export const sqlQueryTool: AgentTool = {
   name: 'sql_query',
   description: 'Execute a read-only SQL SELECT query against the PostgreSQL database. Use this to analyze data, count records, or look up specific information. Only SELECT queries are allowed.',
+  inputSchema: z.object({
+    query: z.string().describe('A valid PostgreSQL SELECT query. Only SELECT is allowed. Max 1000 rows returned.'),
+  }),
   parameters: {
     type: 'object',
     required: ['query'],

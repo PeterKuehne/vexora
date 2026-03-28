@@ -17,12 +17,8 @@ import type {
   AgentSSEEvent,
   AgentConfig,
   AgentTask,
-  ClassificationResult,
-  AgentStrategy,
 } from './types.js';
 import { DEFAULT_AGENT_CONFIG as defaultConfig } from './types.js';
-import { vectorServiceV2 } from '../VectorServiceV2.js';
-import { env } from '../../config/env.js';
 
 /**
  * Callback type for SSE event emission.
@@ -35,137 +31,6 @@ export class AgentExecutor {
 
   constructor(config?: Partial<AgentConfig>) {
     this.config = { ...defaultConfig, ...config };
-  }
-
-  /**
-   * Hybrid pipeline entry point — routes simple queries through search-first
-   * local path, complex queries through cloud model with tool autonomy.
-   */
-  async executeHybrid(
-    query: string,
-    context: AgentUserContext,
-    classification: ClassificationResult,
-    options?: {
-      conversationId?: string;
-      signal?: AbortSignal;
-      emitSSE?: SSEEmitter;
-      skillSlug?: string;
-    }
-  ): Promise<AgentTask> {
-    const strategy: AgentStrategy = 'hybrid';
-
-    if (classification.complexity === 'complex') {
-      // Complex → cloud model with full tool autonomy
-      const cloudModel = env.CLOUD_MODEL;
-      console.log(`[AgentExecutor] Hybrid → complex → ${cloudModel}`);
-
-      return this.execute(query, context, {
-        ...options,
-        model: cloudModel,
-        routingDecision: 'rag-complex',
-        strategy,
-      });
-    }
-
-    // Simple path → pre-search + local model
-    const localModel = env.LOCAL_MODEL;
-    let preSearchPrompt: string | undefined;
-
-    if (!classification.skipPreSearch) {
-      const startMs = Date.now();
-
-      // Check if the user mentions a specific document by filename
-      // If so, narrow the search to that document for better results
-      let searchDocIds = context.allowedDocumentIds;
-      const mentionedDoc = await this.findMentionedDocument(query, context.allowedDocumentIds);
-      if (mentionedDoc) {
-        searchDocIds = [mentionedDoc];
-        console.log(`[AgentExecutor] Pre-search: document name detected, narrowing to ${mentionedDoc}`);
-      }
-
-      console.log(`[AgentExecutor] Pre-search: allowedDocumentIds=${JSON.stringify(searchDocIds?.length)} for user=${context.userId}`);
-      try {
-        const results = await vectorServiceV2.search({
-          query,
-          limit: 5,
-          threshold: 0.1,
-          hybridAlpha: 0.3,
-          allowedDocumentIds: searchDocIds,
-          levelFilter: [1, 2],
-        });
-
-        const preSearchMs = Date.now() - startMs;
-
-        if (results.results.length > 0) {
-          preSearchPrompt = this.formatPreSearchResults(results.results);
-          console.log(`[AgentExecutor] Hybrid → simple + pre-search: ${results.results.length} results (${preSearchMs}ms)`);
-        } else {
-          console.log(`[AgentExecutor] Hybrid → simple + pre-search: no results (${preSearchMs}ms)`);
-        }
-      } catch (error) {
-        console.error('[AgentExecutor] Pre-search failed:', error instanceof Error ? error.message : error);
-        // Continue without pre-search — model answers from training data
-      }
-    } else {
-      console.log(`[AgentExecutor] Hybrid → simple + skipPreSearch: "${classification.reason}"`);
-    }
-
-    return this.execute(query, context, {
-      ...options,
-      model: localModel,
-      routingDecision: 'direct',
-      strategy,
-      preSearchContext: preSearchPrompt,
-    });
-  }
-
-  /**
-   * Check if the query mentions a specific document by filename.
-   * Queries the documents table and matches filenames against the query text.
-   */
-  private async findMentionedDocument(query: string, allowedDocumentIds?: string[]): Promise<string | null> {
-    if (!allowedDocumentIds || allowedDocumentIds.length === 0) return null;
-
-    try {
-      const { databaseService } = await import('../DatabaseService.js');
-      const result = await databaseService.query(
-        `SELECT id, filename FROM documents WHERE id = ANY($1) AND status = 'completed'`,
-        [allowedDocumentIds]
-      );
-
-      const lowerQuery = query.toLowerCase();
-      for (const doc of result.rows) {
-        const filename = (doc.filename as string).toLowerCase();
-        // Match "AMA" in query against "AMA.pdf", or "Kernbotschaften" against "Samaritano_Kernbotschaften_Final 2.pdf"
-        const nameWithoutExt = filename.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ');
-        const nameParts = nameWithoutExt.split(/\s+/).filter(p => p.length >= 3);
-
-        for (const part of nameParts) {
-          if (lowerQuery.includes(part)) {
-            console.log(`[AgentExecutor] Filename match: "${part}" in query → document ${doc.id} (${doc.filename})`);
-            return doc.id as string;
-          }
-        }
-      }
-    } catch (error) {
-      console.warn('[AgentExecutor] findMentionedDocument failed:', error);
-    }
-
-    return null;
-  }
-
-  /**
-   * Format pre-search results as context block for system prompt injection.
-   */
-  private formatPreSearchResults(results: Array<{ chunk: { content: string; documentId: string; chunkIndex: number; pageStart?: number }; score: number; document: { originalName: string } }>): string {
-    let output = '';
-    for (const result of results) {
-      output += `Dokument: ${result.document.originalName}`;
-      if (result.chunk.pageStart) output += ` | Seite: ${result.chunk.pageStart}`;
-      output += ` | Score: ${result.score.toFixed(2)}\n`;
-      output += `Inhalt: ${result.chunk.content.substring(0, 600)}${result.chunk.content.length > 600 ? '...' : ''}\n---\n`;
-    }
-    return output;
   }
 
   /**
@@ -183,9 +48,6 @@ export class AgentExecutor {
       emitSSE?: SSEEmitter;
       routingDecision?: string;
       skillSlug?: string;
-      strategy?: AgentStrategy;
-      /** Pre-fetched RAG context to inject into system prompt (search-first pipeline) */
-      preSearchContext?: string;
     }
   ): Promise<AgentTask> {
     const model = options?.model || this.config.defaultModel;
@@ -277,8 +139,6 @@ export class AgentExecutor {
       allowedTools?: string[];
       routingDecision?: string;
       skillSlug?: string;
-      strategy?: AgentStrategy;
-      preSearchContext?: string;
     }
   ): Promise<AgentTask> {
     let stepNumber = task.totalSteps; // Continue step numbering across turns
@@ -318,11 +178,13 @@ export class AgentExecutor {
       }
 
       // Build tools (skill-gated tools only available when their skill is loaded)
-      const tools = toolRegistry.getAISDKTools(toolContext, options?.allowedTools, loadedSkills);
+      // Enable strict mode for cloud providers (ensures valid tool-call parameters)
+      const useStrictTools = isCloudModel(model);
+      const tools = toolRegistry.getAISDKTools(toolContext, options?.allowedTools, loadedSkills, { strict: useStrictTools });
       const toolNames = Object.keys(tools);
 
       // Build system prompt (with optional skill injection from slash-command)
-      const instructions = options?.systemPrompt || await this.buildSystemPrompt(toolNames, toolContext, options?.skillSlug, options?.preSearchContext);
+      const instructions = options?.systemPrompt || await this.buildSystemPrompt(toolNames, toolContext, options?.skillSlug);
 
       // Build message history from all previous messages (including tool context)
       const allMessages = await agentPersistence.getMessages(task.id);
@@ -354,13 +216,6 @@ export class AgentExecutor {
       // Map toolCallId → stepNumber to correctly correlate parallel tool calls
       const toolCallStepMap: Map<string, number> = new Map();
 
-      // Determine if we should force tool use on the first step.
-      // RAG-routed queries MUST search before answering — prevents hallucination.
-      // Direct queries (translations, calculations, general knowledge) can skip.
-      // Follow-up turns (turnNumber > 1) don't force — user may just ask a clarification.
-      const routingDecision = options?.routingDecision;
-      const forceToolUseOnFirstStep = turnNumber === 1 && routingDecision !== 'direct';
-
       // Create a ToolLoopAgent for this turn
       const agent = new ToolLoopAgent({
         model: resolveModel(model),
@@ -371,11 +226,14 @@ export class AgentExecutor {
         maxOutputTokens: 4096,
         providerOptions: getProviderOptions(model),
 
-        // Dynamic per-step tool control — force search on step 0 for RAG queries
+        // Step 0 on first turn: force tool use (search/skill) before answering
+        // Follow-up turns and later steps: model decides freely
         prepareStep: ({ stepNumber }) => {
-          if (stepNumber === 0 && forceToolUseOnFirstStep) {
-            console.log(`[AgentExecutor] Step 0: toolChoice=required (routing=${routingDecision})`);
-            return { toolChoice: 'required' as const };
+          if (stepNumber === 0 && turnNumber === 1) {
+            return {
+              toolChoice: 'required' as const,
+              activeTools: ['rag_search', 'load_skill', 'list_skills'],
+            };
           }
           return { toolChoice: 'auto' as const };
         },
@@ -544,7 +402,7 @@ export class AgentExecutor {
           modelLocation: cloud ? 'cloud' : 'local',
           estimatedCost: cost ?? undefined,
           routingDecision: options?.routingDecision,
-          strategy: options?.strategy,
+          strategy: 'cloud-only',
         },
       });
 
@@ -622,35 +480,8 @@ export class AgentExecutor {
   /**
    * Build the system prompt with available tools and skill descriptions
    */
-  private async buildSystemPrompt(toolNames: string[], context: AgentUserContext, skillSlug?: string, preSearchContext?: string): Promise<string> {
+  private async buildSystemPrompt(toolNames: string[], context: AgentUserContext, skillSlug?: string): Promise<string> {
     const hasSkills = toolNames.includes('load_skill');
-
-    // If pre-search context was provided (search-first pipeline), build a context-aware prompt
-    if (preSearchContext) {
-      let prompt = `Du bist ein hilfreicher Assistent. Dies ist eine Multi-Turn-Konversation.
-
-Die folgenden Suchergebnisse stammen aus der Wissensdatenbank. Sie sind das EINZIGE Wissen, das dir zur Verfügung steht:
-
-<search_results>
-${preSearchContext}
-</search_results>
-
-WICHTIGSTE REGEL:
-Wenn das gefragte Thema in den Suchergebnissen NICHT vorkommt, antworte: "Zu diesem Thema habe ich keine Dokumente in der Wissensdatenbank gefunden." Versuche NIEMALS, eine Antwort zu erfinden oder Suchergebnisse einem anderen Thema zuzuordnen.
-
-WEITERE REGELN:
-- Antworte auf Deutsch
-- Nutze AUSSCHLIESSLICH Informationen aus den <search_results> oben
-- Zitiere Quellen (Dokumentname, Seitenzahl) wenn du Dokumente nutzt
-- Erfinde KEINE Informationen, die nicht in den Suchergebnissen stehen
-- Wenn die Suchergebnisse ein anderes Thema behandeln als die Frage, sind sie NICHT relevant
-
-FORMATIERUNG:
-- Strukturiere Antworten mit Überschriften (##), Aufzählungen und **Fettdruck** für Schlüsselbegriffe
-- Bei Zusammenfassungen: Nummerierte Abschnitte mit klaren Überschriften
-- Längere Antworten immer in Abschnitte gliedern`;
-      return prompt;
-    }
 
     let prompt = `Du bist ein hilfreicher Assistent mit Zugriff auf Tools. Dies ist eine Multi-Turn-Konversation.
 

@@ -8,6 +8,7 @@
 
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { z } from 'zod';
 import type { AgentTool, AgentUserContext, ToolResult } from '../types.js';
 import { skillRegistry } from '../../skills/SkillRegistry.js';
 import { skillValidator } from '../../skills/SkillValidator.js';
@@ -17,6 +18,15 @@ export const updateSkillTool: AgentTool = {
   name: 'update_skill',
   skillGated: 'skill-creator',
   description: 'Update an existing skill. Use this during the iterate-and-improve loop after testing a skill and receiving feedback. You can update content, description, tools, or any other field.',
+  inputSchema: z.object({
+    slug: z.string().describe('The skill slug to update (from list_skills or create_skill output)'),
+    name: z.string().optional().describe('New name (optional)'),
+    description: z.string().optional().describe('New description with trigger phrases (optional)'),
+    content: z.string().optional().describe('New Markdown instruction body (optional)'),
+    tools: z.string().optional().describe('New JSON array of recommended tool names (optional)'),
+    category: z.string().optional().describe('New category (optional)'),
+    tags: z.string().optional().describe('New JSON array of tags (optional)'),
+  }),
   parameters: {
     type: 'object',
     required: ['slug'],

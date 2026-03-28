@@ -130,30 +130,23 @@ export function AgentProvider({ children }: { children: ReactNode }) {
       // Reconstruct turnMeta from task data (model, tokens are stored globally)
       const taskRow = data.task;
       const modelStr = taskRow.model || '';
-      const isCloud = modelStr.startsWith('anthropic:') || modelStr.startsWith('mistral:') || modelStr.startsWith('ovh:');
       const maxTurn = Math.max(1, ...(data.messages || []).map((m: any) => m.turn_number || m.turnNumber || 1));
       const reconstructedTurnMeta: Record<number, TurnMeta> = {};
-      // Assign model info to the last turn (most relevant)
       if (modelStr) {
         const inTok = taskRow.input_tokens || taskRow.inputTokens || 0;
         const outTok = taskRow.output_tokens || taskRow.outputTokens || 0;
-        // Estimate cost from known model pricing (EUR per M tokens)
         const pricing: Record<string, [number, number]> = {
           'ovh:gpt-oss-120b': [0.08, 0.40],
-          'mistral:mistral-large-latest': [2.0, 6.0],
-          'mistral:mistral-small-latest': [0.2, 0.6],
-          'anthropic:claude-sonnet-4-6': [3.0, 15.0],
-          'anthropic:claude-haiku-4-5': [0.8, 4.0],
         };
         const [inPrice, outPrice] = pricing[modelStr] || [0, 0];
-        const cost = isCloud ? (inTok / 1_000_000) * inPrice + (outTok / 1_000_000) * outPrice : undefined;
+        const cost = (inTok / 1_000_000) * inPrice + (outTok / 1_000_000) * outPrice;
 
         reconstructedTurnMeta[maxTurn] = {
           model: modelStr,
-          modelLocation: isCloud ? 'cloud' : 'local',
+          modelLocation: 'cloud',
           inputTokens: inTok,
           outputTokens: outTok,
-          estimatedCost: cost,
+          estimatedCost: cost || undefined,
         };
       }
 

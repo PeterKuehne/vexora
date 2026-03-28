@@ -73,13 +73,8 @@ export {
 export { Toast, ToastContainer } from './Toast';
 
 // Model selector
-export {
-  ModelSelector,
-  ModelSelectorCompact,
-  type ModelSelectorProps,
-  type ModelSelectorCompactProps,
-  type Model,
-} from './ModelSelector';
+export { default as ModelSelector } from './ModelSelector';
+export { type ModelSelectorProps, type Model } from './ModelSelector';
 
 // Theme toggle
 export {

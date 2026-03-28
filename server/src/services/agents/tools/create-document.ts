@@ -2,6 +2,7 @@
  * Create Document Tool - Creates a new text document in the system
  */
 
+import { z } from 'zod';
 import type { AgentTool, AgentUserContext, ToolResult } from '../types.js';
 import { databaseService } from '../../DatabaseService.js';
 import { randomUUID } from 'crypto';
@@ -9,6 +10,11 @@ import { randomUUID } from 'crypto';
 export const createDocumentTool: AgentTool = {
   name: 'create_document',
   description: 'Create a new text document in the system. The document will be owned by the current user and can be further processed by the document pipeline.',
+  inputSchema: z.object({
+    title: z.string().describe('The document title/filename'),
+    content: z.string().describe('The document content (plain text or markdown)'),
+    classification: z.enum(['public', 'internal', 'confidential', 'restricted']).optional().describe('Document classification level (default: "internal")'),
+  }),
   parameters: {
     type: 'object',
     required: ['title', 'content'],

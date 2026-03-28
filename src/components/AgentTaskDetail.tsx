@@ -315,8 +315,7 @@ function UserMessageBubble({ content, isDark }: { content: string; isDark: boole
 function TransparencyInfo({ meta, isDark }: { meta: TurnMeta; isDark: boolean }) {
   if (!meta.model) return null;
 
-  const isCloud = meta.modelLocation === 'cloud';
-  const modelName = meta.model.replace(/^(anthropic|mistral|openai):/, '');
+  const modelName = meta.model.replace(/^ovh:/, '');
   const totalTokens = (meta.inputTokens || 0) + (meta.outputTokens || 0);
   const tokenStr = totalTokens >= 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : String(totalTokens);
   const costStr = meta.estimatedCost != null && meta.estimatedCost > 0
@@ -328,10 +327,10 @@ function TransparencyInfo({ meta, isDark }: { meta: TurnMeta; isDark: boolean })
       'flex items-center gap-2 text-xs py-1.5 mt-1',
       isDark ? 'text-white/25' : 'text-gray-400'
     )}>
-      <span>{isCloud ? '\u2601\uFE0F' : '\uD83D\uDD12'}</span>
+      <span>{'\u2601\uFE0F'}</span>
       <span>{modelName}</span>
       <span className={cn('w-px h-3', isDark ? 'bg-white/10' : 'bg-gray-300')} />
-      <span>{isCloud ? 'EU-Cloud' : 'lokal'}</span>
+      <span>EU-Cloud</span>
       {totalTokens > 0 && (
         <>
           <span className={cn('w-px h-3', isDark ? 'bg-white/10' : 'bg-gray-300')} />

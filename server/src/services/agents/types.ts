@@ -5,9 +5,10 @@
  */
 
 import type { UserRole } from '../../types/auth.js';
+import type { ZodType } from 'zod';
 
 // ============================================
-// JSON Schema (subset for tool parameters)
+// JSON Schema (kept for legacy Anthropic/Ollama tool formats)
 // ============================================
 
 export interface JSONSchemaProperty {
@@ -62,11 +63,18 @@ export interface AgentUserContext {
   taskId?: string;
 }
 
+export interface ToolExecutionOptions {
+  abortSignal?: AbortSignal;
+}
+
 export interface AgentTool {
   name: string;
   description: string;
-  parameters: JSONSchema;
-  execute: (args: Record<string, unknown>, context: AgentUserContext) => Promise<ToolResult>;
+  /** Zod schema for tool input validation (preferred) */
+  inputSchema: ZodType;
+  /** @deprecated Legacy JSON Schema — only used by Anthropic/Ollama format converters */
+  parameters?: JSONSchema;
+  execute: (args: Record<string, unknown>, context: AgentUserContext, options?: ToolExecutionOptions) => Promise<ToolResult>;
   /** Roles that can use this tool. If empty/undefined, all roles can use it. */
   requiredRoles?: UserRole[];
   /**
@@ -78,34 +86,11 @@ export interface AgentTool {
 }
 
 // ============================================
-// Anthropic tool_use format
-// ============================================
-
-export interface AnthropicToolDefinition {
-  name: string;
-  description: string;
-  input_schema: JSONSchema;
-}
-
-// ============================================
-// OpenAI/Ollama tool format
-// ============================================
-
-export interface OllamaToolDefinition {
-  type: 'function';
-  function: {
-    name: string;
-    description: string;
-    parameters: JSONSchema;
-  };
-}
-
-// ============================================
 // Tool Call (from LLM response)
 // ============================================
 
 export interface ToolCall {
-  id?: string;           // Anthropic tool_use_id
+  id?: string;
   name: string;
   arguments: Record<string, unknown>;
 }
@@ -224,7 +209,7 @@ export interface AgentConfig {
 
 export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   maxIterations: parseInt(process.env.MAX_AGENT_ITERATIONS || '25', 10),
-  defaultModel: process.env.AGENT_DEFAULT_MODEL || 'anthropic:claude-sonnet-4-6',
+  defaultModel: process.env.AGENT_DEFAULT_MODEL || 'ovh:gpt-oss-120b',
   timeoutMs: parseInt(process.env.AGENT_TIMEOUT_MS || '300000', 10),
   maxToolOutputLength: 10000,
 };

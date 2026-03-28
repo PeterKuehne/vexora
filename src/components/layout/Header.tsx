@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts';
 import type { Theme } from '../../types/settings';
 import { Logo } from '../Logo';
-import { ModelSelector } from '../ModelSelector';
+import ModelSelector from '../ModelSelector';
 import { SettingsButton } from '../SettingsButton';
 import { ThemeToggle } from '../ThemeToggle';
 
@@ -125,13 +125,12 @@ export function Header({
 
       {/* Right Section: Model Selector, Save Indicator, Theme Toggle, Connection Status */}
       <div className="flex items-center gap-4">
-        {/* Model Selector - visible when Ollama is connected */}
-        {showModelSelector && isOllamaConnected && onModelChange && (
+        {/* Model indicator */}
+        {showModelSelector && (
           <div className="hidden sm:block">
             <ModelSelector
-              value={selectedModel ?? ''}
-              onChange={onModelChange}
-              disabled={!isOllamaConnected}
+              value={selectedModel ?? 'ovh:gpt-oss-120b'}
+              onChange={onModelChange || (() => {})}
             />
           </div>
         )}

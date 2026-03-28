@@ -16,7 +16,7 @@ import { Cpu, Thermometer, MessageSquare, Hash, Info, Database, AlertTriangle, M
 import { useTheme } from '../contexts/ThemeContext';
 import { useSettings } from '../contexts/SettingsContext';
 import { useToast } from '../contexts/ToastContext';
-import { ModelSelector } from './ModelSelector';
+import ModelSelector from './ModelSelector';
 import { fetchEmbeddingModels, type APIModel } from '../lib/api';
 import { ConfirmDialog } from './ConfirmDialog';
 import { MODEL_PROFILES, type ModelProfile } from '../types/settings';
@@ -324,7 +324,7 @@ export function ModelSettings({ className = '' }: ModelSettingsProps) {
         </label>
         <div className="space-y-2">
           <ModelSelector
-            value={settings.defaultModel || 'qwen3:8b'}
+            value={settings.defaultModel || 'ovh:gpt-oss-120b'}
             onChange={handleDefaultModelChange}
             placeholder="Modell wählen..."
             showDetails={true}

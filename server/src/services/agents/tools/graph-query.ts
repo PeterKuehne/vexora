@@ -2,11 +2,15 @@
  * Graph Query Tool - Queries the Neo4j knowledge graph for entity relationships
  */
 
+import { z } from 'zod';
 import type { AgentTool, ToolResult } from '../types.js';
 
 export const graphQueryTool: AgentTool = {
   name: 'graph_query',
   description: 'Query the knowledge graph to find entities and their relationships extracted from documents. Use this to discover connections between people, organizations, concepts, and topics.',
+  inputSchema: z.object({
+    query: z.string().describe('Entity name or concept to search for in the knowledge graph'),
+  }),
   parameters: {
     type: 'object',
     required: ['query'],

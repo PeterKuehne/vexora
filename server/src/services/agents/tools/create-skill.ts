@@ -11,6 +11,7 @@
 
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { z } from 'zod';
 import type { AgentTool, AgentUserContext, ToolResult } from '../types.js';
 import { skillRegistry } from '../../skills/SkillRegistry.js';
 import { skillValidator } from '../../skills/SkillValidator.js';
@@ -21,6 +22,14 @@ export const createSkillTool: AgentTool = {
   name: 'create_skill',
   skillGated: 'skill-creator',
   description: 'Create a NEW skill. Only call this ONCE per skill — if the skill already exists, use update_skill instead. Provide name, description (with trigger phrases), Markdown instruction body, and recommended tools. Returns the slug for further operations (load_skill, update_skill, run_skill_test).',
+  inputSchema: z.object({
+    name: z.string().describe('Skill name (kebab-case recommended, e.g. "data-analysis")'),
+    description: z.string().describe('What the skill does AND when to trigger it. Include specific user phrases. Max 1024 chars.'),
+    content: z.string().describe('The full Markdown instruction body. Use imperative form, explain the why, include examples.'),
+    tools: z.string().describe('JSON array of recommended tool names, e.g. ["rag_search", "read_chunk"]'),
+    category: z.string().optional().describe('Category: recherche, zusammenfassung, analyse, vergleich, erstellung, meta'),
+    tags: z.string().optional().describe('JSON array of tags, e.g. ["recherche", "report"]'),
+  }),
   parameters: {
     type: 'object',
     required: ['name', 'description', 'content', 'tools'],

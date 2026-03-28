@@ -30,7 +30,6 @@ import { createMonitoringRouter } from './routes/monitoring.js'
 import modelRoutes from './routes/models.js'
 import documentRoutes from './routes/documents.js'
 import ragRoutes from './routes/rag.js'
-import ollamaRoutes from './routes/ollama.js'
 import processingRoutes from './routes/processing.js'
 import usageRoutes from './routes/usage.js'
 import agentRoutes from './routes/agents.js'
@@ -106,7 +105,6 @@ redisCache.initialize().catch((err: Error) => {
 app.use('/api/models', generalRateLimiter, modelRoutes)
 app.use('/api/documents', generalRateLimiter, documentRoutes)
 app.use('/api/rag', generalRateLimiter, ragRoutes)
-app.use('/api/ollama', ollamaRoutes)
 app.use('/api/processing', generalRateLimiter, processingRoutes)
 app.use('/api/admin/usage', adminRateLimiter, usageRoutes)
 app.use('/api/agents', generalRateLimiter, agentRoutes)

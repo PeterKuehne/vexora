@@ -35,42 +35,12 @@ export interface ModelProfile {
  */
 export const MODEL_PROFILES: ModelProfile[] = [
   {
-    id: 'macbook-8gb',
-    name: 'MacBook 8GB',
-    description: 'Leichtgewichtige Modelle für 8GB RAM',
-    llmModel: 'llama3.2:latest',
+    id: 'default',
+    name: 'GPT-OSS 120B (EU-Cloud)',
+    description: 'OVH AI Endpoints — DSGVO-konform',
+    llmModel: 'ovh:gpt-oss-120b',
     embeddingModel: 'nomic-embed-text-v2-moe:latest',
-    temperature: 0.7,
-    maxTokens: 2048,
-    estimatedVRAM: 4,
-  },
-  {
-    id: 'macbook-16gb',
-    name: 'MacBook 16GB',
-    description: 'Ausgewogene Modelle für 16GB RAM',
-    llmModel: 'qwen3:8b',
-    embeddingModel: 'nomic-embed-text-v2-moe:latest',
-    temperature: 0.7,
-    maxTokens: 4096,
-    estimatedVRAM: 8,
-  },
-  {
-    id: 'workstation-32gb',
-    name: 'Workstation 32GB',
-    description: 'Größere Modelle für 32GB+ RAM',
-    llmModel: 'qwen3:8b',
-    embeddingModel: 'nomic-embed-text-v2-moe:latest',
-    temperature: 0.7,
-    maxTokens: 8192,
-    estimatedVRAM: 12,
-  },
-  {
-    id: 'custom',
-    name: 'Benutzerdefiniert',
-    description: 'Manuelle Modell-Auswahl',
-    llmModel: '',
-    embeddingModel: '',
-    temperature: 0.7,
+    temperature: 0.1,
     maxTokens: 4096,
     estimatedVRAM: 0,
   },
@@ -123,7 +93,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   fontSize: 'medium',
   sendOnEnter: true,
   showTimestamps: true,
-  defaultModel: 'qwen3:8b',
+  defaultModel: 'ovh:gpt-oss-120b',
   embeddingModel: 'nomic-embed-text-v2-moe:latest',
   enableStreaming: true,
   showMarkdownPreview: false,
@@ -139,7 +109,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
  * Model configuration for the model selector
  */
 export interface ModelConfig {
-  /** Model identifier (e.g., 'qwen3:8b') */
+  /** Model identifier (e.g., 'ovh:gpt-oss-120b') */
   name: string;
   /** Display name for UI (e.g., 'Qwen 3 8B') */
   displayName: string;
@@ -175,7 +145,7 @@ export interface GenerationParams {
  * Default generation parameters
  */
 export const DEFAULT_GENERATION_PARAMS: GenerationParams = {
-  model: 'qwen3:8b',
+  model: 'ovh:gpt-oss-120b',
   temperature: 0.7,
   topP: 0.9,
   maxTokens: 4096,

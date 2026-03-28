@@ -8,6 +8,7 @@
  * how any tool can spawn an independent agent via generateText().
  */
 
+import { z } from 'zod';
 import { generateText, stepCountIs } from 'ai';
 import { resolveModel, getProviderOptions } from '../ai-provider.js';
 import { toolRegistry } from '../ToolRegistry.js';
@@ -18,6 +19,12 @@ export const runSkillTestTool: AgentTool = {
   name: 'run_skill_test',
   skillGated: 'skill-creator',
   description: 'Testet einen Skill indem ein unabhängiger Sub-Agent gestartet wird der einen Test-Prompt mit (oder ohne) dem Skill ausführt. Nutze dieses Tool um Skills zu evaluieren und zu vergleichen.',
+  inputSchema: z.object({
+    prompt: z.string().describe('Der Test-Prompt den der Sub-Agent ausführen soll (eine realistische User-Anfrage)'),
+    skill_slug: z.string().optional().describe('Slug des Skills der getestet werden soll. Wenn leer, wird der Test OHNE Skill ausgeführt (Baseline).'),
+    model: z.string().optional().describe('Model für den Sub-Agent (default: qwen3:8b)'),
+    max_steps: z.string().optional().describe('Maximale Schritte für den Sub-Agent (default: 8)'),
+  }),
   parameters: {
     type: 'object',
     required: ['prompt'],
@@ -44,7 +51,7 @@ export const runSkillTestTool: AgentTool = {
   async execute(args: Record<string, unknown>, context: AgentUserContext): Promise<ToolResult> {
     const prompt = args.prompt as string;
     const skillSlug = args.skill_slug as string | undefined;
-    const model = (args.model as string) || 'qwen3:8b';
+    const model = (args.model as string) || 'ovh:gpt-oss-120b';
     const maxSteps = parseInt((args.max_steps as string) || '8', 10);
 
     if (!prompt) {

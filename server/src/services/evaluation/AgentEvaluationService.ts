@@ -9,7 +9,6 @@ import { databaseService } from '../DatabaseService.js';
 import { goldenDatasetService } from './GoldenDatasetService.js';
 import { agentExecutor } from '../agents/AgentExecutor.js';
 import { agentPersistence } from '../agents/AgentPersistence.js';
-import { queryClassifier } from '../agents/QueryClassifier.js';
 import { env } from '../../config/env.js';
 import type { AgentUserContext, AgentStrategy } from '../agents/types.js';
 
@@ -89,17 +88,12 @@ export class AgentEvaluationService {
    * Run a full benchmark: all three strategies sequentially
    */
   async startBenchmark(baseConfig?: Partial<AgentEvalConfig>): Promise<{ hybrid: string; cloudOnly: string; localOnly: string }> {
-    const strategies: AgentStrategy[] = ['hybrid', 'cloud-only', 'local-only'];
-    const runIds: Record<string, string> = {};
-
-    for (const strategy of strategies) {
-      runIds[strategy] = await this.startRun({ ...baseConfig, strategy });
-    }
+    const runId = await this.startRun({ ...baseConfig, strategy: 'cloud-only' });
 
     return {
-      hybrid: runIds['hybrid']!,
-      cloudOnly: runIds['cloud-only']!,
-      localOnly: runIds['local-only']!,
+      hybrid: runId,
+      cloudOnly: runId,
+      localOnly: runId,
     };
   }
 
@@ -250,50 +244,20 @@ export class AgentEvaluationService {
     timeout: number
   ): Promise<AgentEvalQueryResult> {
     const totalStart = Date.now();
+    const classificationMs = 0;
 
-    // Classification (only for hybrid strategy)
-    let classificationMs = 0;
-    let classification = null;
-    if (config.strategy === 'hybrid') {
-      const classStart = Date.now();
-      classification = queryClassifier.classify(goldenQuery.query);
-      classificationMs = Date.now() - classStart;
-    }
-
-    // Execute based on strategy
+    // Execute with gpt-oss (single model)
     const genStart = Date.now();
-    let task;
 
     const abortController = new AbortController();
     const timeoutId = setTimeout(() => abortController.abort(), timeout);
 
+    let task;
     try {
-      switch (config.strategy) {
-        case 'hybrid':
-          task = await agentExecutor.executeHybrid(
-            goldenQuery.query,
-            context,
-            classification!,
-            { signal: abortController.signal }
-          );
-          break;
-
-        case 'cloud-only':
-          task = await agentExecutor.execute(goldenQuery.query, context, {
-            model: config.cloudModel || env.CLOUD_MODEL,
-            routingDecision: 'rag',
-            signal: abortController.signal,
-          });
-          break;
-
-        case 'local-only':
-          task = await agentExecutor.execute(goldenQuery.query, context, {
-            model: config.localModel || env.LOCAL_MODEL,
-            routingDecision: 'direct',
-            signal: abortController.signal,
-          });
-          break;
-      }
+      task = await agentExecutor.execute(goldenQuery.query, context, {
+        model: config.cloudModel || env.MODEL,
+        signal: abortController.signal,
+      });
     } finally {
       clearTimeout(timeoutId);
     }
@@ -313,7 +277,7 @@ export class AgentEvaluationService {
 
     const toolCallsAttempted = steps.length;
     const toolCallsSucceeded = steps.filter(s => !s.toolOutput?.startsWith('Fehler') && !s.toolOutput?.startsWith('ERROR')).length;
-    const usedRag = steps.some(s => s.toolName === 'rag_search') || (config.strategy === 'hybrid' && classification?.complexity === 'simple' && !classification?.skipPreSearch);
+    const usedRag = steps.some(s => s.toolName === 'rag_search');
     const ragSteps = steps.filter(s => s.toolName === 'rag_search');
     const ragResultCount = ragSteps.length > 0 ? (ragSteps[0]?.toolOutput?.match(/Gefunden: (\d+)/)?.[1] ?? '0') : '0';
 
@@ -355,7 +319,7 @@ export class AgentEvaluationService {
       outputTokens: task.outputTokens,
       estimatedCostEur: 0, // Will be calculated from tokens
       classificationMs,
-      preSearchMs: 0, // Captured inside executeHybrid, not easily extractable — use totalMs - generationMs
+      preSearchMs: 0,
       generationMs,
       totalMs,
       toolCallsAttempted,

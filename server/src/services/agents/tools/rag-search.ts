@@ -2,12 +2,18 @@
  * RAG Search Tool - Searches the document vector store
  */
 
+import { z } from 'zod';
 import type { AgentTool, AgentUserContext, ToolResult } from '../types.js';
 import { vectorServiceV2 } from '../../VectorServiceV2.js';
 
 export const ragSearchTool: AgentTool = {
   name: 'rag_search',
   description: 'Search the document knowledge base using hybrid search (keyword + semantic). Returns relevant document chunks with scores. Use this to find information in uploaded documents.',
+  inputSchema: z.object({
+    query: z.string().describe('The search query - be specific with keywords or describe the concept you are looking for'),
+    limit: z.number().optional().describe('Maximum number of results (default: 5, max: 15)'),
+    searchMode: z.enum(['keyword', 'semantic', 'hybrid']).optional().describe('Search mode: "keyword" (BM25-focused), "semantic" (vector-focused), or "hybrid" (balanced). Default: "hybrid"'),
+  }),
   parameters: {
     type: 'object',
     required: ['query'],

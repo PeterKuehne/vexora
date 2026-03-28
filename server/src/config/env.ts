@@ -15,9 +15,8 @@ export const env = {
   PORT: parseInt(process.env.PORT ?? '3001', 10),
   NODE_ENV: process.env.NODE_ENV ?? 'development',
 
-  // Ollama
+  // Ollama (used for embeddings only — LLM is on OVH)
   OLLAMA_API_URL: process.env.OLLAMA_API_URL ?? 'http://localhost:11434',
-  OLLAMA_DEFAULT_MODEL: process.env.OLLAMA_DEFAULT_MODEL ?? 'qwen3:8b',
 
   // CORS
   CORS_ORIGINS: (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://localhost:4173').split(
@@ -51,19 +50,12 @@ export const env = {
     return 60 * 60 * 1000;
   },
 
-  // LLM Providers
-  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? '',
-  MISTRAL_API_KEY: process.env.MISTRAL_API_KEY ?? '',
+  // LLM Provider (OVH AI Endpoints — EU-Cloud)
   OVH_AI_API_KEY: process.env.OVH_AI_API_KEY ?? '',
   OVH_AI_BASE_URL: process.env.OVH_AI_BASE_URL ?? 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1',
 
-  // Model Tiering
-  LOCAL_MODEL: process.env.LOCAL_MODEL ?? 'qwen3:8b',
-  CLOUD_MODEL: process.env.CLOUD_MODEL ?? 'ovh:gpt-oss-120b',
-  CLOUD_FALLBACK_MODEL: process.env.CLOUD_FALLBACK_MODEL ?? 'mistral:mistral-large-latest',
-
-  // Query Routing
-  ROUTING_EMBEDDING_THRESHOLD: parseFloat(process.env.ROUTING_EMBEDDING_THRESHOLD ?? '0.75'),
+  // Model
+  MODEL: process.env.MODEL ?? process.env.CLOUD_MODEL ?? 'ovh:gpt-oss-120b',
 
   // PII Guard (Presidio)
   PII_GUARD_ENABLED: process.env.PII_GUARD_ENABLED !== 'false',
@@ -89,8 +81,7 @@ if (env.isDevelopment) {
   console.log('📋 Environment Config:')
   console.log(`   PORT: ${env.PORT}`)
   console.log(`   NODE_ENV: ${env.NODE_ENV}`)
-  console.log(`   OLLAMA_API_URL: ${env.OLLAMA_API_URL}`)
-  console.log(`   OLLAMA_DEFAULT_MODEL: ${env.OLLAMA_DEFAULT_MODEL}`)
+  console.log(`   MODEL: ${env.MODEL}`)
   console.log(`   CORS_ORIGINS: ${env.CORS_ORIGINS.join(', ')}`)
 }
 

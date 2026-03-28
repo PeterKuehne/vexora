@@ -6,12 +6,17 @@
  * isn't sufficient, e.g. to search for skills by category.
  */
 
+import { z } from 'zod';
 import type { AgentTool, AgentUserContext, ToolResult } from '../types.js';
 import { skillRegistry } from '../../skills/SkillRegistry.js';
 
 export const listSkillsTool: AgentTool = {
   name: 'list_skills',
   description: 'List available skills with descriptions. Use this to discover skills by category or search term. Skills are pre-built workflows — load one with load_skill to get its full instructions.',
+  inputSchema: z.object({
+    category: z.string().optional().describe('Optional: filter by specific category (e.g., "recherche", "zusammenfassung", "analyse", "meta"). Omit this parameter to list ALL skills.'),
+    search: z.string().optional().describe('Search skills by name or description'),
+  }),
   parameters: {
     type: 'object',
     required: [],

@@ -5,12 +5,17 @@
  * then finds the target chunk and surrounding chunks for context.
  */
 
+import { z } from 'zod';
 import type { AgentTool, AgentUserContext, ToolResult } from '../types.js';
 import { vectorServiceV2 } from '../../VectorServiceV2.js';
 
 export const readChunkTool: AgentTool = {
   name: 'read_chunk',
   description: 'Read a specific document chunk by its ID (from a previous rag_search result) with optional context expansion. Use this to get more details about a search result.',
+  inputSchema: z.object({
+    chunkId: z.string().describe('The chunk ID in format "documentId:chunkIndex" from a previous search result'),
+    expandContext: z.boolean().optional().describe('Whether to include surrounding chunks for more context (default: true)'),
+  }),
   parameters: {
     type: 'object',
     required: ['chunkId'],

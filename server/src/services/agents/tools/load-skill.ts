@@ -13,6 +13,7 @@
 
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { z } from 'zod';
 import type { AgentTool, AgentUserContext, ToolResult } from '../types.js';
 import { skillRegistry } from '../../skills/SkillRegistry.js';
 import { skillLoader } from '../../skills/SkillLoader.js';
@@ -20,6 +21,9 @@ import { skillLoader } from '../../skills/SkillLoader.js';
 export const loadSkillTool: AgentTool = {
   name: 'load_skill',
   description: 'Load the full instructions of a skill by its slug. Use this when you identify a skill from the system prompt that matches the user\'s request. Returns the complete Markdown instructions that you should follow step by step.',
+  inputSchema: z.object({
+    slug: z.string().describe('The skill slug (shown in the system prompt skill list)'),
+  }),
   parameters: {
     type: 'object',
     required: ['slug'],

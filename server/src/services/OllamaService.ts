@@ -122,7 +122,7 @@ export class OllamaService {
 
   constructor(
     baseUrl: string = env.OLLAMA_API_URL,
-    defaultModel: string = env.OLLAMA_DEFAULT_MODEL,
+    defaultModel: string = 'nomic-embed-text-v2-moe:latest',
     defaultTimeout: number = 30000
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '') // Remove trailing slash

@@ -349,7 +349,7 @@ export function createGraphServiceFromEnv(
     },
     extraction: {
       useLLM: process.env.GRAPH_LLM_EXTRACTION === 'true',
-      llmModel: process.env.OLLAMA_DEFAULT_MODEL || 'qwen2.5:14b',
+      llmModel: process.env.GRAPH_LLM_MODEL || 'qwen2.5:14b',
     },
     resolution: {
       useSemanticSimilarity: !!embeddingService,
