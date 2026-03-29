@@ -232,7 +232,7 @@ export class AgentExecutor {
           if (stepNumber === 0 && turnNumber === 1) {
             return {
               toolChoice: 'required' as const,
-              activeTools: ['rag_search', 'load_skill', 'list_skills'],
+              activeTools: ['rag_search', 'load_skill', 'list_skills', 'agent'],
             };
           }
           return { toolChoice: 'auto' as const };
@@ -562,13 +562,44 @@ ${content.body}`;
       }
     }
 
+    // Add available subagents
+    if (toolNames.includes('agent')) {
+      let agentSummary = '';
+      try {
+        const { listSubagents } = await import('./SubagentLoader.js');
+        const agents = listSubagents(context.tenantId);
+        if (agents.length > 0) {
+          agentSummary = agents
+            .map(a => `- ${a.name}: ${a.description.split('.')[0] || '(keine Beschreibung)'}`)
+            .join('\n');
+        }
+      } catch {
+        // Subagents not available
+      }
+
+      if (agentSummary) {
+        prompt += `
+
+<available_agents>
+${agentSummary}
+</available_agents>
+
+SUBAGENT-REGELN:
+- Wenn der User "alles finden", "umfassend recherchieren", "tiefgehend suchen" oder "@{agent-name}" sagt → IMMER agent-Tool nutzen
+- Wenn du mehr als 2 rag_search Aufrufe braechtest → delegiere an kb-explorer statt selbst zu suchen
+- Der Subagent arbeitet in eigenem Kontext — du siehst nur seine Zusammenfassung, nicht die Zwischenschritte
+- Das spart Kontext und liefert bessere Ergebnisse bei umfangreichen Recherchen`;
+      }
+    }
+
     prompt += `
 
 WORKFLOW:
 1. Passt ein Skill? → load_skill(slug) aufrufen und Instruktionen folgen
-2. Unternehmenswissen nötig? → rag_search
-3. Allgemeinwissen? → Direkt antworten
-4. Quellen zitieren wenn Dokumente genutzt`;
+2. Tiefgehende Recherche nötig? → agent(agentType="kb-explorer", task="...") delegieren
+3. Einfaches Unternehmenswissen? → rag_search direkt
+4. Allgemeinwissen? → Direkt antworten
+5. Quellen zitieren wenn Dokumente genutzt`;
 
     return prompt;
   }

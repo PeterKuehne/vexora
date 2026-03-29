@@ -1,15 +1,12 @@
 /**
  * Run Skill Test Tool - Subagent-based skill testing
  *
- * Spawns a subagent via AI SDK generateText() to test a skill.
+ * Spawns a ToolLoopAgent subagent to test a skill.
  * Can run with or without a skill loaded, enabling A/B comparison.
- *
- * This is the first subagent tool in the system — it demonstrates
- * how any tool can spawn an independent agent via generateText().
  */
 
 import { z } from 'zod';
-import { generateText, stepCountIs } from 'ai';
+import { ToolLoopAgent, stepCountIs } from 'ai';
 import { resolveModel, getProviderOptions } from '../ai-provider.js';
 import { toolRegistry } from '../ToolRegistry.js';
 import { skillRegistry } from '../../skills/SkillRegistry.js';
@@ -113,17 +110,18 @@ Befolge die Skill-Instruktionen oben um die Aufgabe zu lösen.`;
       // Filter to tools that exist and are available to this user
       const allTools = toolRegistry.getAISDKTools(context, subagentToolNames);
 
-      // Run the subagent
-      const result = await generateText({
+      // Run the subagent (ToolLoopAgent — AI SDK best practice)
+      const subagent = new ToolLoopAgent({
         model: resolveModel(model),
-        system: systemPrompt,
-        prompt,
+        instructions: systemPrompt,
         tools: allTools,
         stopWhen: stepCountIs(maxSteps),
         temperature: 0.1,
         maxOutputTokens: 4096,
         providerOptions: getProviderOptions(model),
       });
+
+      const result = await subagent.generate({ prompt });
 
       const durationMs = Date.now() - startTime;
       const inputTokens = result.usage?.inputTokens || 0;

@@ -95,6 +95,28 @@ function setupSSE(res: Response): {
 }
 
 /**
+ * GET /api/agents/subagents - List available subagents for @-mention autocomplete
+ */
+router.get('/subagents', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { listSubagents } = await import('../services/agents/SubagentLoader.js');
+    const authReq = req as AuthenticatedRequest;
+    const tenantId = undefined; // TODO: extract from user context when multi-tenant
+    const agents = listSubagents(tenantId);
+    res.json({
+      agents: agents.map(a => ({
+        name: a.name,
+        description: a.description,
+        tools: a.tools,
+        source: a.source,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Fehler beim Laden der Subagents' });
+  }
+});
+
+/**
  * POST /api/agents/run - Start a new agent conversation (first turn)
  */
 router.post('/run', authenticateToken, (req: Request, res: Response) => {

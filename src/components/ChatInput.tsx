@@ -4,10 +4,11 @@
  * Text input with send button for chat messages.
  * Supports Enter to send, Shift+Enter for newlines.
  * Slash-commands: type "/" to see available skills.
+ * @-mentions: type "@" to see available subagents.
  */
 
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent, type FormEvent } from 'react';
-import { Send, Square, Zap } from 'lucide-react';
+import { Send, Square, Zap, Bot } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { httpClient } from '../lib/httpClient';
 import { env } from '../lib/env';
@@ -18,6 +19,14 @@ interface SkillSuggestion {
   name: string;
   description?: string;
 }
+
+interface AgentSuggestion {
+  name: string;
+  description?: string;
+  source: string;
+}
+
+type DropdownMode = 'none' | 'skills' | 'agents';
 
 export interface ChatInputProps {
   /** Called when user sends a message */
@@ -45,10 +54,16 @@ export function ChatInput({
 
   // Slash-command state
   const [skills, setSkills] = useState<SkillSuggestion[]>([]);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [filteredSkills, setFilteredSkills] = useState<SkillSuggestion[]>([]);
-  const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedSkill, setSelectedSkill] = useState<SkillSuggestion | null>(null);
+
+  // @-mention state
+  const [agents, setAgents] = useState<AgentSuggestion[]>([]);
+  const [selectedAgent, setSelectedAgent] = useState<AgentSuggestion | null>(null);
+
+  // Shared dropdown state
+  const [dropdownMode, setDropdownMode] = useState<DropdownMode>('none');
+  const [filteredItems, setFilteredItems] = useState<Array<SkillSuggestion | AgentSuggestion>>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Load skills once
@@ -65,6 +80,28 @@ export function ChatInput({
       .catch(() => {});
   }, []);
 
+  // Load agents once
+  useEffect(() => {
+    httpClient.get(`${env.API_URL}/api/models`)
+      .then(r => r.json())
+      .catch(() => {});
+    // Fetch agents from a lightweight endpoint — we use the agent tool's list
+    // For now, hardcode a fetch to the backend
+    httpClient.get(`${env.API_URL}/api/agents/subagents`)
+      .then(r => r.json())
+      .then(data => {
+        setAgents((data.agents || []).map((a: any) => ({
+          name: a.name,
+          description: a.description,
+          source: a.source,
+        })));
+      })
+      .catch(() => {
+        // Endpoint might not exist yet — try to load from a simpler source
+        // Fallback: the agents are discovered via the agent tool at runtime
+      });
+  }, []);
+
   // Auto-resize textarea
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -79,36 +116,67 @@ export function ChatInput({
     textareaRef.current?.focus();
   }, []);
 
-  // Handle slash-command filtering
+  // Handle dropdown filtering for both / and @
   useEffect(() => {
-    if (selectedSkill) {
-      setShowDropdown(false);
+    if (selectedSkill || selectedAgent) {
+      setDropdownMode('none');
       return;
     }
 
+    // Check for @-mention (can be at start or after space)
+    const atMatch = input.match(/(^|\s)@(\S*)$/);
+    if (atMatch) {
+      const filter = atMatch[2]!.toLowerCase();
+      const matches = agents.filter(a =>
+        a.name.toLowerCase().includes(filter) ||
+        (a.description || '').toLowerCase().includes(filter)
+      );
+      if (matches.length > 0) {
+        setFilteredItems(matches);
+        setDropdownMode('agents');
+        setSelectedIndex(0);
+        return;
+      }
+    }
+
+    // Check for slash-command
     if (input.startsWith('/')) {
       const filter = input.substring(1).toLowerCase();
       const matches = skills.filter(s =>
         s.slug.toLowerCase().includes(filter) ||
         s.name.toLowerCase().includes(filter)
       );
-      setFilteredSkills(matches);
-      setShowDropdown(matches.length > 0);
-      setSelectedIndex(0);
-    } else {
-      setShowDropdown(false);
+      if (matches.length > 0) {
+        setFilteredItems(matches);
+        setDropdownMode('skills');
+        setSelectedIndex(0);
+        return;
+      }
     }
-  }, [input, skills, selectedSkill]);
+
+    setDropdownMode('none');
+  }, [input, skills, agents, selectedSkill, selectedAgent]);
 
   const selectSkill = useCallback((skill: SkillSuggestion) => {
     setSelectedSkill(skill);
+    setSelectedAgent(null);
     setInput('');
-    setShowDropdown(false);
+    setDropdownMode('none');
     textareaRef.current?.focus();
   }, []);
 
-  const clearSelectedSkill = useCallback(() => {
+  const selectAgent = useCallback((agent: AgentSuggestion) => {
+    setSelectedAgent(agent);
     setSelectedSkill(null);
+    // Remove the @mention text from input
+    setInput(prev => prev.replace(/(^|\s)@\S*$/, '').trim());
+    setDropdownMode('none');
+    textareaRef.current?.focus();
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedSkill(null);
+    setSelectedAgent(null);
     setInput('');
     textareaRef.current?.focus();
   }, []);
@@ -116,9 +184,17 @@ export function ChatInput({
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isStreaming && !disabled) {
-      onSend(input.trim(), selectedSkill?.slug);
+      let message = input.trim();
+
+      // If an agent is selected, prepend @mention so the model delegates
+      if (selectedAgent) {
+        message = `@${selectedAgent.name} ${message}`;
+      }
+
+      onSend(message, selectedSkill?.slug);
       setInput('');
       setSelectedSkill(null);
+      setSelectedAgent(null);
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
@@ -127,10 +203,10 @@ export function ChatInput({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // Dropdown navigation
-    if (showDropdown) {
+    if (dropdownMode !== 'none') {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIndex(i => Math.min(i + 1, filteredSkills.length - 1));
+        setSelectedIndex(i => Math.min(i + 1, filteredItems.length - 1));
         return;
       }
       if (e.key === 'ArrowUp') {
@@ -140,22 +216,27 @@ export function ChatInput({
       }
       if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
-        if (filteredSkills[selectedIndex]) {
-          selectSkill(filteredSkills[selectedIndex]);
+        const item = filteredItems[selectedIndex];
+        if (item) {
+          if (dropdownMode === 'skills') {
+            selectSkill(item as SkillSuggestion);
+          } else {
+            selectAgent(item as AgentSuggestion);
+          }
         }
         return;
       }
       if (e.key === 'Escape') {
         e.preventDefault();
-        setShowDropdown(false);
+        setDropdownMode('none');
         return;
       }
     }
 
-    // Clear selected skill with Backspace on empty input
-    if (e.key === 'Backspace' && input === '' && selectedSkill) {
+    // Clear selection with Backspace on empty input
+    if (e.key === 'Backspace' && input === '' && (selectedSkill || selectedAgent)) {
       e.preventDefault();
-      clearSelectedSkill();
+      clearSelection();
       return;
     }
 
@@ -170,9 +251,11 @@ export function ChatInput({
     onStop?.();
   };
 
+  const showDropdown = dropdownMode !== 'none';
+
   return (
     <form onSubmit={handleSubmit} className="relative">
-      {/* Slash-command dropdown */}
+      {/* Dropdown for skills or agents */}
       {showDropdown && (
         <div
           ref={dropdownRef}
@@ -183,37 +266,51 @@ export function ChatInput({
               : 'bg-white border-gray-200'
           )}
         >
+          {/* Header */}
+          <div className={cn(
+            'px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider border-b',
+            isDark ? 'text-white/30 border-white/[0.06]' : 'text-gray-400 border-gray-100'
+          )}>
+            {dropdownMode === 'skills' ? 'Skills' : 'Subagents'}
+          </div>
           <div className="max-h-[240px] overflow-y-auto py-1">
-            {filteredSkills.map((skill, idx) => (
-              <button
-                key={skill.slug}
-                type="button"
-                onClick={() => selectSkill(skill)}
-                className={cn(
-                  'w-full text-left px-3 py-2.5 flex items-start gap-2.5 transition-colors',
-                  idx === selectedIndex
-                    ? isDark ? 'bg-white/[0.08]' : 'bg-blue-50'
-                    : isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-gray-50'
-                )}
-              >
-                <Zap size={14} className={cn(
-                  'shrink-0 mt-0.5',
-                  idx === selectedIndex
-                    ? isDark ? 'text-blue-400' : 'text-blue-600'
-                    : isDark ? 'text-white/30' : 'text-gray-400'
-                )} />
-                <div className="min-w-0">
-                  <div className={cn('text-sm font-medium', isDark ? 'text-white/80' : 'text-gray-800')}>
-                    /{skill.slug}
-                  </div>
-                  {skill.description && (
-                    <div className={cn('text-xs mt-0.5 truncate', isDark ? 'text-white/35' : 'text-gray-500')}>
-                      {skill.description.split('.')[0]}
-                    </div>
+            {filteredItems.map((item, idx) => {
+              const isSkill = dropdownMode === 'skills';
+              const key = isSkill ? (item as SkillSuggestion).slug : (item as AgentSuggestion).name;
+              const label = isSkill ? `/${(item as SkillSuggestion).slug}` : `@${(item as AgentSuggestion).name}`;
+              const Icon = isSkill ? Zap : Bot;
+
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => isSkill ? selectSkill(item as SkillSuggestion) : selectAgent(item as AgentSuggestion)}
+                  className={cn(
+                    'w-full text-left px-3 py-2.5 flex items-start gap-2.5 transition-colors',
+                    idx === selectedIndex
+                      ? isDark ? 'bg-white/[0.08]' : 'bg-blue-50'
+                      : isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-gray-50'
                   )}
-                </div>
-              </button>
-            ))}
+                >
+                  <Icon size={14} className={cn(
+                    'shrink-0 mt-0.5',
+                    idx === selectedIndex
+                      ? isDark ? 'text-blue-400' : 'text-blue-600'
+                      : isDark ? 'text-white/30' : 'text-gray-400'
+                  )} />
+                  <div className="min-w-0">
+                    <div className={cn('text-sm font-medium', isDark ? 'text-white/80' : 'text-gray-800')}>
+                      {label}
+                    </div>
+                    {item.description && (
+                      <div className={cn('text-xs mt-0.5 truncate', isDark ? 'text-white/35' : 'text-gray-500')}>
+                        {item.description.split('.')[0]}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -229,7 +326,7 @@ export function ChatInput({
         {selectedSkill && (
           <button
             type="button"
-            onClick={clearSelectedSkill}
+            onClick={clearSelection}
             className={cn(
               'shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors',
               isDark
@@ -243,12 +340,34 @@ export function ChatInput({
           </button>
         )}
 
+        {/* Selected agent badge */}
+        {selectedAgent && (
+          <button
+            type="button"
+            onClick={clearSelection}
+            className={cn(
+              'shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors',
+              isDark
+                ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25'
+                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+            )}
+          >
+            <Bot size={12} />
+            @{selectedAgent.name}
+            <span className={cn('ml-0.5', isDark ? 'text-emerald-400/50' : 'text-emerald-400')}>×</span>
+          </button>
+        )}
+
         <textarea
           ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={selectedSkill ? `Auftrag für ${selectedSkill.name}...` : placeholder}
+          placeholder={
+            selectedSkill ? `Auftrag für ${selectedSkill.name}...` :
+            selectedAgent ? `Aufgabe für @${selectedAgent.name}...` :
+            placeholder
+          }
           disabled={disabled || isStreaming}
           rows={1}
           className={cn(
