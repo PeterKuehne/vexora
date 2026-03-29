@@ -19,17 +19,19 @@ import { useToast } from '../contexts/ToastContext';
 import { useDocuments } from '../contexts/DocumentContext';
 import type { DocumentMetadata } from '../contexts/DocumentContext';
 import { PermissionEditDialog } from './PermissionEditDialog';
+import DocumentPreview from './DocumentPreview';
 
 interface DocumentItemProps {
   document: DocumentMetadata;
   onDelete: (id: string) => void;
   onEditPermissions: (document: DocumentMetadata) => void;
+  onPreview: (document: DocumentMetadata) => void;
   isSelectionMode: boolean;
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
 }
 
-function DocumentRow({ document, onDelete, onEditPermissions, isSelectionMode, isSelected, onToggleSelect }: DocumentItemProps) {
+function DocumentRow({ document, onDelete, onEditPermissions, onPreview, isSelectionMode, isSelected, onToggleSelect }: DocumentItemProps) {
   const { isDark } = useTheme();
   const { user } = useAuth();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -170,15 +172,17 @@ function DocumentRow({ document, onDelete, onEditPermissions, isSelectionMode, i
       {/* Name Column */}
       <td className="px-3 py-3">
         <div className="flex flex-col">
-          <span
+          <button
+            onClick={() => onPreview(document)}
             className={`
-              text-[13px] font-medium truncate max-w-xs
-              ${isDark ? 'text-gray-200' : 'text-gray-800'}
+              text-[13px] font-medium truncate max-w-xs text-left
+              ${isDark ? 'text-gray-200 hover:text-blue-400' : 'text-gray-800 hover:text-blue-600'}
+              transition-colors cursor-pointer
             `}
-            title={document.originalName}
+            title={`${document.originalName} — Klicken für Vorschau`}
           >
             {document.originalName}
-          </span>
+          </button>
           {/* Tags inline */}
           {document.tags && document.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">
@@ -408,6 +412,9 @@ export function DocumentList({ searchQuery = '' }: DocumentListProps) {
 
   // Permission Edit Dialog state
   const [permissionEditDocument, setPermissionEditDocument] = useState<DocumentMetadata | null>(null);
+
+  // Preview state
+  const [previewDocument, setPreviewDocument] = useState<DocumentMetadata | null>(null);
 
   /**
    * Get German label for classification
@@ -718,6 +725,7 @@ export function DocumentList({ searchQuery = '' }: DocumentListProps) {
                   document={document}
                   onDelete={deleteDocument}
                   onEditPermissions={handleEditPermissions}
+                  onPreview={setPreviewDocument}
                   isSelectionMode={isSelectionMode}
                   isSelected={selectedIds.has(document.id)}
                   onToggleSelect={toggleSelectDocument}
@@ -744,6 +752,14 @@ export function DocumentList({ searchQuery = '' }: DocumentListProps) {
           isOpen={true}
           onClose={() => setPermissionEditDocument(null)}
           onSave={handleSavePermissions}
+        />
+      )}
+
+      {/* Document preview modal */}
+      {previewDocument && (
+        <DocumentPreview
+          document={previewDocument}
+          onClose={() => setPreviewDocument(null)}
         />
       )}
     </div>

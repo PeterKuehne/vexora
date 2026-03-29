@@ -183,6 +183,48 @@ router.get('/categories', authenticateToken, asyncHandler(async (req: Authentica
   res.json({ categories: DOCUMENT_CATEGORIES })
 }))
 
+// Get document content — reconstructed from Weaviate chunks
+router.get('/:id/content', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+
+  // Permission check
+  await documentService.setUserContext(
+    req.user?.user_id || '',
+    req.user?.role || '',
+    req.user?.department || ''
+  );
+  const accessibleIds = await documentService.getAccessibleDocumentIds();
+  await documentService.clearUserContext();
+
+  if (!accessibleIds.includes(id || '')) {
+    res.status(404).json({ error: 'Dokument nicht gefunden oder nicht autorisiert' });
+    return;
+  }
+
+  // Get chunks from Weaviate, ordered by chunkIndex
+  const { vectorServiceV2 } = await import('../services/VectorServiceV2.js');
+  const chunks = await vectorServiceV2.getChunksByDocumentIds([id!], {
+    maxChunksPerDocument: 200,
+    levelFilter: [1, 2],
+  });
+
+  if (chunks.length === 0) {
+    res.json({ content: '', chunks: 0, message: 'Dokument hat keinen indexierten Inhalt.' });
+    return;
+  }
+
+  // Sort by chunkIndex and reconstruct content
+  const sorted = chunks.sort((a, b) => a.chunk.chunkIndex - b.chunk.chunkIndex);
+  const content = sorted.map(c => c.chunk.content).join('\n\n');
+
+  res.json({
+    content,
+    chunks: sorted.length,
+    documentName: sorted[0]?.document.originalName || '',
+    pages: sorted[0]?.document.pages || 0,
+  });
+}));
+
 // Get single document (RLS-filtered)
 router.get('/:id', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params
