@@ -290,6 +290,25 @@ export function readReference(skillDirPath: string, refName: string): string | n
   }
 }
 
+/**
+ * List Python scripts in a skill's scripts/ directory.
+ */
+export function listScripts(skillDirPath: string): string[] {
+  const scriptsDir = join(skillDirPath, 'scripts');
+  if (!existsSync(scriptsDir)) {
+    return [];
+  }
+
+  try {
+    return readdirSync(scriptsDir).filter(f => {
+      const stat = statSync(join(scriptsDir, f));
+      return stat.isFile() && f.endsWith('.py');
+    });
+  } catch {
+    return [];
+  }
+}
+
 // Singleton-style exports for convenience
 export const skillLoader = {
   parseSkillFile,
@@ -298,4 +317,5 @@ export const skillLoader = {
   writeSkillFile,
   listReferences,
   readReference,
+  listScripts,
 };

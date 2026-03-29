@@ -17,6 +17,7 @@ import { compareSkillTool } from './run-skill-test.js';
 import { agentTool } from './agent.js';
 import { listAgentsTool } from './list-agents.js';
 import { createAgentTool } from './create-agent.js';
+import { runScriptTool } from './run-script.js';
 
 /**
  * Register all built-in tools with the ToolRegistry
@@ -41,6 +42,9 @@ export function registerBuiltinTools(): void {
   toolRegistry.register(agentTool);
   toolRegistry.register(listAgentsTool);
   toolRegistry.register(createAgentTool);
+
+  // Script execution
+  toolRegistry.register(runScriptTool);
 
   console.log(`[AgentSystem] ${toolRegistry.size} built-in tools registered`);
 }
