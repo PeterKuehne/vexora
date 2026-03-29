@@ -19,7 +19,7 @@ const USER_AGENTS_DIR = join(PROJECT_ROOT, 'server', 'user-agents');
 // Tools that subagents are NOT allowed to use (meta-tools, nesting prevention)
 const FORBIDDEN_TOOLS = new Set([
   'agent', 'create_agent', 'list_agents',
-  'create_skill', 'update_skill', 'load_skill', 'list_skills', 'run_skill_test',
+  'create_skill', 'update_skill', 'load_skill', 'list_skills', 'compare_skill',
   'send_notification',
 ]);
 

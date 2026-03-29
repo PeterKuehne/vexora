@@ -1,8 +1,12 @@
 /**
- * Run Skill Test Tool - Subagent-based skill testing
+ * Compare Skill Tool — Parallel A/B Testing
  *
- * Spawns a ToolLoopAgent subagent to test a skill.
- * Can run with or without a skill loaded, enabling A/B comparison.
+ * Spawns two ToolLoopAgent subagents simultaneously:
+ * - Subagent A: WITH skill instructions
+ * - Subagent B: WITHOUT skill (baseline)
+ *
+ * Returns a structured comparison as Markdown.
+ * Replaces the old run_skill_test (single-run) tool.
  */
 
 import { z } from 'zod';
@@ -10,88 +14,192 @@ import { ToolLoopAgent, stepCountIs } from 'ai';
 import { resolveModel, getProviderOptions } from '../ai-provider.js';
 import { toolRegistry } from '../ToolRegistry.js';
 import { skillRegistry } from '../../skills/SkillRegistry.js';
-import type { AgentTool, AgentUserContext, ToolResult } from '../types.js';
+import type { AgentTool, AgentUserContext, ToolResult, ToolExecutionOptions } from '../types.js';
 
-export const runSkillTestTool: AgentTool = {
-  name: 'run_skill_test',
-  skillGated: 'skill-creator',
-  description: 'Testet einen Skill indem ein unabhängiger Sub-Agent gestartet wird der einen Test-Prompt mit (oder ohne) dem Skill ausführt. Nutze dieses Tool um Skills zu evaluieren und zu vergleichen.',
-  inputSchema: z.object({
-    prompt: z.string().describe('Der Test-Prompt den der Sub-Agent ausführen soll (eine realistische User-Anfrage)'),
-    skill_slug: z.string().optional().describe('Slug des Skills der getestet werden soll. Wenn leer, wird der Test OHNE Skill ausgeführt (Baseline).'),
-    model: z.string().optional().describe('Model für den Sub-Agent (default: qwen3:8b)'),
-    max_steps: z.string().optional().describe('Maximale Schritte für den Sub-Agent (default: 8)'),
-  }),
-  parameters: {
-    type: 'object',
-    required: ['prompt'],
-    properties: {
-      prompt: {
-        type: 'string',
-        description: 'Der Test-Prompt den der Sub-Agent ausführen soll (eine realistische User-Anfrage)',
-      },
-      skill_slug: {
-        type: 'string',
-        description: 'Slug des Skills der getestet werden soll. Wenn leer, wird der Test OHNE Skill ausgeführt (Baseline).',
-      },
-      model: {
-        type: 'string',
-        description: 'Model für den Sub-Agent (default: qwen3:8b)',
-      },
-      max_steps: {
-        type: 'string',
-        description: 'Maximale Schritte für den Sub-Agent (default: 8)',
-      },
-    },
-  },
+interface SubagentResult {
+  text: string;
+  steps: number;
+  inputTokens: number;
+  outputTokens: number;
+  durationMs: number;
+  toolsUsed: string[];
+}
 
-  async execute(args: Record<string, unknown>, context: AgentUserContext): Promise<ToolResult> {
-    const prompt = args.prompt as string;
-    const skillSlug = args.skill_slug as string | undefined;
-    const model = (args.model as string) || 'ovh:gpt-oss-120b';
-    const maxSteps = parseInt((args.max_steps as string) || '8', 10);
-
-    if (!prompt) {
-      return { output: 'Fehler: prompt ist erforderlich.', error: 'missing prompt' };
-    }
-
-    try {
-      const startTime = Date.now();
-
-      // Build system prompt for the subagent
-      let systemPrompt = `Du bist ein KI-Assistent der Aufgaben mit Hilfe von Tools erledigt.
+const BASE_SYSTEM_PROMPT = `Du bist ein KI-Assistent der Aufgaben mit Hilfe von Tools erledigt.
 
 REGELN:
-- Nutze rag_search für jede Frage um die Wissensdatenbank zu durchsuchen
+- Nutze rag_search um die Wissensdatenbank zu durchsuchen
 - Antworte NUR basierend auf Tool-Ergebnissen
 - Wenn keine Ergebnisse gefunden werden, sage das ehrlich
 - Antworte auf Deutsch
-- Zitiere Quellen (Dokumentname, Seitenzahl)`;
+- Zitiere Quellen (Dokumentname, Seitenzahl)
 
-      // If a skill slug is provided, load and inject the skill
-      let skillName = '(kein Skill)';
-      let skillTools: string[] = [];
-      if (skillSlug) {
-        const skill = await skillRegistry.getSkillBySlug(
-          { userId: context.userId, userRole: context.userRole, department: context.department },
-          skillSlug,
-        );
+WICHTIG: Du MUSST am Ende eine ausfuehrliche Antwort als Text schreiben.
+Deine letzte Antwort muss IMMER Text sein — KEIN Tool-Aufruf.`;
 
-        if (!skill) {
-          return {
-            output: `Skill "${skillSlug}" nicht gefunden.`,
-            error: 'skill not found',
-          };
-        }
+async function runSubagent(
+  prompt: string,
+  systemPrompt: string,
+  tools: Record<string, any>,
+  maxSteps: number,
+): Promise<SubagentResult> {
+  const startTime = Date.now();
 
-        skillName = skill.name;
+  const subagent = new ToolLoopAgent({
+    model: resolveModel('ovh:gpt-oss-120b'),
+    instructions: systemPrompt,
+    tools,
+    stopWhen: stepCountIs(maxSteps),
+    temperature: 0.1,
+    maxOutputTokens: 4096,
+    providerOptions: getProviderOptions('ovh:gpt-oss-120b'),
+  });
 
-        // Resolve content from SKILL.md or DB definition
-        const content = await skillRegistry.getSkillContent(skill);
-        skillTools = content.tools;
+  const result = await subagent.generate({ prompt });
 
-        // Inject skill instructions into system prompt
-        systemPrompt += `
+  const durationMs = Date.now() - startTime;
+  const toolsUsed: string[] = [];
+  for (const step of result.steps || []) {
+    for (const tc of step.toolCalls || []) {
+      if (!toolsUsed.includes(tc.toolName)) {
+        toolsUsed.push(tc.toolName);
+      }
+    }
+  }
+
+  // Extract text, with fallback to last tool results
+  let text = result.text || '';
+  if (!text && result.steps && result.steps.length > 0) {
+    const lastResults = result.steps
+      .flatMap(s => s.toolResults || [])
+      .filter((r: any) => r.result && typeof r.result === 'string' && r.result.length > 50)
+      .map((r: any) => r.result as string);
+    if (lastResults.length > 0) {
+      text = lastResults.slice(-2).join('\n\n---\n\n');
+    }
+  }
+
+  return {
+    text: text || '(Keine Antwort generiert)',
+    steps: result.steps?.length || 0,
+    inputTokens: result.usage?.inputTokens || 0,
+    outputTokens: result.usage?.outputTokens || 0,
+    durationMs,
+    toolsUsed,
+  };
+}
+
+function formatComparison(
+  prompt: string,
+  skillName: string,
+  skillSlug: string,
+  withSkill: SubagentResult,
+  baseline: SubagentResult,
+): string {
+  const stepsDelta = withSkill.steps - baseline.steps;
+  const durationDelta = withSkill.durationMs - baseline.durationMs;
+  const totalTokensA = withSkill.inputTokens + withSkill.outputTokens;
+  const totalTokensB = baseline.inputTokens + baseline.outputTokens;
+  const tokensDelta = totalTokensA - totalTokensB;
+
+  const formatDelta = (d: number, unit: string) => {
+    if (d === 0) return '±0';
+    return d > 0 ? `+${d}${unit}` : `${d}${unit}`;
+  };
+
+  const formatTokens = (t: number) => t >= 1000 ? `${(t / 1000).toFixed(1)}K` : String(t);
+
+  // Auto-assessment
+  const assessments: string[] = [];
+  if (withSkill.toolsUsed.length > baseline.toolsUsed.length) {
+    assessments.push(`Skill nutzt mehr Tools (${withSkill.toolsUsed.join(', ')} vs. ${baseline.toolsUsed.join(', ')})`);
+  }
+  if (withSkill.text.length > baseline.text.length * 1.3) {
+    assessments.push('Skill liefert ausfuehrlichere Antwort');
+  }
+  if (totalTokensA > totalTokensB * 1.5) {
+    assessments.push(`Skill verbraucht ${Math.round((totalTokensA / totalTokensB - 1) * 100)}% mehr Tokens`);
+  }
+  if (withSkill.text.includes('Quelle') || withSkill.text.includes('Dokument:') || withSkill.text.includes('Seite')) {
+    if (!baseline.text.includes('Quelle') && !baseline.text.includes('Dokument:')) {
+      assessments.push('Skill zitiert Quellen, Baseline nicht');
+    }
+  }
+  if (withSkill.text === '(Keine Antwort generiert)') {
+    assessments.push('PROBLEM: Skill hat keine Antwort generiert');
+  }
+  if (baseline.text.length > withSkill.text.length * 1.5 && withSkill.text !== '(Keine Antwort generiert)') {
+    assessments.push('Baseline liefert ausfuehrlichere Antwort — Skill-Instruktionen pruefen');
+  }
+
+  const assessmentText = assessments.length > 0
+    ? assessments.map(a => `- ${a}`).join('\n')
+    : '- Keine signifikanten Unterschiede erkannt';
+
+  return `## A/B Vergleich: "${skillName}" (${skillSlug})
+
+**Test-Prompt:** "${prompt}"
+
+| Metrik | MIT Skill | Baseline (ohne) | Delta |
+|--------|-----------|-----------------|-------|
+| Steps | ${withSkill.steps} | ${baseline.steps} | ${formatDelta(stepsDelta, '')} |
+| Dauer | ${(withSkill.durationMs / 1000).toFixed(1)}s | ${(baseline.durationMs / 1000).toFixed(1)}s | ${formatDelta(Math.round(durationDelta / 1000), 's')} |
+| Tokens | ${formatTokens(totalTokensA)} | ${formatTokens(totalTokensB)} | ${formatDelta(tokensDelta, '')} |
+| Tools | ${withSkill.toolsUsed.join(', ') || '(keine)'} | ${baseline.toolsUsed.join(', ') || '(keine)'} | |
+
+### Antwort MIT Skill:
+${withSkill.text.substring(0, 2000)}${withSkill.text.length > 2000 ? '\n\n(gekuerzt...)' : ''}
+
+### Antwort OHNE Skill (Baseline):
+${baseline.text.substring(0, 2000)}${baseline.text.length > 2000 ? '\n\n(gekuerzt...)' : ''}
+
+### Auto-Bewertung:
+${assessmentText}`;
+}
+
+export const compareSkillTool: AgentTool = {
+  name: 'compare_skill',
+  skillGated: 'skill-creator',
+  description: 'Testet einen Skill mit A/B-Vergleich: fuehrt parallel zwei Subagents aus (MIT Skill vs. OHNE Skill) und liefert einen strukturierten Vergleich. Nutze dieses Tool nach dem Erstellen oder Aktualisieren eines Skills.',
+  inputSchema: z.object({
+    prompt: z.string().describe('Realistischer Test-Prompt (was ein echter User sagen wuerde)'),
+    skill_slug: z.string().describe('Slug des Skills der getestet wird'),
+    max_steps: z.number().optional().describe('Max Steps pro Subagent (default: 8)'),
+  }),
+  parameters: {
+    type: 'object',
+    required: ['prompt', 'skill_slug'],
+    properties: {
+      prompt: { type: 'string', description: 'Realistischer Test-Prompt' },
+      skill_slug: { type: 'string', description: 'Slug des Skills' },
+      max_steps: { type: 'number', description: 'Max Steps pro Subagent (default: 8)' },
+    },
+  },
+
+  async execute(args: Record<string, unknown>, context: AgentUserContext, options?: ToolExecutionOptions): Promise<ToolResult> {
+    const prompt = args.prompt as string;
+    const skillSlug = args.skill_slug as string;
+    const maxSteps = (args.max_steps as number) || 8;
+
+    if (!prompt || !skillSlug) {
+      return { output: 'Fehler: prompt und skill_slug sind erforderlich.', error: 'missing_fields' };
+    }
+
+    // Load skill
+    const skill = await skillRegistry.getSkillBySlug(
+      { userId: context.userId, userRole: context.userRole, department: context.department },
+      skillSlug,
+    );
+
+    if (!skill) {
+      return { output: `Skill "${skillSlug}" nicht gefunden.`, error: 'skill_not_found' };
+    }
+
+    const content = await skillRegistry.getSkillContent(skill);
+    const skillTools = content.tools;
+
+    // Build system prompts
+    const withSkillPrompt = `${BASE_SYSTEM_PROMPT}
 
 === SKILL: ${skill.name} ===
 Empfohlene Tools: ${content.tools.join(', ')}
@@ -99,79 +207,54 @@ Empfohlene Tools: ${content.tools.join(', ')}
 ${content.body}
 === ENDE SKILL ===
 
-Befolge die Skill-Instruktionen oben um die Aufgabe zu lösen.`;
-      }
+Befolge die Skill-Instruktionen oben um die Aufgabe zu loesen.`;
 
-      // Get tools for the subagent — only the working tools, not meta tools
-      const subagentToolNames = skillTools.length > 0
-        ? skillTools
-        : ['rag_search', 'read_chunk'];
+    const baselinePrompt = BASE_SYSTEM_PROMPT;
 
-      // Filter to tools that exist and are available to this user
-      const allTools = toolRegistry.getAISDKTools(context, subagentToolNames);
+    // Build tools for subagents
+    const subagentToolNames = skillTools.length > 0
+      ? skillTools
+      : ['rag_search', 'read_chunk'];
+    const subagentTools = toolRegistry.getAISDKTools(context, subagentToolNames, undefined, { strict: true });
 
-      // Run the subagent (ToolLoopAgent — AI SDK best practice)
-      const subagent = new ToolLoopAgent({
-        model: resolveModel(model),
-        instructions: systemPrompt,
-        tools: allTools,
-        stopWhen: stepCountIs(maxSteps),
-        temperature: 0.1,
-        maxOutputTokens: 4096,
-        providerOptions: getProviderOptions(model),
-      });
+    try {
+      console.log(`[CompareSkill] Starting A/B test for "${skillSlug}" with prompt: "${prompt.substring(0, 60)}..."`);
 
-      const result = await subagent.generate({ prompt });
+      // Run both subagents in parallel
+      const [withSkill, baseline] = await Promise.all([
+        runSubagent(prompt, withSkillPrompt, subagentTools, maxSteps),
+        runSubagent(prompt, baselinePrompt, subagentTools, maxSteps),
+      ]);
 
-      const durationMs = Date.now() - startTime;
-      const inputTokens = result.usage?.inputTokens || 0;
-      const outputTokens = result.usage?.outputTokens || 0;
-      const totalSteps = result.steps?.length || 0;
+      console.log(`[CompareSkill] A/B test complete: with-skill=${withSkill.steps} steps/${withSkill.durationMs}ms, baseline=${baseline.steps} steps/${baseline.durationMs}ms`);
 
-      // Collect tool usage info
-      const toolsUsed: string[] = [];
-      for (const step of result.steps || []) {
-        for (const tc of step.toolCalls || []) {
-          if (!toolsUsed.includes(tc.toolName)) {
-            toolsUsed.push(tc.toolName);
-          }
-        }
-      }
-
-      // Format output
-      const output = [
-        `## Test-Ergebnis: ${skillSlug ? `mit Skill "${skillName}"` : 'OHNE Skill (Baseline)'}`,
-        '',
-        `**Prompt:** ${prompt}`,
-        `**Model:** ${model}`,
-        `**Dauer:** ${(durationMs / 1000).toFixed(1)}s`,
-        `**Steps:** ${totalSteps}`,
-        `**Tokens:** ${inputTokens} input, ${outputTokens} output`,
-        `**Tools genutzt:** ${toolsUsed.length > 0 ? toolsUsed.join(', ') : '(keine)'}`,
-        '',
-        '### Antwort des Sub-Agenten:',
-        '',
-        result.text || '(keine Antwort generiert)',
-      ].join('\n');
+      const comparison = formatComparison(prompt, skill.name, skillSlug, withSkill, baseline);
 
       return {
-        output,
+        output: comparison,
         metadata: {
-          skillSlug: skillSlug || null,
-          skillName,
-          model,
-          durationMs,
-          totalSteps,
-          inputTokens,
-          outputTokens,
-          toolsUsed,
-          hasAnswer: !!result.text,
+          skillSlug,
+          skillName: skill.name,
+          withSkill: {
+            steps: withSkill.steps,
+            tokens: withSkill.inputTokens + withSkill.outputTokens,
+            durationMs: withSkill.durationMs,
+            toolsUsed: withSkill.toolsUsed,
+            hasAnswer: withSkill.text !== '(Keine Antwort generiert)',
+          },
+          baseline: {
+            steps: baseline.steps,
+            tokens: baseline.inputTokens + baseline.outputTokens,
+            durationMs: baseline.durationMs,
+            toolsUsed: baseline.toolsUsed,
+            hasAnswer: baseline.text !== '(Keine Antwort generiert)',
+          },
         },
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {
-        output: `Fehler beim Skill-Test: ${message}`,
+        output: `Fehler beim A/B-Test: ${message}`,
         error: message,
       };
     }

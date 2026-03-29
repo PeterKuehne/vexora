@@ -13,7 +13,7 @@ import { listSkillsTool } from './list-skills.js';
 import { loadSkillTool } from './load-skill.js';
 import { createSkillTool } from './create-skill.js';
 import { updateSkillTool } from './update-skill.js';
-import { runSkillTestTool } from './run-skill-test.js';
+import { compareSkillTool } from './run-skill-test.js';
 import { agentTool } from './agent.js';
 import { listAgentsTool } from './list-agents.js';
 import { createAgentTool } from './create-agent.js';
@@ -35,7 +35,7 @@ export function registerBuiltinTools(): void {
   toolRegistry.register(loadSkillTool);
   toolRegistry.register(createSkillTool);
   toolRegistry.register(updateSkillTool);
-  toolRegistry.register(runSkillTestTool);
+  toolRegistry.register(compareSkillTool);
 
   // Subagent tools
   toolRegistry.register(agentTool);

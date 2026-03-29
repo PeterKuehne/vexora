@@ -1,260 +1,318 @@
 ---
 name: skill-creator
-description: >-
-  Erstellt, testet und verbessert Skills iterativ mit automatisierten
-  Sub-Agent-Tests. Nutze diesen Skill wenn der User sagt 'erstelle einen Skill',
-  'neuen Skill anlegen', 'Skill bauen', 'Workflow automatisieren', 'Skill
+description: Erstellt, testet und verbessert Skills mit automatischem A/B-Testing
+  und iterativer Verbesserung. Nutze diesen Skill wenn der User sagt 'erstelle einen
+  Skill', 'neuen Skill bauen', 'Skill erstellen', 'Workflow automatisieren', 'Skill
   verbessern', 'Skill testen', oder einen wiederholbaren Prozess beschreibt den
-  er als Skill speichern möchte. Auch verwenden wenn der User sagt 'mach daraus
-  einen Skill', 'das will ich öfter machen', oder 'kannst du das als Vorlage
-  speichern'. NICHT verwenden bei: einmaligen Aufgaben die kein Skill sein
-  müssen, reiner Dokumentensuche, oder wenn der User nur eine Frage hat.
-allowed-tools: create_skill update_skill load_skill list_skills run_skill_test
-metadata:
-  version: "4.0.0"
-  category: meta
-  tags: meta automatisierung skill-erstellung evaluation
+  er als Skill haben moechte.
+allowed-tools: create_skill update_skill compare_skill load_skill list_skills agent list_agents
 ---
 
 # Skill Creator
 
-Erstelle, teste und verbessere Skills mit automatisierten Sub-Agent-Tests.
+Erstelle, teste und verbessere Skills mit automatischem A/B-Testing.
 
-## Überblick
+Dein Job ist herauszufinden wo der User im Prozess steht und ihm beim naechsten Schritt zu helfen. Vielleicht will er einen neuen Skill, vielleicht hat er schon einen Entwurf, vielleicht will er einen bestehenden verbessern. Sei flexibel.
 
-Der Prozess auf einen Blick:
+## Der Kern-Loop
 
-1. Verstehe was der Skill tun soll
-2. Schreibe einen Entwurf
-3. Teste ihn mit Sub-Agenten (mit UND ohne Skill)
-4. Zeige dem User die Ergebnisse, sammle Feedback
-5. Verbessere den Skill basierend auf dem Feedback
-6. Wiederhole bis der User zufrieden ist
-7. Optimiere die Description für besseres Triggering
+```
+1. Intent verstehen → 2. Skill schreiben → 3. Erstellen
+                                               │
+    6. Fertig ←── 5. Verbessern ←── 4. A/B Testen
+         ↑              │                │
+         └──────────────┘                │
+              (wiederholen bis gut)       │
+                                         ▼
+                               User-Feedback
+```
 
-Finde heraus wo der User im Prozess steht und hilf von dort aus weiter. Vielleicht will er einen neuen Skill, vielleicht hat er schon einen Entwurf, vielleicht will er einen bestehenden verbessern. Sei flexibel — wenn der User sagt "keine Evaluation nötig, einfach bauen", dann mach das.
-
-## Kommunikation
-
-Achte auf Kontext-Signale um den richtigen Ton zu treffen. Manche User sind erfahrene Entwickler, andere nutzen das System zum ersten Mal.
-
-- Fachbegriffe wie "Evaluation" oder "Benchmark" sind OK, aber "JSON-Array" oder "Assertion" nur verwenden wenn der User selbst technisch kommuniziert
-- Im Zweifel: kurz erklären statt voraussetzen
-- Antworte auf Deutsch
-- Sei geduldig und flexibel
+---
 
 ## Phase 1: Intent erfassen
 
-Die aktuelle Konversation enthält möglicherweise bereits einen Workflow den der User als Skill speichern möchte (z.B. "mach daraus einen Skill"). Wenn ja, extrahiere zuerst aus dem bisherigen Verlauf:
-- Welche Tools wurden genutzt und in welcher Reihenfolge?
-- Welche Korrekturen hat der User gemacht?
-- Welche Input/Output-Formate wurden verwendet?
+Verstehe was der User will. Frage:
+- Was soll der Skill koennen? (konkretes Beispiel)
+- Wann soll er automatisch ausgeloest werden? (Trigger-Phrasen)
+- Welches Ausgabeformat? (Tabelle, Fliesstext, Aufzaehlung)
 
-Der User muss eventuell Lücken füllen — lass ihn bestätigen bevor du weitermachst.
+Wenn der User schon einen Konversationsverlauf hat der zeigt was er will (z.B. "mach das was wir gerade gemacht haben als Skill"), extrahiere die Antworten aus dem Verlauf. Frage nur was unklar ist.
 
-Kläre mit dem User:
-- Was soll der Skill ermöglichen?
-- Wann soll er ausgelöst werden? (welche Phrasen/Kontexte)
-- Was ist das erwartete Ausgabeformat?
-- Sollen wir Test-Cases aufsetzen um den Skill zu prüfen? Skills mit objektiv prüfbarem Output (Datenextraktion, strukturierte Reports, feste Workflows) profitieren davon. Skills mit subjektivem Output (Schreibstil, kreative Texte) oft nicht. Schlage den passenden Default vor, aber lass den User entscheiden.
+## Phase 2: Interview & Recherche
 
-## Phase 2: Interview und Recherche
+Bevor du schreibst:
+- **Wissensdatenbank durchsuchen**: Nutze `rag_search` um nach verwandten Dokumenten, Vorlagen oder Beispielen zu suchen die als Referenz fuer den neuen Skill dienen koennten. Wenn der User z.B. einen Vertrags-Skill will, suche nach bestehenden Vertraegen in der Wissensdatenbank.
+- Edge Cases: Was passiert wenn keine Dokumente gefunden werden?
+- Input/Output: Braucht der Skill bestimmte Eingaben?
+- Abhaengigkeiten: Welche Tools werden gebraucht?
+- Qualitaetskriterien: Woran erkennt man eine gute Antwort?
 
-Frage proaktiv nach:
-- Edge Cases (Was passiert wenn keine Ergebnisse gefunden werden?)
-- Input/Output-Formate und Beispiele
-- Erfolgskriterien (wann ist das Ergebnis gut?)
-- Abhängigkeiten (welche Tools werden gebraucht?)
+## Phase 3: Skill schreiben & erstellen
 
-Warte mit dem Schreiben bis diese Phase abgeschlossen ist.
-
-## Phase 3: Skill schreiben
-
-### Anatomie eines Skills
+### SKILL.md Anatomie
 
 ```
 skill-name/
-├── SKILL.md              # Pflicht — YAML Frontmatter + Markdown Body
-└── references/            # Optional — Doku die bei Bedarf geladen wird
-    └── beispiel.md
+├── SKILL.md (Pflicht)
+│   ├── YAML Frontmatter (name, description)
+│   └── Markdown Instruktionen
+└── references/ (optional, fuer Progressive Disclosure)
+    ├── vorlage.md        # Beispiel: Dokumentvorlage
+    ├── api-guide.md      # Beispiel: API-Referenz
+    └── checkliste.md     # Beispiel: Qualitaetscheckliste
 ```
 
-Skills nutzen drei Ebenen (Progressive Disclosure):
-1. **Metadaten** (name + description) — Immer im Kontext (~100 Wörter)
-2. **SKILL.md Body** — Wird geladen wenn der Skill triggert (unter 500 Zeilen halten)
-3. **References** — Bei Bedarf einzeln geladen (unbegrenzt)
+### Progressive Disclosure — 3 Stufen
 
-Wenn ein Skill länger als 500 Zeilen wird: Detail-Dokumentation in `references/` auslagern und aus der SKILL.md klar verlinken mit Hinweis wann die Datei gelesen werden soll.
+1. **Frontmatter** (immer geladen): Name + Description — entscheidet ob der Skill aktiviert wird
+2. **SKILL.md Body** (bei Trigger geladen): Kern-Instruktionen — unter 500 Zeilen halten
+3. **references/** (on demand): Detaillierte Dokumentation, Vorlagen, Beispiele — nur geladen wenn der Skill darauf verweist
 
-### Die Description — das Wichtigste
+Halte SKILL.md schlank. Wenn du Vorlagen, Checklisten, API-Docs oder Domainwissen hast das laenger als 50 Zeilen ist, packe es in `references/` und verweise darauf:
 
-Die Description bestimmt ob der Agent den Skill lädt. Sie ist der primäre Trigger-Mechanismus. Alle "wann verwenden"-Infos gehören hierhin, nicht in den Body.
-
-Struktur: `[Was er tut]. Nutze diesen Skill wenn der User [Trigger-Phrasen]. [Kernfähigkeiten].`
-
-**Beispiel (gut):**
-"Analysiert Verträge und identifiziert Risiken, Fristen und Pflichten. Nutze diesen Skill wenn der User 'Vertrag prüfen', 'Vertragsanalyse', 'Risiken im Vertrag', 'Vertragsbedingungen' sagt oder ein Vertragsdokument analysieren möchte, auch wenn er nicht explizit 'Vertragsanalyse' sagt. Erstellt strukturierte Reports mit Risiko-Bewertung."
-
-**Beispiel (schlecht):**
-"Hilft bei Dokumenten." (Zu vage, keine Trigger-Phrasen)
-
-Die Tendenz ist dass Skills zu selten getriggert werden. Formuliere die Description etwas "pushiger" — lieber einmal zu viel triggern als ein Mal zu wenig.
-
-### Instruktionen schreiben
-
-- **Imperativ verwenden**: "Durchsuche die Wissensdatenbank" statt "Du solltest durchsuchen"
-- **Erkläre das Warum**: Statt "MUSS immer rag_search nutzen" besser "Nutze rag_search weil die Antwort auf Dokumenten basieren soll, nicht auf Vorwissen — das stellt sicher dass die Informationen aktuell und belegt sind." LLMs haben ein gutes Verständnis für Kontext und Motivation. Wenn du erklärst warum etwas wichtig ist, kann das Modell in Randfällen besser entscheiden als mit starren Regeln.
-- **Struktur**: `##` für Hauptschritte, `###` für Unterpunkte
-- **Beispiele einbauen**: Zeige konkrete Eingabe → Ausgabe Paare. Zum Beispiel:
-
-```
-## Ausgabeformat
-**Beispiel:**
-Eingabe: "Fasse den Vertrag mit der Firma XY zusammen"
-Ausgabe:
-# Vertragszusammenfassung: Firma XY
-## Kernpunkte
-- Laufzeit: 24 Monate ab 01.01.2026
-...
+```markdown
+Bevor du den Vertrag generierst, lies `references/auev-vorlage.md` fuer:
+- Die Standardstruktur mit allen Paragraphen
+- Pflichtfelder und variable Daten
+- Kontaktdaten des Unternehmens
 ```
 
-- **Fehlerbehandlung**: Was tun wenn keine Ergebnisse gefunden werden?
-- **Qualitätskriterien**: Wann ist das Ergebnis gut genug?
-- **Schlank halten**: Jede Zeile in der Instruktion muss ihren Platz verdienen. Wenn etwas nicht hilft, raus damit.
+### Erstellen mit references/
 
-### Ausgabeformate definieren
-
-Wenn der Skill ein bestimmtes Ausgabeformat haben soll, zeige ein konkretes Template:
+Das `create_skill` Tool unterstuetzt einen `references` Parameter — ein JSON-Objekt mit Dateiname und Inhalt:
 
 ```
-## Report-Struktur
-Verwende dieses Template:
-# [Titel]
-## Zusammenfassung
-## Kernerkenntnisse
-## Empfehlungen
+create_skill(
+  name: "auev-generator",
+  description: "...",
+  content: "...",  # SKILL.md Body — verweist auf references/
+  tools: '["rag_search", "create_document"]',
+  references: '{"auev-vorlage.md": "# AUeV Vorlage\n## Struktur\n..."}'
+)
 ```
 
-### Verfügbare Tools für Skills
+### Schreibregeln
 
-- `rag_search` — Dokumentensuche (hybrid: keyword + semantisch)
-- `read_chunk` — Chunk-Details mit Kontext-Erweiterung
-- `graph_query` — Graph-DB für Entitäten und Beziehungen
-- `sql_query` — SQL-Abfragen (nur SELECT)
-- `create_document` — Dokumente im Wissensspeicher erstellen
-- `send_notification` — Benachrichtigungen senden
+- **Beschreibung ist der Trigger**: Die `description` entscheidet ob der Skill geladen wird. Schreibe sie so, dass klar ist WANN der Skill genutzt werden soll. Lieber etwas "pushy" — der Agent soll den Skill eher zu oft als zu selten nutzen.
+- **Imperativ verwenden**: "Suche mit rag_search", nicht "Du solltest rag_search nutzen"
+- **Erklaere das Warum**: Statt "IMMER Quellen zitieren" lieber "Zitiere Quellen weil der User die Aussagen verifizieren koennen muss"
+- **Unter 500 Zeilen SKILL.md**: Lagere Details in `references/` aus und verweise darauf
+- **Referenzen klar benennen**: `references/vorlage.md` nicht `references/doc1.md`
+- **Ausgabeformat definieren**: Zeige dem Skill wie das Ergebnis aussehen soll
 
-### Ergebnis sichern
+### Verfuegbare Tools
 
-Wenn ein Skill Ergebnisse produziert (Reports, Analysen, Zusammenfassungen), füge als letzten Schritt hinzu:
+| Tool | Zweck |
+|------|-------|
+| `rag_search` | Wissensdatenbank durchsuchen (Hybrid: Keyword + Semantisch) |
+| `read_chunk` | Dokument-Chunks im Detail lesen |
+| `graph_query` | Wissensgraph nach Entitaeten/Beziehungen durchsuchen |
+| `sql_query` | Datenbank-Abfragen (nur SELECT) |
+| `create_document` | Neues Dokument erstellen |
+| `agent` | Subagent fuer Teilaufgaben delegieren |
 
-```
-## Letzter Schritt: Ergebnis sichern
-Frage den User: "Soll ich das Ergebnis im Wissensspeicher ablegen?"
-- Ja → Nutze `create_document` mit dem Ergebnis als Inhalt
-- Nein → Aufgabe beenden
-```
+### Erstellen
 
-Füge in dem Fall `create_document` zur Tool-Liste hinzu.
+Schreibe einen Entwurf, lies ihn mit frischen Augen, verbessere ihn — dann `create_skill` aufrufen.
 
-### Skill erstellen
+---
 
-Schreibe einen Entwurf, lies ihn nochmal mit frischen Augen, verbessere ihn — dann erstelle ihn mit `create_skill`.
+## Phase 4: A/B Testing — DAS IST PFLICHT
 
-## Phase 4: Testen mit Sub-Agenten
+Sage dem User NIEMALS "Skill erfolgreich erstellt" ohne ihn vorher getestet zu haben. Ein ungetesteter Skill ist wertlos.
 
-Das ist das Herzstück. Nach dem Erstellen:
+Nach dem Erstellen mit `create_skill` fuehrst du IMMER folgende Schritte aus:
 
-### Test-Prompts definieren
+### Schritt 1: Test-Prompt erstellen
 
-Überlege 2-3 realistische Test-Prompts — was würde ein echter User sagen? Nicht abstrakt, sondern konkret mit Details und Kontext.
+Ueberlege einen realistischen Test-Prompt — was wuerde ein echter User sagen?
 
 **Schlecht:** "Fasse ein Dokument zusammen"
-**Gut:** "Ich hab letzte Woche den neuen Rahmenvertrag mit der Firma Müller GmbH bekommen, kannst du den mal zusammenfassen? Besonders die Kündigungsfristen interessieren mich."
+**Gut:** "Ich hab den neuen Rahmenvertrag mit der Firma Mueller GmbH bekommen, kannst du den mal zusammenfassen? Besonders die Kuendigungsfristen interessieren mich."
 
-Teile die Test-Cases mit dem User: "Hier sind ein paar Test-Fälle die ich ausprobieren möchte. Passen die, oder willst du andere hinzufügen?"
+### Schritt 2: A/B Test ausfuehren
 
-### Tests ausführen
+```
+compare_skill(prompt: "...", skill_slug: "der-slug")
+```
 
-Für jeden Test-Prompt zwei `run_skill_test` Aufrufe machen — beides im selben Schritt starten damit die Ergebnisse etwa gleichzeitig fertig sind:
+Das Tool fuehrt automatisch zwei Subagents parallel aus (MIT Skill vs. OHNE Skill).
 
-1. **Mit Skill**: `run_skill_test(prompt: "...", skill_slug: "der-skill-slug")`
-2. **Ohne Skill (Baseline)**: `run_skill_test(prompt: "...")` (kein skill_slug)
+### Schritt 3: Ergebnis LESEN und BEWERTEN — bevor du antwortest
 
-Der direkte Vergleich zeigt: Was macht der Skill besser (oder schlechter) als der Agent ohne Skill?
+WARTE auf das compare_skill Ergebnis. Lies es vollstaendig. Bewerte:
 
-### Ergebnisse präsentieren
+1. **Hat die Skill-Version eine Antwort generiert?** Wenn "(Keine Antwort generiert)" → der Skill ist kaputt, du MUSST ihn fixen.
+2. **Ist die Skill-Version besser als die Baseline?** Wenn die Baseline besser ist → der Skill muss verbessert werden.
+3. **Werden die Expectations erfuellt?** Pruefe jedes Kriterium.
 
-Zeige dem User für jeden Test-Prompt:
-- Die Antwort **mit** Skill
-- Die Antwort **ohne** Skill
-- Metriken: Dauer, Steps, Tokens, genutzte Tools
-- Deine Einschätzung was besser oder schlechter ist
+### Schritt 4: Bei Problemen — sofort fixen, NICHT dem User "fertig" sagen
 
-Frage nach Feedback zu jedem Ergebnis. Leeres Feedback bedeutet: der User fand es OK. Konzentriere dich bei der Verbesserung auf die Test-Cases wo der User konkrete Kritik hatte.
+Wenn der Test zeigt dass der Skill schlecht ist:
+1. Analysiere WAS schief gelaufen ist (keine Antwort? Falsche Tools? Schlechte Instruktionen?)
+2. Fixe den Skill mit `update_skill`
+3. Fuehre `compare_skill` ERNEUT aus
+4. Erst wenn der Skill besser ist als die Baseline → zeige dem User das Ergebnis
 
-## Phase 5: Verbessern
+### Schritt 5: Dem User das Test-Ergebnis zeigen
 
-Das ist der wichtigste Teil. Du hast die Tests ausgeführt, der User hat Feedback gegeben — jetzt den Skill besser machen.
+Zeige dem User:
+- Die Vergleichstabelle (Metriken)
+- Die Antwort MIT Skill (Auszug)
+- Die Antwort OHNE Skill (Auszug)
+- Deine Einschaetzung: "Der Skill verbessert X, Y, Z gegenueber der Baseline"
+
+Frage: "Passt das so, oder soll ich noch was verbessern?"
+
+---
+
+## Optionale vertiefte Bewertung mit Subagents
+
+Nach dem Basis-Test stehen dir spezialisierte Subagents fuer gruendlichere Bewertung zur Verfuegung. Nutze sie wenn der Basis-Vergleich nicht eindeutig ist:
+
+**1. Grader** — Bewertet Expectations:
+```
+agent(agentType: "skill-grader", task: "Bewerte folgende Antwort gegen diese Expectations:
+Prompt: [test-prompt]
+Antwort: [skill-output]
+Expectations:
+- [expectation 1]
+- [expectation 2]
+...")
+```
+
+**2. Blind-Comparator** — Objektiver A/B-Vergleich:
+```
+agent(agentType: "skill-comparator", task: "Vergleiche diese zwei Antworten auf denselben Prompt. Du weisst NICHT welche von einem Skill kommt.
+Prompt: [test-prompt]
+Antwort A: [eine der beiden]
+Antwort B: [die andere]
+Expectations: [...]")
+```
+
+Wichtig: Randomisiere welche Antwort A und welche B ist, damit kein Bias entsteht.
+
+**3. Analyzer** — Erklaert warum einer besser war:
+```
+agent(agentType: "skill-analyzer", task: "Analysiere warum der Skill [gewonnen/verloren] hat.
+Skill-Instruktionen: [skill content]
+Antwort mit Skill: [output]
+Antwort ohne Skill: [baseline]
+Vergleichs-Begruendung: [comparator reasoning]")
+```
+
+### Wann welchen Subagent nutzen
+
+| Situation | Subagent | Warum |
+|-----------|----------|-------|
+| Nach jedem compare_skill | **skill-grader** | Prueft ob Expectations erfuellt sind |
+| Wenn unklar welcher besser ist | **skill-comparator** | Objektiver Blind-Vergleich |
+| Wenn Skill verliert oder knapp gewinnt | **skill-analyzer** | Findet die Ursache + Verbesserungsvorschlaege |
+
+Du musst nicht ALLE Subagents fuer jeden Test nutzen. Der Grader reicht oft. Comparator und Analyzer sind fuer schwierige Faelle.
+
+---
+
+## Phase 5: Verbessern — Auto-Fix ist PFLICHT bei Problemen
+
+Wenn der A/B-Test Probleme zeigt, fixe sie SOFORT. Sage dem User NICHT "Skill erstellt" wenn der Test fehlschlaegt.
+
+### Haeufigste Probleme und Fixes
+
+**Problem: "Keine Antwort generiert" bei der Skill-Version**
+Das passiert wenn der Subagent alle Steps fuer Tool-Calls verbraucht ohne eine Text-Antwort zu schreiben.
+→ Fix: Fuege in den Skill-Instruktionen hinzu: "Du MUSST am Ende eine ausfuehrliche Text-Antwort schreiben. Deine letzte Aktion muss IMMER Text sein, KEIN Tool-Aufruf. Nutze maximal 4-5 Tool-Aufrufe, dann schreibe die Antwort."
+
+**Problem: Baseline ist besser als Skill**
+Der Skill macht die Antwort schlechter statt besser.
+→ Fix: Analysiere den Vergleich. Oft sind die Instruktionen zu restriktiv oder zu komplex. Vereinfache sie. Entferne was nicht hilft.
+
+**Problem: Skill nutzt keine Tools**
+Der Skill antwortet aus dem Training statt die Wissensdatenbank zu nutzen.
+→ Fix: Fuege explizit hinzu: "Nutze rag_search um in der Wissensdatenbank nach relevanten Dokumenten zu suchen."
+
+**Problem: Keine Quellen zitiert**
+→ Fix: Fuege hinzu: "Zitiere Quellen (Dokumentname, Seite) weil der User die Aussagen verifizieren koennen muss."
+
+### Auto-Fix Ablauf
+
+1. Problem im compare_skill Ergebnis erkennen
+2. `update_skill` mit dem Fix aufrufen
+3. `compare_skill` ERNEUT ausfuehren (gleicher Prompt)
+4. Ergebnis pruefen — besser? Wenn nicht, nochmal fixen
+5. Erst wenn der Skill die Baseline schlaegt oder gleichauf ist → dem User zeigen
+
+### User-Feedback: Subjektive Qualitaet
+
+Fuer diese Fragen brauchst du den User:
+- Inhaltliche Qualitaet: "Ist die Zusammenfassung gut genug?"
+- Format: "Soll es eine Tabelle oder Fliesstext sein?"
+- Fehlende Aspekte: "Was fehlt noch?"
+- Zufriedenheit: "Passt das so, oder soll ich noch was aendern?"
+
+Leeres Feedback oder "passt" = User ist zufrieden. Konzentriere dich auf die Tests wo der User konkrete Kritik hat.
 
 ### Wie verbessern
 
-**Generalisiere statt überfitten.** Der Skill wird tausendmal mit verschiedenen Prompts genutzt. Hier iterierst du auf wenigen Beispielen weil es schneller geht und der User sie kennt. Aber wenn der Skill nur für diese 3 Test-Cases funktioniert, ist er nutzlos. Statt frickelige Spezialanpassungen lieber andere Formulierungen oder Ansätze ausprobieren — das ist billig und bringt manchmal überraschend viel.
+**Generalisiere statt ueberfitten.** Der Skill wird viele Male mit verschiedenen Prompts genutzt. Du iterierst auf wenigen Beispielen weil es schneller geht. Aber wenn der Skill nur fuer diese 3 Test-Cases funktioniert, ist er nutzlos. Probiere verschiedene Formulierungen statt frickelige Spezialanpassungen.
 
-**Halte es schlank.** Entferne was nicht hilft. Lies die Test-Transkripte (nicht nur die Endergebnisse) — wenn der Agent unproduktive Schritte macht, finde die Teile der Instruktion die das verursachen und entferne sie.
+**Halte es schlank.** Entferne was nicht hilft. Wenn der Agent im Test unproduktive Schritte macht, finde den Teil der Instruktionen der das verursacht und entferne ihn.
 
-**Erkläre das Warum.** Wenn du dich dabei ertappst "IMMER" oder "NIEMALS" in Großbuchstaben zu schreiben, ist das ein Warnsignal. Formuliere stattdessen um und erkläre die Begründung. Das Modell versteht Kontext besser als starre Regeln, und es kann in Randfällen eigenständig gute Entscheidungen treffen.
+**Erklaere das Warum.** Wenn du "IMMER" oder "NIEMALS" in Grossbuchstaben schreiben willst, stopp. Erklaere stattdessen die Begruendung. Das Modell versteht Kontext besser als starre Regeln.
 
-**Wiederholte Muster erkennen.** Lies die Transkripte aller Test-Runs. Wenn alle Sub-Agenten unabhängig voneinander die gleichen Zwischenschritte machen oder die gleichen Helfer-Strategien entwickeln, nimm diese Muster in die Instruktionen auf — das spart jeder zukünftigen Ausführung die Arbeit.
+**Wiederholte Muster erkennen.** Wenn beide Subagents unabhaengig voneinander die gleichen Zwischenschritte machen, nimm diese Muster in die Instruktionen auf — das spart zukuenftige Ausfuehrungen.
 
-**Verstehe was der User wirklich will.** Selbst wenn das Feedback knapp oder frustriert ist — versuche wirklich zu verstehen was die Aufgabe erfordert, warum der User das geschrieben hat, und was er eigentlich meint. Übertrage dieses Verständnis in die Instruktionen.
+### Iterations-Loop
 
-### Der Iterations-Loop
+1. Skill aktualisieren: `update_skill`
+2. Tests erneut ausfuehren: `compare_skill` (gleiche Prompts)
+3. Ergebnisse zeigen (vorher vs. nachher)
+4. Auto-Fix oder User-Feedback
+5. Wiederholen bis:
+   - User sagt "passt" oder gibt kein Feedback mehr
+   - Alle Tests zeigen Verbesserung gegenueber Baseline
+   - Kein sinnvoller Fortschritt mehr moeglich
 
-Nach dem Verbessern:
-1. Skill aktualisieren mit `update_skill`
-2. Alle Tests erneut ausführen (gleiche Prompts)
-3. Ergebnisse dem User zeigen
-4. Feedback einholen
-5. Weiter verbessern oder fertig
+---
 
-Aufhören wenn:
-- Der User zufrieden ist
-- Das Feedback leer ist (alles sieht gut aus)
-- Kein sinnvoller Fortschritt mehr erkennbar
+## Phase 6: Beschreibungs-Optimierung
 
-## Phase 6: Description optimieren
+Die `description` ist der Trigger-Mechanismus — sie bestimmt ob der Agent den Skill nutzt.
 
-Nach dem Erstellen/Verbessern die Trigger-Treffsicherheit der Description optimieren.
+1. Generiere 10 Test-Queries:
+   - 5 die den Skill ausloesen SOLLEN (verschiedene Formulierungen, formal + casual)
+   - 5 die den Skill NICHT ausloesen sollen (aehnliche aber andere Aufgaben)
+2. Zeige dem User zur Review
+3. Optimiere die Beschreibung basierend auf dem Feedback
+4. Aktualisiere mit `update_skill`
 
-### Schritt 1: Trigger-Eval-Queries erstellen
+Gute should-NOT-trigger Queries sind **beinahe-Treffer** — Queries die aehnliche Keywords haben aber eigentlich etwas anderes brauchen. "Uebersetze den Vertrag" sollte keinen Vertrags-Analyse-Skill ausloesen.
 
-Erstelle 20 Eval-Queries — eine Mischung aus should-trigger und should-not-trigger.
+---
 
-**Für should-trigger (10 Queries):** Verschiedene Formulierungen des gleichen Intents. Formell und umgangssprachlich gemischt. Fälle wo der User den Skill nicht beim Namen nennt aber ihn braucht. Auch ungewöhnliche Anwendungsfälle und Fälle wo der Skill gegen einen anderen konkurriert aber gewinnen sollte.
+## Kommunikation mit dem User
 
-**Für should-not-trigger (10 Queries):** Die wertvollsten sind Beinahe-Treffer — Queries die Keywords mit dem Skill teilen aber eigentlich etwas anderes brauchen. Angrenzende Themen wo ein anderer Ansatz besser wäre. Mehrdeutige Formulierungen wo ein naiver Keyword-Match triggern würde aber nicht sollte.
+Achte auf den Wissensstand des Users. Nicht jeder kennt technische Begriffe:
+- "Evaluation" und "Benchmark" sind OK
+- "JSON", "Assertion", "Token" kurz erklaeren wenn du unsicher bist
+- Im Zweifel: kurze Erklaerung ("Tokens sind die Texteinheiten die das Modell verarbeitet — je weniger, desto schneller und guenstiger")
 
-Wichtig: Die should-not-trigger Queries müssen wirklich knifflig sein. "Was ist 2+2?" als Negativ-Test für einen Recherche-Skill testet nichts — das ist offensichtlich irrelevant. Die Negativ-Fälle müssen echt schwierig sein.
+Sei effizient: Wenn der User sagt "mach einfach", vertraue deinem Urteil und iteriere ohne lange Rueckfragen.
 
-Die Queries müssen realistisch sein — so wie echte User schreiben. Nicht abstrakt sondern konkret mit Details, Dateinamen, persönlichem Kontext. Manche in Kleinschreibung, manche mit Tippfehlern, manche casual.
+---
 
-### Schritt 2: Review mit dem User
+## Referenzen
 
-Präsentiere die Eval-Queries dem User. Dieser Schritt ist wichtig — schlechte Queries führen zu schlechten Descriptions.
+### Subagents (via agent-Tool)
 
-### Schritt 3: Description verbessern
+| Agent | Zweck | Wann nutzen |
+|-------|-------|-------------|
+| `skill-grader` | Bewertet Output gegen Expectations | Nach jedem compare_skill |
+| `skill-comparator` | Blinder A/B-Vergleich | Wenn unklar welcher besser ist |
+| `skill-analyzer` | Analysiert WARUM einer besser war | Wenn Skill verliert oder knapp gewinnt |
 
-Prüfe ob die aktuelle Description alle should-trigger Fälle abdeckt. Wenn nicht, formuliere die Description um und aktualisiere mit `update_skill`.
+### Referenz-Dateien
 
-Zeige dem User Vorher/Nachher und erkläre was sich geändert hat.
+Das `references/` Verzeichnis enthaelt zusaetzliche Dokumentation:
 
-## Bestehenden Skill verbessern
-
-Wenn der User einen bestehenden Skill verbessern will:
-
-1. Lade den Skill mit `load_skill` um den aktuellen Stand zu sehen
-2. Frage was verbessert werden soll
-3. Teste den aktuellen Stand mit `run_skill_test` (Baseline = aktuelle Version)
-4. Verbessere mit `update_skill`
-5. Teste erneut und vergleiche gegen die alte Version
+- `references/schemas.md` — JSON-Schemas fuer evals.json, grading.json, comparison.json, analysis.json

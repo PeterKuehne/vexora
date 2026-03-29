@@ -6,11 +6,12 @@
  * scope and can later be shared/promoted.
  *
  * Writes SKILL.md to disk at server/user-skills/{tenant}/{slug}/
- * and creates a DB record with file_path pointing to it.
+ * and optionally creates references/ files for progressive disclosure.
  */
 
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { mkdirSync, writeFileSync } from 'fs';
 import { z } from 'zod';
 import type { AgentTool, AgentUserContext, ToolResult } from '../types.js';
 import { skillRegistry } from '../../skills/SkillRegistry.js';
@@ -21,14 +22,15 @@ import type { SkillFile } from '../../skills/SkillLoader.js';
 export const createSkillTool: AgentTool = {
   name: 'create_skill',
   skillGated: 'skill-creator',
-  description: 'Create a NEW skill. Only call this ONCE per skill — if the skill already exists, use update_skill instead. Provide name, description (with trigger phrases), Markdown instruction body, and recommended tools. Returns the slug for further operations (load_skill, update_skill, run_skill_test).',
+  description: 'Create a NEW skill with SKILL.md and optional references/ files. Only call this ONCE per skill — if the skill already exists, use update_skill instead. Returns the slug for further operations (load_skill, update_skill, compare_skill).',
   inputSchema: z.object({
-    name: z.string().describe('Skill name (kebab-case recommended, e.g. "data-analysis")'),
+    name: z.string().describe('Skill name (kebab-case recommended, e.g. "auev-generator")'),
     description: z.string().describe('What the skill does AND when to trigger it. Include specific user phrases. Max 1024 chars.'),
-    content: z.string().describe('The full Markdown instruction body. Use imperative form, explain the why, include examples.'),
+    content: z.string().describe('The full Markdown instruction body for SKILL.md. Use imperative form, reference files from references/ where needed.'),
     tools: z.string().describe('JSON array of recommended tool names, e.g. ["rag_search", "read_chunk"]'),
     category: z.string().optional().describe('Category: recherche, zusammenfassung, analyse, vergleich, erstellung, meta'),
     tags: z.string().optional().describe('JSON array of tags, e.g. ["recherche", "report"]'),
+    references: z.string().optional().describe('JSON object of reference files to create in references/ directory. Keys are filenames, values are file contents. Example: {"auev-vorlage.md": "# AUeV Vorlage\\n...", "checkliste.md": "# Checkliste\\n..."}'),
   }),
   parameters: {
     type: 'object',
@@ -36,15 +38,15 @@ export const createSkillTool: AgentTool = {
     properties: {
       name: {
         type: 'string',
-        description: 'Skill name (kebab-case recommended, e.g. "data-analysis")',
+        description: 'Skill name (kebab-case recommended, e.g. "auev-generator")',
       },
       description: {
         type: 'string',
-        description: 'What the skill does AND when to trigger it. Include specific user phrases. Max 1024 chars. Example: "Analyzes CSV data and creates reports. Use when user says \'analyze data\', \'CSV report\', or \'Datenanalyse\'."',
+        description: 'What the skill does AND when to trigger it. Include specific user phrases. Max 1024 chars.',
       },
       content: {
         type: 'string',
-        description: 'The full Markdown instruction body. Use imperative form, explain the why, include examples. Structure with ## headings for steps.',
+        description: 'The full Markdown instruction body for SKILL.md. Reference bundled resources clearly: "Before generating, consult references/vorlage.md for the template structure."',
       },
       tools: {
         type: 'string',
@@ -57,6 +59,10 @@ export const createSkillTool: AgentTool = {
       tags: {
         type: 'string',
         description: 'JSON array of tags, e.g. ["recherche", "report"]',
+      },
+      references: {
+        type: 'string',
+        description: 'JSON object: {"filename.md": "file content", ...}. Creates files in references/ directory for progressive disclosure.',
       },
     },
   },
@@ -88,10 +94,22 @@ export const createSkillTool: AgentTool = {
         tags = [];
       }
 
+      // Parse references
+      let references: Record<string, string> = {};
+      if (args.references) {
+        try {
+          references = typeof args.references === 'string'
+            ? JSON.parse(args.references)
+            : (args.references as Record<string, string>) || {};
+        } catch {
+          // Invalid JSON — skip references
+        }
+      }
+
       // Generate slug from name
       const slug = skillValidator.generateSlug(name);
 
-      // Check for duplicate: does a skill with the same base slug already exist?
+      // Check for duplicate
       const ctx = { userId: context.userId, userRole: context.userRole, department: context.department };
       const { skills: existing } = await skillRegistry.getSkills(ctx, { search: name, limit: 10 });
       const duplicate = existing.find(s => s.slug.startsWith(slug));
@@ -126,15 +144,40 @@ export const createSkillTool: AgentTool = {
 
       skillLoader.writeSkillFile(skillDirAbsolute, skillFile);
 
-      // Create DB record with file_path pointer (no definition in DB)
+      // Write references/ files (progressive disclosure — Level 3)
+      const refFiles: string[] = [];
+      if (Object.keys(references).length > 0) {
+        const refsDir = join(skillDirAbsolute, 'references');
+        mkdirSync(refsDir, { recursive: true });
+
+        for (const [filename, fileContent] of Object.entries(references)) {
+          // Sanitize filename
+          const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '-');
+          const filePath = join(refsDir, safeName);
+          writeFileSync(filePath, fileContent, 'utf-8');
+          refFiles.push(safeName);
+          console.log(`[CreateSkill] Created reference: ${skillDirRelative}/references/${safeName}`);
+        }
+      }
+
+      // Create DB record with file_path pointer
       const skill = await skillRegistry.createSkill(
         { userId: context.userId, userRole: context.userRole, department: context.department },
         { name, description, filePath: skillDirRelative, category, tags }
       );
 
+      // Build output
+      let output = `Skill "${skill.name}" erfolgreich erstellt!\n\nSlug: ${skill.slug}\nScope: personal\nTools: ${tools.join(', ')}\nKategorie: ${category}\nSKILL.md: ${skillDirRelative}/SKILL.md`;
+
+      if (refFiles.length > 0) {
+        output += `\nReferences: ${refFiles.map(f => `${skillDirRelative}/references/${f}`).join(', ')}`;
+      }
+
+      output += `\n\nDer Skill ist jetzt verfuegbar. Teste ihn mit compare_skill(prompt: "...", skill_slug: "${skill.slug}").`;
+
       return {
-        output: `Skill "${skill.name}" erfolgreich erstellt!\n\nSlug: ${skill.slug}\nScope: personal\nTools: ${tools.join(', ')}\nKategorie: ${category}\nSKILL.md: ${skillDirRelative}/SKILL.md\n\nDer Skill ist jetzt als persönlicher Skill verfügbar. Du kannst ihn mit load_skill("${skill.slug}") laden und testen.`,
-        metadata: { skillId: skill.id, slug: skill.slug },
+        output,
+        metadata: { skillId: skill.id, slug: skill.slug, references: refFiles },
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
