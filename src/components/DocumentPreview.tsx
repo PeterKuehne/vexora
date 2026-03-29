@@ -40,22 +40,50 @@ function DocumentPreviewModal({ document, onClose }: DocumentPreviewProps) {
   const [chunks, setChunks] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+
+  const isPdf = document.originalName?.endsWith('.pdf') || document.filename?.endsWith('.pdf');
 
   useEffect(() => {
     setLoading(true);
     setError(null);
 
-    httpClient.get(`${env.API_URL}/api/documents/${document.id}/content`)
-      .then(r => r.json())
-      .then(data => {
-        setContent(data.content || '');
-        setChunks(data.chunks || 0);
-        setLoading(false);
-      })
-      .catch(err => {
-        setError(err.message || 'Fehler beim Laden des Inhalts');
-        setLoading(false);
-      });
+    if (isPdf) {
+      // For PDFs: try to load original file for native browser preview
+      httpClient.get(`${env.API_URL}/api/documents/${document.id}/file`)
+        .then(r => {
+          if (r.ok) return r.blob();
+          throw new Error('Original nicht verfügbar');
+        })
+        .then(blob => {
+          setFileUrl(URL.createObjectURL(blob));
+          setLoading(false);
+        })
+        .catch(() => {
+          // Fallback: load text content from Weaviate chunks
+          loadTextContent();
+        });
+    } else {
+      loadTextContent();
+    }
+
+    function loadTextContent() {
+      httpClient.get(`${env.API_URL}/api/documents/${document.id}/content`)
+        .then(r => r.json())
+        .then(data => {
+          setContent(data.content || '');
+          setChunks(data.chunks || 0);
+          setLoading(false);
+        })
+        .catch(err => {
+          setError(err.message || 'Fehler beim Laden des Inhalts');
+          setLoading(false);
+        });
+    }
+
+    return () => {
+      if (fileUrl) URL.revokeObjectURL(fileUrl);
+    };
   }, [document.id]);
 
   // Close on Escape
@@ -196,7 +224,15 @@ function DocumentPreviewModal({ document, onClose }: DocumentPreviewProps) {
             </div>
           )}
 
-          {!loading && !error && content && (
+          {!loading && !error && fileUrl && (
+            <iframe
+              src={fileUrl}
+              style={{ width: '100%', height: '100%', border: 'none', minHeight: '70vh' }}
+              title={document.originalName || document.filename}
+            />
+          )}
+
+          {!loading && !error && !fileUrl && content && (
             <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'system-ui, sans-serif' }}>
               {content}
             </div>

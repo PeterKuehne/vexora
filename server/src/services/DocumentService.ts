@@ -240,8 +240,8 @@ class DocumentService {
         processed_date, status, chunk_count, category, tags,
         owner_id, department, classification, allowed_roles, allowed_users,
         file_format, parser_used, parsing_duration_ms, chunking_version,
-        total_tokens, page_count
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
+        total_tokens, page_count, metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
       [
         documentId,
         metadata.originalName,
@@ -264,6 +264,7 @@ class DocumentService {
         'v2',
         totalTokens,
         parsedDoc.metadata.pageCount,
+        JSON.stringify({ diskFilename: metadata.filename }),
       ]
     );
 

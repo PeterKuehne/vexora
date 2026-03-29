@@ -183,6 +183,94 @@ router.get('/categories', authenticateToken, asyncHandler(async (req: Authentica
   res.json({ categories: DOCUMENT_CATEGORIES })
 }))
 
+// Serve original file for preview/download
+router.get('/:id/file', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+
+  // Permission check
+  await documentService.setUserContext(
+    req.user?.user_id || '',
+    req.user?.role || '',
+    req.user?.department || ''
+  );
+  const accessibleIds = await documentService.getAccessibleDocumentIds();
+  await documentService.clearUserContext();
+
+  if (!accessibleIds.includes(id || '')) {
+    res.status(404).json({ error: 'Dokument nicht gefunden oder nicht autorisiert' });
+    return;
+  }
+
+  // Get document record
+  const { databaseService } = await import('../services/DatabaseService.js');
+  const result = await databaseService.query(
+    'SELECT filename, file_type, metadata FROM documents WHERE id = $1',
+    [id]
+  );
+
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: 'Dokument nicht gefunden' });
+    return;
+  }
+
+  const doc = result.rows[0];
+  const diskFilename = doc.metadata?.diskFilename;
+
+  if (!diskFilename) {
+    // Fallback: try to find file by timestamp matching
+    const { readdirSync } = await import('fs');
+    const { join } = await import('path');
+    const uploadsDir = join(process.cwd(), 'uploads');
+
+    // Extract timestamp from document ID (doc_TIMESTAMP_random)
+    const match = (id as string).match(/^doc_(\d+)_/);
+    if (match) {
+      const docTimestamp = parseInt(match[1]!);
+      try {
+        const files = readdirSync(uploadsDir);
+        // Find file with closest timestamp (within 5 seconds)
+        const matched = files.find(f => {
+          const fileTimestamp = parseInt(f.split('-')[0] || '0');
+          return Math.abs(fileTimestamp - docTimestamp) < 5000;
+        });
+
+        if (matched) {
+          const filePath = join(uploadsDir, matched);
+          const ext = doc.file_type === 'pdf' ? 'application/pdf'
+            : doc.file_type === 'md' ? 'text/markdown'
+            : 'application/octet-stream';
+          res.setHeader('Content-Type', ext);
+          res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.filename)}"`);
+          const { createReadStream } = await import('fs');
+          createReadStream(filePath).pipe(res);
+          return;
+        }
+      } catch { /* ignore */ }
+    }
+
+    res.status(404).json({ error: 'Original-Datei nicht gefunden (kein Mapping vorhanden)' });
+    return;
+  }
+
+  // Serve from disk
+  const { join } = await import('path');
+  const { createReadStream, existsSync } = await import('fs');
+  const filePath = join(process.cwd(), 'uploads', diskFilename);
+
+  if (!existsSync(filePath)) {
+    res.status(404).json({ error: 'Datei nicht auf Disk gefunden' });
+    return;
+  }
+
+  const contentType = doc.file_type === 'pdf' ? 'application/pdf'
+    : doc.file_type === 'md' ? 'text/markdown; charset=utf-8'
+    : 'application/octet-stream';
+
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.filename)}"`);
+  createReadStream(filePath).pipe(res);
+}));
+
 // Get document content — reconstructed from Weaviate chunks
 router.get('/:id/content', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
