@@ -129,10 +129,10 @@ function DocumentPreviewModal({ document, onClose }: DocumentPreviewProps) {
       <div
         style={{
           position: 'fixed',
-          top: '3vh',
-          left: '3vw',
-          right: '3vw',
-          bottom: '3vh',
+          top: '5vh',
+          left: '10vw',
+          right: '10vw',
+          bottom: '5vh',
           zIndex: 99999,
           display: 'flex',
           flexDirection: 'column',
@@ -199,8 +199,8 @@ function DocumentPreviewModal({ document, onClose }: DocumentPreviewProps) {
         <div
           style={{
             flex: 1,
-            overflowY: 'auto',
-            padding: '24px 32px',
+            overflow: fileUrl ? 'hidden' : 'auto',
+            padding: fileUrl ? '0' : '24px 32px',
             color: isDark ? '#e5e7eb' : '#374151',
             fontSize: '14px',
             lineHeight: '1.7',
@@ -212,22 +212,16 @@ function DocumentPreviewModal({ document, onClose }: DocumentPreviewProps) {
             </div>
           )}
 
-          {error && (
+          {error && !fileUrl && (
             <div style={{ textAlign: 'center', padding: '80px 0', color: '#ef4444' }}>
               {error}
-            </div>
-          )}
-
-          {!loading && !error && !content && (
-            <div style={{ textAlign: 'center', padding: '80px 0', color: isDark ? 'rgba(255,255,255,0.3)' : '#9ca3af' }}>
-              Kein Inhalt verfügbar. Das Dokument wurde möglicherweise noch nicht indexiert.
             </div>
           )}
 
           {!loading && !error && fileUrl && (
             <iframe
               src={fileUrl}
-              style={{ width: '100%', height: '100%', border: 'none', minHeight: '70vh' }}
+              style={{ width: '100%', height: '100%', border: 'none' }}
               title={document.originalName || document.filename}
             />
           )}
@@ -235,6 +229,12 @@ function DocumentPreviewModal({ document, onClose }: DocumentPreviewProps) {
           {!loading && !error && !fileUrl && content && (
             <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'system-ui, sans-serif' }}>
               {content}
+            </div>
+          )}
+
+          {!loading && !error && !fileUrl && !content && (
+            <div style={{ textAlign: 'center', padding: '80px 0', color: isDark ? 'rgba(255,255,255,0.3)' : '#9ca3af' }}>
+              Kein Inhalt verfügbar. Das Dokument wurde möglicherweise noch nicht indexiert.
             </div>
           )}
         </div>

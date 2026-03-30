@@ -40,11 +40,18 @@ export function WorkspaceLayout({
   onSectionChange,
 }: WorkspaceLayoutProps) {
   const { isDark } = useTheme();
-  const [activeSection, setActiveSection] = useState<WorkspaceSection>(defaultSection);
+  const [activeSection, setActiveSection] = useState<WorkspaceSection>(() => {
+    const saved = localStorage.getItem('cor7ex-active-section');
+    if (saved && ['tasks', 'skills', 'documents', 'knowledge'].includes(saved)) {
+      return saved as WorkspaceSection;
+    }
+    return defaultSection;
+  });
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const handleSectionChange = useCallback((section: WorkspaceSection) => {
     setActiveSection(section);
+    localStorage.setItem('cor7ex-active-section', section);
     onSectionChange?.(section);
     // Uncollapse sidebar when switching sections
     if (isSidebarCollapsed) {
