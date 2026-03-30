@@ -90,7 +90,7 @@ export class McpClientManager {
   /**
    * Call an MCP tool by its original name (without prefix)
    */
-  async callTool(toolName: string, args: Record<string, unknown>): Promise<unknown> {
+  async callTool(toolName: string, args: Record<string, unknown>, retry = true): Promise<unknown> {
     if (!this.session) {
       throw new Error('MCP client not initialized');
     }
@@ -99,20 +99,31 @@ export class McpClientManager {
 
     const token = await this.session.oauthClient.getToken();
 
-    const response = await this.mcpRequest(
-      this.session.config.url,
-      token,
-      this.session.sessionId,
-      {
-        jsonrpc: '2.0',
-        id: Date.now(),
-        method: 'tools/call',
-        params: {
-          name: toolName,
-          arguments: args,
+    let response;
+    try {
+      response = await this.mcpRequest(
+        this.session.config.url,
+        token,
+        this.session.sessionId,
+        {
+          jsonrpc: '2.0',
+          id: Date.now(),
+          method: 'tools/call',
+          params: {
+            name: toolName,
+            arguments: args,
+          },
         },
-      },
-    );
+      );
+    } catch (error) {
+      // Connection failed — try to reconnect once
+      if (retry) {
+        console.warn(`[MCP Client] Connection failed, reconnecting...`);
+        await this.reconnect();
+        return this.callTool(toolName, args, false);
+      }
+      throw error;
+    }
 
     if (response.result?.isError) {
       const errorText = response.result.content
@@ -131,6 +142,42 @@ export class McpClientManager {
     const result = textParts.length === 1 ? textParts[0] : textParts.join('\n');
     console.log(`[MCP Client] Tool result (${toolName}): ${String(result).slice(0, 200)}...`);
     return result;
+  }
+
+  /**
+   * Reconnect: create a new session (server may have restarted)
+   */
+  private async reconnect(): Promise<void> {
+    if (!this.session) return;
+    const { config, oauthClient } = this.session;
+
+    oauthClient.invalidate(); // Force new token
+    const token = await oauthClient.getToken();
+
+    const initResponse = await this.mcpRequest(config.url, token, null, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2025-03-26',
+        capabilities: {},
+        clientInfo: { name: 'cor7ex', version: '1.0.0' },
+      },
+    });
+
+    const sessionId = initResponse.sessionId;
+    if (!sessionId) throw new Error('Reconnect failed: no session ID');
+
+    this.session = { sessionId, config, oauthClient };
+
+    // Send initialized notification
+    await this.mcpRequest(config.url, token, sessionId, {
+      jsonrpc: '2.0',
+      method: 'notifications/initialized',
+      params: {},
+    });
+
+    console.log(`[MCP Client] Reconnected, new session: ${sessionId}`);
   }
 
   /**
