@@ -39,7 +39,6 @@ export function mcpToolToAgentTool(
     name: toolName,
     description: mcpTool.description || `MCP tool: ${mcpTool.name}`,
     inputSchema: zodSchema,
-    skillGated: 'samaworkforce',
 
     async execute(
       args: Record<string, unknown>,
@@ -47,14 +46,12 @@ export function mcpToolToAgentTool(
     ): Promise<ToolResult> {
       try {
         const result = await manager.callTool(mcpTool.name, args);
-        return {
-          output: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
-        };
+        const output = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+        return { output: output || '(empty result)' };
       } catch (error) {
-        return {
-          output: '',
-          error: `MCP tool ${mcpTool.name} failed: ${error instanceof Error ? error.message : String(error)}`,
-        };
+        const errorMsg = `MCP tool ${mcpTool.name} failed: ${error instanceof Error ? error.message : String(error)}`;
+        console.error(`[MCP Tool] ${errorMsg}`);
+        return { output: errorMsg, error: errorMsg };
       }
     },
   };

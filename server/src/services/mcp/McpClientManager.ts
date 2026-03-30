@@ -95,6 +95,8 @@ export class McpClientManager {
       throw new Error('MCP client not initialized');
     }
 
+    console.log(`[MCP Client] Calling tool: ${toolName}`, JSON.stringify(args));
+
     const token = await this.session.oauthClient.getToken();
 
     const response = await this.mcpRequest(
@@ -116,6 +118,7 @@ export class McpClientManager {
       const errorText = response.result.content
         ?.map((c: { text?: string }) => c.text)
         .join('\n') || 'Unknown MCP error';
+      console.error(`[MCP Client] Tool error: ${errorText}`);
       throw new Error(errorText);
     }
 
@@ -125,7 +128,9 @@ export class McpClientManager {
       .filter((c: { type: string }) => c.type === 'text')
       .map((c: { text: string }) => c.text);
 
-    return textParts.length === 1 ? textParts[0] : textParts.join('\n');
+    const result = textParts.length === 1 ? textParts[0] : textParts.join('\n');
+    console.log(`[MCP Client] Tool result (${toolName}): ${String(result).slice(0, 200)}...`);
+    return result;
   }
 
   /**
