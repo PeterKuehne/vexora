@@ -39,6 +39,7 @@ import { PIIGuard } from './services/llm/PIIGuard.js'
 import { setPIIGuard } from './services/agents/ai-middleware.js'
 import { initializeAgentSystem } from './services/agents/index.js'
 import { initializeSkillSystem } from './services/skills/index.js'
+import { mcpClientManager } from './services/mcp/McpClientManager.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -265,6 +266,16 @@ httpServer.on('listening', async () => {
     console.log('✅ Skill system initialized')
   } catch (error) {
     console.warn('⚠️  Skill system initialization failed:', error)
+  }
+
+  // Initialize MCP Client (SamaWorkforce)
+  try {
+    const connected = await mcpClientManager.initialize()
+    if (connected) {
+      console.log('✅ MCP Client connected to SamaWorkforce')
+    }
+  } catch (error) {
+    console.warn('⚠️  MCP Client initialization failed (non-critical):', error)
   }
 })
 
