@@ -404,6 +404,54 @@ export function registerBuiltinTools(): void {
 
 ---
 
+## Tool-Skalierung: Expert Agent Skills (Zukunft)
+
+### Aktueller Ansatz: 10-15 Tools pro Expert Agent
+
+Die Aufteilung in Expert Agents IST Progressive Disclosure auf Architektur-Ebene:
+- **Vorher:** 1 Agent mit 90+ Tools → LLM rät, schlechte Ergebnisse
+- **Nachher:** Hive Mind mit 5 Expert Agents, jeder mit 10-15 Tools → optimaler Bereich
+
+Recherche-Ergebnisse (Anthropic, OpenAI, Vercel, Benchmarks):
+- **5-20 Tools**: Optimaler Bereich, keine Degradation
+- **20-25 Tools**: Messbare Accuracy-Verschlechterung beginnt
+- **30+ Tools**: Signifikante Probleme (Tool-Verwechslung, Token-Overhead)
+- **Claude Opus**: 49% → 74% Accuracy-Verbesserung durch Progressive Disclosure
+
+### Skalierungs-Strategie wenn ein Expert Agent waechst
+
+Wenn ein Expert Agent spaeter mehr als 15-20 Tools benoetigt (neue Enterprise-Anbindungen, weitere MCP-Server, andere Modelle mit kleinerem Context):
+
+**Stufe 1: Tool-Konsolidierung**
+Aehnliche Tools zusammenfassen. Z.B. `sama_employees` + `sama_employee` + `sama_searchCustomers` → ein Tool mit Filtern. Reduziert Tool-Anzahl ohne Funktionsverlust.
+
+**Stufe 2: Skills innerhalb von Expert Agents (Progressive Disclosure)**
+Der Expert Agent bekommt Skills statt direkter Tools. Skills laden Tools on-demand:
+
+```
+HR-Agent Tools (aktuell, 12 Tools):
+  ├── sama_employees, sama_employee, sama_assignments, ...
+
+HR-Agent mit Skills (spaeter, wenn >20 Tools):
+  ├── Skill: "employee_management"  → laedt: sama_employees, sama_createEmployee, ...
+  ├── Skill: "assignment_planning"  → laedt: sama_assignments, sama_createAssignment, ...
+  ├── Skill: "timeentry_workflow"   → laedt: sama_timeEntries, sama_approveTimeEntry, ...
+  └── rag_search (immer verfuegbar)
+```
+
+Nutzt das bestehende Skill-System + `load_skill` Pattern. Kein neues Framework noetig.
+
+**Stufe 3: Vercel AI SDK `prepareStep` / `activeTools`**
+Tools werden pro Step phasenweise aktiviert. Z.B. Step 1 hat nur Discovery-Tools, Step 2 hat die konkreten Aktions-Tools.
+
+### Entscheidung
+
+- **Phase 1 (jetzt):** 10-15 Tools pro Expert Agent. Kein Skill-Layer noetig.
+- **Spaeter bei Bedarf:** Skills innerhalb von Expert Agents aktivieren (Stufe 2).
+- **Trigger:** Wenn ein Agent auf >20 Tools waechst ODER bei Nutzung schwaecher/kleinerer Modelle.
+
+---
+
 ## Offene Punkte (geloest in spaeterer Specs)
 
 - **Memory-Injection**: Wie Mem0 integriert wird → Spec 23
