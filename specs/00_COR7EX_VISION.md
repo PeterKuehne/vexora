@@ -951,7 +951,7 @@ Skaliert mit wachsendem Memory — ob 50 oder 50.000 Memories, die Suche liefert
 
 - **Vercel AI SDK**: ToolLoopAgent, Subagents als Tools, Context Isolation, Streaming — unsere Agent-Runtime
 - **Anthropic Claude Code**: Deklarative Agent-Definition (Markdown+Frontmatter), Memory Scopes, Hooks, Skills, Permissions — unser Feature-Vorbild
-- **Mem0 OSS**: Memory-Layer mit automatischer Fakten-Extraktion, Neo4j Graph, PGVector — unsere Memory-Engine
+- **Hindsight**: Memory-Engine mit 4 Retrieval-Strategien, temporaler Awareness, LLM-freiem Recall — unsere Memory-Engine
 - **OpenClaw**: SOUL.md (Agent-Identitaet), Heartbeat (proaktives Handeln), Memory Flush vor Compaction
 - **Paperclip**: Org-Chart Modell, Ticket-basierte Tasks, Ziel-Hierarchie, Budget-Kontrolle
 - **Zep/Graphiti**: Temporaler Knowledge Graph — Inspiration fuer unsere temporale Erweiterung (spaeteres Upgrade)
@@ -960,5 +960,5 @@ Skaliert mit wachsendem Memory — ob 50 oder 50.000 Memories, die Suche liefert
 
 **Agent-Runtime von Vercel** (ToolLoopAgent — nutzen wir bereits)
 **+ Feature-Reichtum von Anthropic** (Memory, Guardrails, Skills — deklarativ)
-**+ Memory-Engine von Mem0** (Fakten-Extraktion, Graph, Vektor — TypeScript nativ)
+**+ Memory-Engine von Hindsight** (4 Retrieval-Strategien, Temporal, LLM-freier Recall — MIT Lizenz)
 **+ Was keiner hat** (Hive Mind, Heartbeat, Unternehmens-Layer, gelerntes Wissen, Promotion Pipeline)
