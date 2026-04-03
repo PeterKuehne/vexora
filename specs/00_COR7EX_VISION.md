@@ -613,7 +613,7 @@ const hrExpertTool = tool({
   inputSchema: z.object({ task: z.string() }),
   execute: async ({ task }, { abortSignal }) => {
     const hrAgent = new ToolLoopAgent({
-      model: resolveModel('sonnet'),
+      model: resolveModel('gpt-oss-120b'),  // Aktuell einziges Modell
       instructions: hrHarness.identity,    // Aus Harness-Config
       tools: hrHarness.tools,              // Nur HR-relevante Tools
     });
@@ -648,6 +648,7 @@ tools:
   - sama_staffingContracts
   - rag_search
 model: sonnet
+model: gpt-oss-120b
 memory: project
 heartbeat: "0 8 * * 1-5"
 guardrails:
@@ -688,8 +689,8 @@ Expert Agent Harness
 │                     PreToolUse Hooks, Validierungen
 ├── heartbeat       — Proaktive Pruefungen (Cron)
 │                     Was soll regelmaessig gecheckt werden
-└── model           — Welches LLM (Kosten/Qualitaet Balance)
-                      Haiku fuer einfache, Sonnet/Opus fuer komplexe
+└── model           — Welches LLM (aktuell: gpt-oss-120b fuer alle)
+                      Spaeter: Kosten/Qualitaet Balance pro Agent
 ```
 
 ### Memory-Architektur

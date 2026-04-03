@@ -115,8 +115,10 @@ function createExpertAgentTool(harness: ExpertAgentHarness): AgentTool {
       );
 
       // 4. ToolLoopAgent starten (isolierter Context)
+      // Aktuell nur gpt-oss-120b verfuegbar — Hive Mind und alle Expert Agents
+      // nutzen dasselbe Modell. Model-Feld im Harness ist fuer spaeter vorbereitet.
       const agent = new ToolLoopAgent({
-        model: resolveModel(harness.model || 'sonnet'),
+        model: resolveModel(harness.model || DEFAULT_AGENT_CONFIG.defaultModel),
         instructions,
         tools,
         stopWhen: stepCountIs(harness.maxSteps || 15),
@@ -268,7 +270,7 @@ tools:
   - sama_createAssignment
   - sama_createTimeEntry
   - rag_search
-model: sonnet
+model: gpt-oss-120b   # Aktuell einziges verfuegbares Modell. Feld fuer spaetere Multi-Model-Unterstuetzung.
 maxSteps: 15
 guardrails:
   - role_check: [ADMIN, DISPATCHER]
