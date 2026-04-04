@@ -48,6 +48,14 @@ function DocumentPreviewModal({ document, onClose }: DocumentPreviewProps) {
     setLoading(true);
     setError(null);
 
+    // Always load chunk count
+    httpClient.get(`${env.API_URL}/api/documents/${document.id}/content`)
+      .then(r => r.json())
+      .then(data => {
+        setChunks(data.chunks || 0);
+      })
+      .catch(() => {});
+
     if (isPdf) {
       // For PDFs: try to load original file for native browser preview
       httpClient.get(`${env.API_URL}/api/documents/${document.id}/file`)

@@ -163,6 +163,8 @@ export type AgentSSEEventType =
   | 'task:complete'
   | 'task:error'
   | 'task:cancelled'
+  | 'expert:start'
+  | 'expert:complete'
   | 'keepalive';
 
 export interface AgentSSEEvent {
@@ -193,7 +195,52 @@ export interface AgentSSEEvent {
     routingDecision?: string;
     /** Hybrid pipeline strategy used for this turn */
     strategy?: AgentStrategy;
+    /** Expert Agent name (for expert:start / expert:complete events) */
+    expertName?: string;
+    /** Expert Agent task description */
+    expertTask?: string;
+    /** Panel data returned by Expert Agent (for expert:complete) */
+    panels?: PanelData[];
   };
+}
+
+// ============================================
+// Expert Agent Harness (Hive Mind Orchestrator)
+// ============================================
+
+export interface ExpertAgentHarness {
+  /** Unique identifier, e.g. 'hr-expert' */
+  name: string;
+  /** Used in Hive Mind prompt + as tool description */
+  description: string;
+  /** Tool whitelist: ['sama_employees', 'sama_assignments', 'rag_search'] */
+  tools: string[];
+  /** LLM model string. Currently 'gpt-oss-120b' for all agents. */
+  model: string;
+  /** Max tool-loop iterations (default 15) */
+  maxSteps: number;
+  /** Access control and prompt-based guardrails */
+  guardrails: Guardrail[];
+  /** Markdown body — system prompt instructions for this expert */
+  instructions: string;
+  /** Source file path */
+  filePath: string;
+  /** Built-in or tenant-specific */
+  source: 'builtin' | 'custom';
+}
+
+export interface Guardrail {
+  type: 'prompt' | 'role_check';
+  /** Prompt text (type='prompt') or allowed roles array (type='role_check') */
+  value: string | string[];
+}
+
+export interface PanelData {
+  type: string;       // 'table', 'list', 'stat', 'chart'
+  title: string;
+  columns?: string[];
+  rows?: unknown[][];
+  data?: unknown;
 }
 
 // ============================================

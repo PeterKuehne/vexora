@@ -7,6 +7,7 @@ export { agentPersistence } from './AgentPersistence.js';
 export { agentExecutor } from './AgentExecutor.js';
 export type { SSEEmitter } from './AgentExecutor.js';
 export { resolveModel, parseModelString, hasProvider, isCloudModel, getProviderOptions, getCloudModels } from './ai-provider.js';
+export { loadExpertAgents, getExpertAgent, listExpertAgents, clearExpertAgentCache, createExpertAgentTool } from './ExpertAgentLoader.js';
 export { setPIIGuard, createGuardedModel, ensurePIIGuardAvailable, maskMessages, unmaskContent } from './ai-middleware.js';
 export type {
   AgentTool,
@@ -20,6 +21,9 @@ export type {
   ToolResult,
   ToolCall,
   AgentMessage,
+  ExpertAgentHarness,
+  Guardrail,
+  PanelData,
 } from './types.js';
 
 import { registerBuiltinTools } from './tools/index.js';

@@ -12,11 +12,13 @@ import type { ModelMessage } from '@ai-sdk/provider-utils';
 import { resolveModel, getProviderOptions, isCloudModel, estimateCost } from './ai-provider.js';
 import { toolRegistry } from './ToolRegistry.js';
 import { agentPersistence } from './AgentPersistence.js';
+import { loadExpertAgents, createExpertAgentTool } from './ExpertAgentLoader.js';
 import type {
   AgentUserContext,
   AgentSSEEvent,
   AgentConfig,
   AgentTask,
+  ExpertAgentHarness,
 } from './types.js';
 import { DEFAULT_AGENT_CONFIG as defaultConfig } from './types.js';
 
@@ -181,10 +183,35 @@ export class AgentExecutor {
       // Enable strict mode for cloud providers (ensures valid tool-call parameters)
       const useStrictTools = isCloudModel(model);
       const tools = toolRegistry.getAISDKTools(toolContext, options?.allowedTools, loadedSkills, { strict: useStrictTools });
+
+      // Load Expert Agent harnesses and create dynamic tools for the Hive Mind
+      const expertAgents = loadExpertAgents(context.tenantId);
+      const expertAgentNames: string[] = [];
+      for (const harness of expertAgents) {
+        tools[harness.name] = createExpertAgentTool(harness, toolContext, emitSSE);
+        expertAgentNames.push(harness.name);
+      }
+
+      // Remove MCP tools (sama_*) from Hive Mind's direct access when Expert Agents exist.
+      // These tools are only accessible through Expert Agents now.
+      if (expertAgentNames.length > 0) {
+        const removedMcpTools: string[] = [];
+        for (const name of Object.keys(tools)) {
+          if (name.startsWith('sama_')) {
+            delete tools[name];
+            removedMcpTools.push(name);
+          }
+        }
+        console.log(`[AgentExecutor] Expert Agents registered: ${expertAgentNames.join(', ')}`);
+        if (removedMcpTools.length > 0) {
+          console.log(`[AgentExecutor] ${removedMcpTools.length} MCP tools moved to Expert Agents (removed from Hive Mind)`);
+        }
+      }
+
       const toolNames = Object.keys(tools);
 
       // Build system prompt (with optional skill injection from slash-command)
-      const instructions = options?.systemPrompt || await this.buildSystemPrompt(toolNames, toolContext, options?.skillSlug);
+      const instructions = options?.systemPrompt || await this.buildSystemPrompt(toolNames, toolContext, options?.skillSlug, expertAgents);
 
       // Build message history from all previous messages (including tool context)
       const allMessages = await agentPersistence.getMessages(task.id);
@@ -226,13 +253,17 @@ export class AgentExecutor {
         maxOutputTokens: 4096,
         providerOptions: getProviderOptions(model),
 
-        // Step 0 on first turn: force tool use (search/skill) before answering
+        // Step 0 on first turn: force tool use before answering
+        // Expert Agents + basic tools are available on first step
         // Follow-up turns and later steps: model decides freely
         prepareStep: ({ stepNumber }) => {
           if (stepNumber === 0 && turnNumber === 1) {
             return {
               toolChoice: 'required' as const,
-              activeTools: ['rag_search', 'load_skill', 'list_skills', 'agent'],
+              activeTools: [
+                ...expertAgentNames,
+                'rag_search', 'load_skill', 'list_skills', 'agent',
+              ],
             };
           }
           return { toolChoice: 'auto' as const };
@@ -478,30 +509,49 @@ export class AgentExecutor {
   }
 
   /**
-   * Build the system prompt with available tools and skill descriptions
+   * Build the Hive Mind system prompt.
+   *
+   * The Hive Mind is the central intelligence — it delegates to Expert Agents
+   * for domain-specific tasks and synthesizes results into a unified answer.
+   *
+   * Memory injection (Hindsight) is prepared as placeholder — will be filled in Spec 04.
    */
-  private async buildSystemPrompt(toolNames: string[], context: AgentUserContext, skillSlug?: string): Promise<string> {
+  private async buildSystemPrompt(toolNames: string[], context: AgentUserContext, skillSlug?: string, expertAgents?: ExpertAgentHarness[]): Promise<string> {
     const hasSkills = toolNames.includes('load_skill');
+    const hasExpertAgents = expertAgents && expertAgents.length > 0;
 
-    let prompt = `Du bist ein hilfreicher Assistent mit Zugriff auf Tools. Dies ist eine Multi-Turn-Konversation.
+    // --- Core Identity ---
+    let prompt = `Du bist der Hive Mind — das zentrale Nervensystem des Unternehmens.
+KI-Agents und menschliche Mitarbeiter bilden ein gemeinsames Bewusstsein. Du koordinierst alles.
 
-Verfügbare Tools: ${toolNames.join(', ')}
+## Deine Rolle
+- Verstehe was der User braucht
+- Delegiere an die richtigen Expert Agents fuer domain-spezifische Aufgaben
+- Fuehre Ergebnisse zu einer ganzheitlichen Antwort zusammen
+- Erkenne Zusammenhaenge zwischen verschiedenen Domains
+- Wenn ein Expert Agent eine Rueckfrage hat, stelle sie dem User
+- Antworte immer auf Deutsch`;
 
-REGELN:
-- Antworte auf Deutsch
-- Wenn die Frage Unternehmenswissen betrifft (Dokumente, Verträge, Mitarbeiter, interne Prozesse), nutze rag_search
-- Bei allgemeinem Wissen (Definitionen, öffentliche Fakten, Erklärungen) kannst du direkt antworten
-- Im Zweifel: Nutze rag_search — lieber einmal zu viel suchen als falsch antworten
-- Zitiere Quellen (Dokumentname, Seitenzahl) wenn du Dokumente nutzt
-- Wenn du keine relevanten Dokumente findest, sage das ehrlich
-- Nutze NUR Informationen aus den Tool-Ergebnissen, erfinde nichts dazu
+    // --- Expert Agents ---
+    if (hasExpertAgents) {
+      const expertSummary = expertAgents
+        .map(a => `- **${a.name}**: ${a.description}`)
+        .join('\n');
 
-FORMATIERUNG:
-- Strukturiere Antworten mit Überschriften (##), Aufzählungen und **Fettdruck** für Schlüsselbegriffe
-- Bei Zusammenfassungen: Nummerierte Abschnitte mit klaren Überschriften
-- Bei Listen: Bullet Points mit kurzen Erklärungen
-- Längere Antworten immer in Abschnitte gliedern`;
+      prompt += `
 
+## Verfuegbare Expert Agents
+${expertSummary}
+
+### Delegations-Regeln
+- Domain-spezifische Fragen → passenden Expert Agent aufrufen
+- Domain-uebergreifende Fragen → mehrere Expert Agents parallel aufrufen
+- Formuliere EINE zusammenhaengende Antwort, keine Einzelergebnisse
+- Erkenne Zusammenhaenge (z.B. offene Rechnungen + geplante Einsaetze = Risiko)
+- Wenn ein Expert Agent "RUECKFRAGE:" zurueckgibt → stelle diese Frage an den User`;
+    }
+
+    // --- Skills ---
     if (hasSkills) {
       let skillSummary = '';
       try {
@@ -512,7 +562,6 @@ FORMATIERUNG:
         );
         const autoSkills = skills.filter(s => !s.disableAutoInvocation);
         if (autoSkills.length > 0) {
-          // Truncate descriptions to keep prompt compact for smaller models
           skillSummary = autoSkills
             .map(s => {
               const desc = (s.description || '').split('.')[0] || '(keine Beschreibung)';
@@ -526,14 +575,13 @@ FORMATIERUNG:
 
       prompt += `
 
-<available_skills>
+## Verfuegbare Skills
 ${skillSummary || '(keine)'}
-</available_skills>
 
-Wenn eine Aufgabe zu einem Skill passt: ZUERST load_skill(slug) aufrufen um die vollständigen Instruktionen zu laden, DANN den Instruktionen folgen. Ohne load_skill hast du nur die Kurzbeschreibung — die reicht nicht für gute Ergebnisse.`;
+Wenn eine Aufgabe zu einem Skill passt: ZUERST load_skill(slug) aufrufen, DANN den Instruktionen folgen.`;
     }
 
-    // If a skill was explicitly invoked via slash-command, inject its instructions directly
+    // --- Slash-command skill injection (early return) ---
     if (skillSlug) {
       try {
         const { skillRegistry } = await import('../skills/SkillRegistry.js');
@@ -548,10 +596,10 @@ Wenn eine Aufgabe zu einem Skill passt: ZUERST load_skill(slug) aufrufen um die 
             : '';
           prompt += `
 
-AKTIVER SKILL: ${skill.name}
+## AKTIVER SKILL: ${skill.name}
 ${toolList}
 
-Folge diesen Instruktionen Schritt für Schritt:
+Folge diesen Instruktionen Schritt fuer Schritt:
 
 ${content.body}`;
           console.log(`[AgentExecutor] Skill "${skillSlug}" direkt injiziert (Slash-Command)`);
@@ -562,7 +610,7 @@ ${content.body}`;
       }
     }
 
-    // Add available subagents
+    // --- Legacy Subagents (for kb-explorer, skill-*) ---
     if (toolNames.includes('agent')) {
       let agentSummary = '';
       try {
@@ -580,26 +628,33 @@ ${content.body}`;
       if (agentSummary) {
         prompt += `
 
-<available_agents>
+## Verfuegbare Subagents (fuer Recherche)
 ${agentSummary}
-</available_agents>
 
-SUBAGENT-REGELN:
-- Wenn der User "alles finden", "umfassend recherchieren", "tiefgehend suchen" oder "@{agent-name}" sagt → IMMER agent-Tool nutzen
-- Wenn du mehr als 2 rag_search Aufrufe braechtest → delegiere an kb-explorer statt selbst zu suchen
-- Der Subagent arbeitet in eigenem Kontext — du siehst nur seine Zusammenfassung, nicht die Zwischenschritte
-- Das spart Kontext und liefert bessere Ergebnisse bei umfangreichen Recherchen`;
+Nutze agent(agentType="kb-explorer") fuer tiefgehende Recherchen die viele Suchdurchlaeufe erfordern.`;
       }
     }
 
+    // --- Memory Placeholders (Hindsight — Spec 04) ---
+    // TODO: Replace with hindsight.recall() when Memory System is implemented
+    // prompt += `\n\n## Ueber den User\n${userMemory || ''}`;
+    // prompt += `\n\n## Gelerntes Unternehmenswissen\n${hiveMindMemory || ''}`;
+
+    // --- Workflow ---
     prompt += `
 
-WORKFLOW:
-1. Passt ein Skill? → load_skill(slug) aufrufen und Instruktionen folgen
-2. Tiefgehende Recherche nötig? → agent(agentType="kb-explorer", task="...") delegieren
-3. Einfaches Unternehmenswissen? → rag_search direkt
-4. Allgemeinwissen? → Direkt antworten
-5. Quellen zitieren wenn Dokumente genutzt`;
+## Regeln
+- Nutze NUR Informationen aus den Tool-Ergebnissen, erfinde nichts dazu
+- Zitiere Quellen (Dokumentname, Seitenzahl) wenn du Dokumente nutzt
+- Wenn du keine relevanten Informationen findest, sage das ehrlich
+- Strukturiere Antworten mit Ueberschriften (##), Aufzaehlungen und **Fettdruck**
+
+## Workflow
+1. Domain-spezifische Frage? → Expert Agent aufrufen${hasExpertAgents ? ' (' + expertAgents.map(a => a.name).join(', ') + ')' : ''}
+2. Passt ein Skill? → load_skill(slug) aufrufen und Instruktionen folgen
+3. Tiefgehende Recherche? → agent(agentType="kb-explorer") delegieren
+4. Einfaches Unternehmenswissen? → rag_search direkt
+5. Allgemeinwissen? → Direkt antworten`;
 
     return prompt;
   }

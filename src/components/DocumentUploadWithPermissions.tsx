@@ -15,6 +15,8 @@
 
 import { useCallback, useState, useRef } from 'react';
 import { Upload, File, FileText, ArrowRight } from 'lucide-react';
+import { useToast } from '../contexts/ToastContext';
+import { useDocuments } from '../contexts/DocumentContext';
 
 // Supported file types (V2)
 const SUPPORTED_TYPES: Record<string, { ext: string; name: string }> = {
@@ -71,6 +73,8 @@ interface DocumentUploadWithPermissionsProps {
 
 export function DocumentUploadWithPermissions({ onUploadComplete }: DocumentUploadWithPermissionsProps = {}) {
   const { isDark } = useTheme();
+  const { addToast } = useToast();
+  const { refreshDocuments } = useDocuments();
   const [isUploading, setIsUploading] = useState(false);
   const { jobs } = useProcessing();
   const [isDragOver, setIsDragOver] = useState(false);
@@ -199,6 +203,11 @@ export function DocumentUploadWithPermissions({ onUploadComplete }: DocumentUplo
 
       console.log('Upload initiated:', response);
 
+      addToast('success', `"${selectedFile.name}" wird verarbeitet...`);
+
+      // Refresh document list so the new document appears
+      refreshDocuments().catch(() => {});
+
       if (!onUploadComplete) {
         setIsUploading(false);
         setSelectedFile(null);
@@ -211,7 +220,7 @@ export function DocumentUploadWithPermissions({ onUploadComplete }: DocumentUplo
       }
     } catch (error) {
       console.error('Upload failed:', error);
-      alert(`Upload fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
+      addToast('error', `Upload fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
       if (!onUploadComplete) {
         setIsUploading(false);
       }

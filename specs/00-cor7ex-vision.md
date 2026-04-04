@@ -345,29 +345,35 @@ Das ist der Schwarm-Gedanke angewandt auf Wissen: Erkenntnisse entstehen bei ein
 
 ## Memory-Architektur — Technische Umsetzung
 
-### Technologie-Entscheidung: Mem0 OSS
+### Technologie-Entscheidung: Hindsight
 
-Basierend auf Analyse von Zep, Mem0 und Letta (siehe `memory/analysis_memory_systems.md`):
+Basierend auf Analyse von Zep, Mem0, Letta, Hindsight und Backboard (siehe `memory/analysis_memory_systems.md`):
 
 | System | Bewertung | Grund |
 |---|---|---|
-| **Mem0 OSS** | **Gewaehlt** | Einziges TypeScript SDK, Neo4j + PGVector nativ, Vercel AI SDK Provider, Apache-2.0, kein Lock-in |
-| Zep | Abgelehnt | Kein TypeScript OSS, Community Edition eingestellt, $475/Monat Cloud |
+| **Hindsight** | **Gewaehlt** | 85% LoCoMo, 4 Retrieval-Strategien, LLM-freier Recall, temporale Awareness nativ, PostgreSQL-only, MIT-Lizenz |
+| Mem0 OSS | Abgelehnt | Nur 66% LoCoMo, LLM pro Suche (teuer), schwache temporale Faehigkeiten |
+| Zep/Graphiti | Abgelehnt | Kein TypeScript OSS, Community Edition eingestellt, $475/Monat Cloud |
 | Letta | Abgelehnt | Komplettes Agent-Framework, nicht nur Memory — wuerde gesamte Architektur ersetzen |
+| Backboard.io | Abgelehnt | Kein Self-Hosting moeglich, proprietaer |
 
-### Drei Memory-Ebenen
+**Details:** Siehe [Spec 04 — Memory System](./04-memory-system.md)
+
+### Drei Memory-Ebenen via Memory Banks
+
+Hindsight nutzt **Memory Banks** als Isolation-Einheit. Wir bilden unsere drei Ebenen darauf ab:
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │                   MEMORY SYSTEM                      │
-│                   (Mem0 OSS + Custom)                │
+│                   (Hindsight — PostgreSQL-only)       │
 │                                                      │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────┐ │
 │  │ User Memory  │  │ Agent Memory │  │ Hive Mind  │ │
 │  │              │  │              │  │ Memory     │ │
-│  │ scope:       │  │ scope:       │  │            │ │
-│  │ user_id      │  │ agent_id     │  │ scope:     │ │
-│  │              │  │              │  │ org_id     │ │
+│  │ Bank:        │  │ Bank:        │  │            │ │
+│  │ user-{id}    │  │ agent-{name} │  │ Bank:      │ │
+│  │              │  │              │  │ hive-{org} │ │
 │  │ Praeferenzen │  │ Domain-      │  │            │ │
 │  │ Feedback     │  │ Wissen       │  │ Cross-     │ │
 │  │ Heartbeat-   │  │ Gelernte     │  │ Domain     │ │
@@ -383,10 +389,11 @@ Basierend auf Analyse von Zep, Mem0 und Letta (siehe `memory/analysis_memory_sys
 │  ┌──────┴────────────────────────────────────┐       │
 │  │         Storage Layer                      │       │
 │  │                                            │       │
-│  │  PGVector (PostgreSQL)  ←  Vektor-Fakten  │       │
-│  │  Neo4j                  ←  Beziehungen    │       │
-│  │  Weaviate               ←  Wissensdatenbank│       │
-│  │  Redis                  ←  Cache          │       │
+│  │  Hindsight (PostgreSQL + pgvector)         │       │
+│  │    ← Fakten, Embeddings, Graph, Temporal   │       │
+│  │  Weaviate      ← Wissensdatenbank/RAG      │       │
+│  │  Neo4j         ← Knowledge Graph           │       │
+│  │  Redis         ← Cache                     │       │
 │  └────────────────────────────────────────────┘       │
 └─────────────────────────────────────────────────────┘
 ```
@@ -395,13 +402,15 @@ Basierend auf Analyse von Zep, Mem0 und Letta (siehe `memory/analysis_memory_sys
 
 | System | Zweck | Aenderung |
 |---|---|---|
-| **Weaviate** | Wissensdatenbank/RAG (Dokumente, Chunks) | Bleibt wie bisher |
-| **PGVector** | Memory-Fakten (User + Agent + Hive Mind) | Neu via Mem0 SDK |
-| **Neo4j** | Graph-Beziehungen (Entitaeten, Relationen) | Erweitert via Mem0 SDK |
+| **Hindsight (PostgreSQL + pgvector)** | Memory (Fakten, Embeddings, Graph, Temporal) | Neue DB `hindsight` auf bestehendem PostgreSQL |
+| **Weaviate** | Wissensdatenbank/RAG (Dokumente, Chunks) | Bleibt wie bisher — NICHT fuer Memory |
+| **Neo4j** | Knowledge Graph (Dokument-Beziehungen) | Bleibt wie bisher — NICHT fuer Memory |
 | **PostgreSQL** | Strukturierte Daten (Tasks, Users, etc.) | Bleibt wie bisher |
 | **Redis** | Cache | Bleibt wie bisher |
 
 ### Ebene 1: User Memory
+
+**Bank:** `user-{userId}`
 
 Was gespeichert wird:
 - Praeferenzen: "Ich will Tabellen statt Fliesstext"
@@ -410,11 +419,13 @@ Was gespeichert wird:
 - Gelernte Interaktionsmuster: "Lisa fragt montags immer nach Klinikum X"
 
 Wie es funktioniert:
-- `mem0.add(messages, { user_id: "lisa" })` — automatische Fakten-Extraktion
-- `mem0.search(query, { user_id: "lisa" })` — personalisierte Suche
+- `hindsight.retain(`user-${userId}`, conversation)` — automatische Fakten-Extraktion
+- `hindsight.recall(`user-${userId}`, query)` — personalisierte Suche (LLM-frei!)
 - Wird dem Hive Mind als Kontext mitgegeben wenn Lisa eine Anfrage stellt
 
 ### Ebene 2: Expert Agent Memory
+
+**Bank:** `agent-{agentName}` (mit domain-spezifischer `retainMission`)
 
 Was gespeichert wird:
 - Domain-Fakten: "Klinikum X zahlt durchschnittlich 45 Tage spaet"
@@ -423,11 +434,13 @@ Was gespeichert wird:
 - Procedurale Erinnerungen: "So habe ich das letzte Mal den Monatsbericht erstellt"
 
 Wie es funktioniert:
-- `mem0.add(messages, { agent_id: "hr-expert" })` — domain-spezifische Extraktion
-- Custom Extraction Prompts pro Agent: HR extrahiert Personen/Vertraege, Buchhaltung extrahiert Betraege/Fristen
+- `hindsight.retain(`agent-${agentName}`, taskResult)` — domain-spezifische Extraktion
+- Custom Extraction via `retainMission` + `retainCustomInstructions` pro Agent-Bank
 - Memory wird in den System Prompt des Expert Agent injiziert
 
 ### Ebene 3: Hive Mind Memory
+
+**Bank:** `hive-{orgId}`
 
 Was gespeichert wird:
 - Cross-Domain Zusammenhaenge: "Klinikum X: spaete Zahlung + geplante Einsaetze = Risiko"
@@ -436,11 +449,10 @@ Was gespeichert wird:
 - Strategisches Wissen: Aus Admin-Feedback hochgestufte Erkenntnisse
 
 Wie es funktioniert:
-- **Promotion Pipeline**: Agent Memory → Hive Mind Memory wenn:
-  - Mehrere Agents bestaetigen die gleiche Erkenntnis
-  - Admin stuft manuell hoch
-  - Hohe Konfidenz / hohe Frequenz
-- `mem0.add(messages, { agent_id: "hive_mind", metadata: { org_id: "tenant_123" } })`
+- **Promotion Pipeline**: User/Agent Memory → Hive Mind Memory wenn:
+  - Mehrere Mitarbeiter bestaetigen die gleiche Erkenntnis
+  - Admin stuft manuell hoch (Phase 1)
+- `hindsight.retain(`hive-${orgId}`, content, { metadata: { promotedFrom } })`
 - Wird in den System Prompt des Hive Mind Orchestrators injiziert
 
 ### Write-Pipeline: Wann wird etwas zum Memory?
@@ -449,24 +461,23 @@ Wie es funktioniert:
 Interaktion (User ↔ Hive Mind ↔ Expert Agent)
     │
     ▼
-Mem0 Extraction Pipeline (LLM-gesteuert):
+Hintergrund-Job (non-blocking):
     │
-    ├── Fakten extrahieren aus Konversation
-    ├── Vergleich mit bestehenden Memories (Dedup)
-    ├── Entscheidung: ADD / UPDATE / DELETE / NOOP
+    ├── User Memory:
+    │   hindsight.retain(`user-${userId}`, conversation)
+    │   → Hindsight extrahiert Fakten automatisch (4 Memory-Typen)
+    │   → Erstellt Entitaeten, Links, Embeddings
+    │   → Consolidation generiert Observations async
     │
-    ├── Vektor-Embedding → PGVector
-    ├── Entitaeten + Beziehungen → Neo4j Graph
-    │
-    └── Temporale Metadaten:
-        ├── valid_from (wann wurde der Fakt wahr)
-        ├── valid_until (wann wurde er ueberholt)
-        └── superseded_by (Verweis auf neueren Fakt)
+    └── Agent Memory:
+        hindsight.retain(`agent-${agentName}`, taskResult)
+        → Custom Extraction via retainMission
+        → Domain-spezifische Fakten + temporale Einordnung
 ```
 
 **Drei Trigger fuer Memory-Writes:**
 1. **Explizit**: User sagt "Merke dir X" → sofortiger Write
-2. **Automatisch**: Nach jeder Interaktion prueft Mem0 Pipeline → ADD/UPDATE/DELETE/NOOP
+2. **Automatisch**: Nach jeder Interaktion (non-blocking) → Hindsight extrahiert und konsolidiert
 3. **Memory Flush**: Vor Context-Compaction wird wichtiges Wissen persistiert (OpenClaw/Claude Pattern)
 
 ### Read-Pipeline: Wie wird Memory abgerufen?
@@ -475,41 +486,44 @@ Mem0 Extraction Pipeline (LLM-gesteuert):
 User stellt Anfrage
     │
     ▼
-Hive Mind laedt Kontext:
+Hive Mind laedt Kontext (parallel, LLM-frei):
     │
-    ├── User Memory (Lisa's Praeferenzen + Feedback)
-    ├── Hive Mind Memory (Unternehmens-Zusammenhaenge)
+    ├── User Memory: hindsight.recall(`user-${userId}`, query)
+    ├── Hive Mind Memory: hindsight.recall(`hive-${orgId}`, query)
     │
     ▼
 Hive Mind delegiert an Expert Agent (z.B. HR)
     │
-    ├── Agent Memory (HR Domain-Wissen)
+    ├── Agent Memory: hindsight.recall(`agent-${agentName}`, task)
     ├── + Relevante Hive Mind Insights
     │
     ▼
 Expert Agent arbeitet mit vollem Kontext
 ```
 
-**Retrieval-Strategie:**
-- Semantische Vektor-Suche (PGVector via Mem0)
-- Graph-Queries parallel (Neo4j via Mem0)
-- Temporale Filterung (nur gueltige Fakten)
-- Ergebnisse werden als System Prompt Kontext injiziert (via Vercel AI SDK Provider)
+**Retrieval: 4 Strategien parallel (Hindsight intern):**
+- Semantic Search (pgvector Cosine Similarity)
+- Keyword Search (BM25 Full-Text)
+- Graph Retrieval (Entity Link Expansion)
+- Temporal Search (occurred_start/end Range)
+- → Reciprocal Rank Fusion + Cross-Encoder Reranking → Top-N relevanteste Memories
 
-### Temporale Erweiterung (Custom, auf Mem0 aufgebaut)
+**Kein LLM-Call beim Recall** — nur Embeddings + Reranking. Schnell und guenstig.
 
-Mem0 hat nur Basis-Timestamps. Wir erweitern mit:
+### Temporale Awareness (nativ in Hindsight)
+
+Hindsight trackt Zeitgueltigkeit automatisch — keine Custom-Erweiterung noetig:
 
 ```
-Memory-Fakt: "Klinikum X zahlt spaet"
-├── valid_from: "2025-06-01"     (erkannt aus Rechnungsdaten)
-├── valid_until: "2026-01-15"    (als neuer Fakt kam: "Klinikum X zahlt jetzt puenktlich")
-├── superseded_by: memory_id_789 (Verweis auf den neueren Fakt)
-├── confidence: 0.92             (aus Datenanalyse)
-└── sources: ["hr-expert", "accounting-expert"]  (welche Agents bestaetigen)
+hindsight.retain("agent-accounting", "Seit Juni 2025 zahlt Klinikum X spaet")
+→ Hindsight erkennt: occurred_start = 2025-06-01
+
+hindsight.retain("agent-accounting", "Seit Januar 2026 zahlt Klinikum X puenktlich")
+→ Hindsight erkennt: occurred_start = 2026-01-01
+→ Temporal Search findet beides und ordnet zeitlich ein
 ```
 
-Statt Fakten zu ueberschreiben (Mem0 Default) erstellen wir neue und markieren alte als abgeloest. Das gibt uns Zep-aehnliche temporale Nachvollziehbarkeit ohne den Python-Overhead.
+Kein manuelles `valid_from`/`valid_until` noetig — Hindsight extrahiert temporale Informationen automatisch aus dem Text.
 
 ---
 
@@ -783,8 +797,8 @@ Der System Prompt des Hive Mind wird **automatisch aus den Harness-Dateien des T
 Beim Start / bei Aenderung einer Harness-Datei:
   1. Lade alle Expert Agent Harness-Dateien des Tenants
   2. Extrahiere name + description aus jedem Frontmatter
-  3. Lade User Memory (Praeferenzen der aktuellen Person) via Mem0 search()
-  4. Lade Hive Mind Memory (gelerntes Unternehmenswissen) via Mem0 search()
+  3. Lade User Memory (Praeferenzen der aktuellen Person) via hindsight.recall()
+  4. Lade Hive Mind Memory (gelerntes Unternehmenswissen) via hindsight.recall()
   5. Baue System Prompt zusammen:
 
      "Du bist der Hive Mind von [Firmenname].
@@ -908,12 +922,12 @@ Der User merkt nicht dass ein Expert Agent gefragt hat. Der Hive Mind ist der ei
 
 ### 8. Memory-Injection: Relevanz-basiert
 
-Bei jeder Anfrage liefert Mem0 `search()` nur die **relevantesten** Memories. Kein festes Limit, sondern semantische Suche.
+Bei jeder Anfrage liefert `hindsight.recall()` nur die **relevantesten** Memories. 4 Retrieval-Strategien parallel, dann Reranking — kein LLM noetig.
 
 ```
 User: "Wie ist die Lage bei Klinikum X?"
 
-Mem0 search("Klinikum X"):
+hindsight.recall("Klinikum X") pro Bank:
   → User Memory:  "Lisa prueft montags Klinikum X"     ✓ geladen
   → Agent Memory: "Klinikum X zahlt 45 Tage spaet"     ✓ geladen
   → Hive Mind:    "Klinikum X: Risiko offene Rechnungen" ✓ geladen
@@ -921,7 +935,7 @@ Mem0 search("Klinikum X"):
   → Hive Mind:    "Im Februar kuendigen viele"           ✗ nicht relevant
 ```
 
-Skaliert mit wachsendem Memory — ob 50 oder 50.000 Memories, die Suche liefert immer die Top-N relevantesten.
+Skaliert mit wachsendem Memory — ob 50 oder 50.000 Memories, die 4-Strategie-Suche liefert immer die Top-N relevantesten.
 
 ---
 

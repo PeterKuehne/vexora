@@ -106,10 +106,16 @@ router.post('/upload', authenticateToken, upload.single('document'), asyncHandle
 
   const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
+  // Fix multer's latin1 decoding of UTF-8 filenames:
+  // Browsers send UTF-8 filenames, but multer decodes the Content-Disposition
+  // header as latin1. Re-encode to get the original UTF-8 bytes, then NFC-normalize
+  // to compose decomposed characters (macOS NFD: U+0308 → Ü).
+  const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf-8').normalize('NFC');
+
   const job = processingJobService.createJob(
     documentId,
     req.file.filename,
-    req.file.originalname,
+    originalName,
     {
       ownerId: req.user?.user_id || null,
       department: department || req.user?.department || null,
@@ -131,7 +137,7 @@ router.post('/upload', authenticateToken, upload.single('document'), asyncHandle
     ipAddress: req.ip || req.socket.remoteAddress,
     userAgent: req.headers['user-agent'],
     metadata: {
-      filename: req.file.originalname,
+      filename: originalName,
       size: req.file.size,
       classification,
       visibility,

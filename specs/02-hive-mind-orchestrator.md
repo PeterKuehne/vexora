@@ -63,8 +63,8 @@ User-Anfrage
 │  System Prompt (dynamisch generiert):            │
 │  - Tenant-spezifisch (Firmenname, Branche)       │
 │  - Expert Agent Verzeichnis (aus Harness-Dateien)│
-│  - User Memory (via Mem0 search)                 │
-│  - Hive Mind Memory (via Mem0 search)            │
+│  - User Memory (via hindsight.recall)             │
+│  - Hive Mind Memory (via hindsight.recall)        │
 │                                                  │
 │  Tools:                                          │
 │  ├── hr_expert(task)        → ToolLoopAgent      │
@@ -100,10 +100,10 @@ function createExpertAgentTool(harness: ExpertAgentHarness): AgentTool {
     }),
 
     async execute(args, context, options) {
-      // 1. Agent Memory laden (via Mem0)
-      const agentMemory = await mem0.search(args.task, {
-        agent_id: harness.name,
-      });
+      // 1. Agent Memory laden (via Hindsight — LLM-frei)
+      const agentMemory = await hindsight.recall(
+        `agent-${harness.name}`, args.task, { maxTokens: 3000 }
+      );
 
       // 2. System Prompt aus Harness + Memory zusammenbauen
       const instructions = buildExpertPrompt(harness, agentMemory);
@@ -121,7 +121,7 @@ function createExpertAgentTool(harness: ExpertAgentHarness): AgentTool {
         model: resolveModel(harness.model || DEFAULT_AGENT_CONFIG.defaultModel),
         instructions,
         tools,
-        stopWhen: stepCountIs(harness.maxSteps || 15),
+        stopWhen: isStepCount(harness.maxSteps || 15),
         temperature: 0.1,
       });
 
@@ -377,7 +377,7 @@ export function registerBuiltinTools(): void {
 ### Schritt 3: System Prompt anpassen
 - `buildSystemPrompt()` erweitern mit Expert Agent Verzeichnis
 - Hive Mind instruieren: "Delegiere an Expert Agents statt Tools direkt zu nutzen"
-- Memory-Injection (Mem0) vorbereiten (Platzhalter bis Spec 23)
+- Memory-Injection (Hindsight) vorbereiten (Platzhalter bis Spec 04)
 
 ### Schritt 4: Weitere Expert Agents + MCP Tools entfernen
 - Accounting, Knowledge Expert Agents erstellen
@@ -454,7 +454,7 @@ Tools werden pro Step phasenweise aktiviert. Z.B. Step 1 hat nur Discovery-Tools
 
 ## Offene Punkte (geloest in spaeterer Specs)
 
-- **Memory-Injection**: Wie Mem0 integriert wird → Spec 23
+- **Memory-Injection**: Wie Hindsight integriert wird → Spec 04
 - **Heartbeat**: Proaktive Pruefungen → Spec 24
 - **Multi-Tenant**: Tenant-Isolation der Harness-Dateien → Spec 25
 - **Guardrails**: Pre-Validation Hooks technisch → Spec 22
