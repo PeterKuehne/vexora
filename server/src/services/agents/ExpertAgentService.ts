@@ -265,7 +265,7 @@ class ExpertAgentServiceImpl {
         `INSERT INTO expert_agents
           (tenant_id, name, description, model, max_steps, roles, rules, tools, instructions, source)
          VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8, 'builtin')
-         ON CONFLICT (tenant_id, name) DO UPDATE SET
+         ON CONFLICT (COALESCE(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid), name) DO UPDATE SET
            description = EXCLUDED.description,
            model = EXCLUDED.model,
            max_steps = EXCLUDED.max_steps,

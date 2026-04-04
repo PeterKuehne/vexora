@@ -26,12 +26,18 @@ CREATE TABLE IF NOT EXISTS expert_agents (
     created_by UUID REFERENCES users(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT unique_agent_per_tenant UNIQUE(tenant_id, name)
+    -- Note: unique constraint uses COALESCE to handle NULL tenant_id
+    -- (PostgreSQL treats NULL != NULL in unique constraints)
+    -- See unique index below
 );
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_expert_agents_tenant
 ON expert_agents(tenant_id);
+
+-- NULL-safe unique: COALESCE maps NULL tenant_id to a zero UUID
+CREATE UNIQUE INDEX IF NOT EXISTS unique_agent_per_tenant
+ON expert_agents(COALESCE(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid), name);
 
 CREATE INDEX IF NOT EXISTS idx_expert_agents_active
 ON expert_agents(is_active);
