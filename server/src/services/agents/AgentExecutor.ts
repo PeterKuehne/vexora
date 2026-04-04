@@ -192,19 +192,22 @@ export class AgentExecutor {
         expertAgentNames.push(harness.name);
       }
 
-      // Remove MCP tools (sama_*) from Hive Mind's direct access when Expert Agents exist.
+      // Remove domain-specific tools from Hive Mind when Expert Agents exist.
       // These tools are only accessible through Expert Agents now.
+      // Hive Mind keeps: rag_search, send_notification, list_skills, load_skill, agent
+      // (plus skill-gated tools like create_skill which are unlocked via load_skill)
       if (expertAgentNames.length > 0) {
-        const removedMcpTools: string[] = [];
+        const expertOnlyTools = new Set(['graph_query', 'read_chunk', 'sql_query']);
+        const removedTools: string[] = [];
         for (const name of Object.keys(tools)) {
-          if (name.startsWith('sama_')) {
+          if (name.startsWith('sama_') || expertOnlyTools.has(name)) {
             delete tools[name];
-            removedMcpTools.push(name);
+            removedTools.push(name);
           }
         }
         console.log(`[AgentExecutor] Expert Agents registered: ${expertAgentNames.join(', ')}`);
-        if (removedMcpTools.length > 0) {
-          console.log(`[AgentExecutor] ${removedMcpTools.length} MCP tools moved to Expert Agents (removed from Hive Mind)`);
+        if (removedTools.length > 0) {
+          console.log(`[AgentExecutor] ${removedTools.length} tools moved to Expert Agents (removed from Hive Mind)`);
         }
       }
 
