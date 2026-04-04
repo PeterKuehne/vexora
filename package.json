@@ -30,6 +30,7 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/pg": "^8.16.0",
     "@types/prismjs": "^1.26.5",
+    "@vectorize-io/hindsight-client": "^0.4.22",
     "ai": "^6.0.134",
     "arctic": "^3.7.0",
     "autoprefixer": "^10.4.23",

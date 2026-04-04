@@ -1,0 +1,57 @@
+# Hindsight Memory Server for Cor7ex
+# Deploys on the Hetzner server alongside existing services
+#
+# Usage:
+#   cp .env.example .env
+#   # Edit .env with your values
+#   docker compose up -d
+#
+# The server runs on port 8888 and connects to the existing
+# PostgreSQL instance (separate database: hindsight).
+
+services:
+  hindsight:
+    image: ghcr.io/vectorize-io/hindsight:latest
+    container_name: hindsight
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    environment:
+      # Database — uses existing PostgreSQL, separate database
+      HINDSIGHT_API_DATABASE_URL: postgresql://cor7ex:${DB_PASSWORD}@host.docker.internal:5432/hindsight
+
+      # LLM for fact extraction (retain) — OVH EU-Cloud (DSGVO-konform)
+      HINDSIGHT_API_LLM_PROVIDER: openai
+      HINDSIGHT_API_LLM_BASE_URL: ${OVH_AI_BASE_URL}
+      HINDSIGHT_API_LLM_API_KEY: ${OVH_AI_API_KEY}
+      HINDSIGHT_API_LLM_MODEL: ${OVH_AI_MODEL:-gpt-oss-120b}
+
+      # Embeddings — local model runs inside the container (no external calls)
+      HINDSIGHT_API_EMBEDDINGS_PROVIDER: local
+      HINDSIGHT_API_EMBEDDINGS_LOCAL_MODEL: BAAI/bge-small-en-v1.5
+
+      # Reranker — local cross-encoder inside the container
+      HINDSIGHT_API_RERANKER_PROVIDER: local
+      HINDSIGHT_API_RERANKER_LOCAL_MODEL: cross-encoder/ms-marco-MiniLM-L-6-v2
+
+      # Memory consolidation (observations/mental models)
+      HINDSIGHT_API_ENABLE_OBSERVATIONS: "true"
+
+      # Retain settings
+      HINDSIGHT_API_RETAIN_EXTRACTION_MODE: concise
+      HINDSIGHT_API_RETAIN_CHUNK_SIZE: "2000"
+      HINDSIGHT_API_RETAIN_ENTITY_LOOKUP: "true"
+
+      # Server
+      HINDSIGHT_API_HOST: "0.0.0.0"
+      HINDSIGHT_API_PORT: "8888"
+      HINDSIGHT_API_LOG_LEVEL: info
+      HINDSIGHT_API_RUN_MIGRATIONS_ON_STARTUP: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
