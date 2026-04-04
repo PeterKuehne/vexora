@@ -50,17 +50,19 @@ Lies immer nur so viel wie du fuer die Aufgabe brauchst.
 ## RAG / Wissensdatenbank aendern
 
 1. `server/src/services/VectorServiceV2.ts` — Weaviate Hybrid Search
-2. `server/src/services/GraphService.ts` — Neo4j Knowledge Graph
+2. `server/src/services/graph/GraphService.ts` — Neo4j Knowledge Graph
 3. `server/src/services/agents/tools/rag-search.ts` — RAG Search Tool
 4. `server/src/services/agents/tools/graph-query.ts` — Graph Query Tool
 5. `server/src/services/agents/tools/read-chunk.ts` — Chunk-Loader
 
 ## Frontend aendern
 
-1. `src/components/chat/` — Chat-UI Komponenten
-2. `src/services/agentService.ts` — SSE-Client fuer Agent-Events
-3. `src/services/api.ts` — REST API Client
-4. `src/App.tsx` — Routing
+1. `src/components/` — UI-Komponenten (ChatInput, DocumentList, etc.)
+2. `src/pages/` — Seiten-Komponenten (Login, Documents, Admin)
+3. `src/lib/api.ts` — REST API Client
+4. `src/lib/socket.ts` — Socket.io Client
+5. `src/hooks/` — Custom Hooks (useAutoResize, useSocket, etc.)
+6. `src/App.tsx` — Routing
 
 ## Bug fixen
 

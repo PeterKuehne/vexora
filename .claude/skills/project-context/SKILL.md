@@ -31,7 +31,7 @@ und React-Frontend.
 
 Lies die Vision und Architektur:
 - `specs/00_COR7EX_VISION.md` — Vision, Hive Mind, Expert Agents, Memory, Heartbeat
-- `memory/ai/diagrams/architecture-overview.md` — System-Diagramme
+- `specs/` — Alle technischen Specs (21-25)
 
 ### Schritt 2: Backend-Struktur
 
@@ -54,7 +54,7 @@ Verstehe wie Tools und Skills funktionieren:
 
 Ueberblick ueber externe Services:
 - `server/src/services/VectorServiceV2.ts` — Weaviate (RAG/Hybrid Search)
-- `server/src/services/GraphService.ts` — Neo4j (Knowledge Graph)
+- `server/src/services/graph/GraphService.ts` — Neo4j (Knowledge Graph)
 - `server/src/services/mcp/` — MCP Client (SamaWorkforce-Anbindung)
 - `server/.env` — Alle Konfigurationen und Verbindungen
 
@@ -62,8 +62,10 @@ Ueberblick ueber externe Services:
 
 Ueberblick ueber die UI:
 - `src/` — React Frontend (Vite)
-- `src/components/chat/` — Chat-Komponenten
-- `src/services/` — API-Client, Socket.io
+- `src/components/` — UI-Komponenten (ChatInput, DocumentList, etc.)
+- `src/pages/` — Seiten (Login, Documents, Admin, Profile)
+- `src/lib/api.ts` — API-Client (REST Calls)
+- `src/lib/socket.ts` — Socket.io Client
 
 ## Referenzdateien (bei Bedarf)
 
