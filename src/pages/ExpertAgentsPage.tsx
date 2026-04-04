@@ -70,15 +70,16 @@ export function ExpertAgentsPage() {
   const handleSave = async (data: ExpertAgentInput) => {
     try {
       if (selectedAgent) {
-        await updateExpertAgent(selectedAgent.id, data);
+        const updated = await updateExpertAgent(selectedAgent.id, data);
+        setSelectedAgent(updated);
         toast.success(`"${data.name}" wurde gespeichert`);
       } else {
-        await createExpertAgent(data);
+        const created = await createExpertAgent(data);
+        setSelectedAgent(created);
+        setViewMode('detail');
         toast.success(`"${data.name}" wurde erstellt`);
       }
       await loadAgents();
-      setViewMode('grid');
-      setSelectedAgent(null);
     } catch (err) {
       toast.error((err as Error).message || 'Fehler beim Speichern');
     }

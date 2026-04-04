@@ -168,7 +168,7 @@ export function ExpertAgentDetail({ agent, isAdmin, onBack, onSave, onDelete, on
       </div>
 
       {/* Two-Column Layout */}
-      <div className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6">
+      <div className="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 52px)' }}>
         {/* Left Column: Config */}
         <div className="space-y-5">
           {/* Basis Informationen */}
@@ -397,8 +397,9 @@ export function ExpertAgentDetail({ agent, isAdmin, onBack, onSave, onDelete, on
                     onChange={e => setInstructions(e.target.value)}
                     disabled={isReadOnly}
                     placeholder="Du bist der [Domain]-Experte im Hive Mind..."
+                    rows={Math.max(20, instructions.split('\n').length + 2)}
                     className={cn(
-                      'flex-1 resize-none outline-none pt-3 pb-3 pr-3 leading-5 min-h-[300px]',
+                      'flex-1 resize-none outline-none pt-3 pb-3 pr-3 leading-5',
                       isDark ? 'bg-transparent text-white/80 placeholder:text-white/15' : 'bg-transparent text-gray-800 placeholder:text-gray-400',
                       isReadOnly && 'cursor-not-allowed'
                     )}
@@ -408,7 +409,7 @@ export function ExpertAgentDetail({ agent, isAdmin, onBack, onSave, onDelete, on
               </div>
             ) : (
               <div className={cn(
-                'rounded-lg border p-4 min-h-[300px] prose prose-sm max-w-none',
+                'rounded-lg border p-4 prose prose-sm max-w-none',
                 isDark
                   ? 'bg-[#0d0d0e] border-white/[0.06] prose-invert prose-p:text-white/70 prose-headings:text-white/90 prose-li:text-white/70'
                   : 'bg-gray-50 border-gray-200'
