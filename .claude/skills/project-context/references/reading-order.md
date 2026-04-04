@@ -6,7 +6,7 @@ Lies immer nur so viel wie du fuer die Aufgabe brauchst.
 
 ## Agent-System aendern (Expert Agent, Hive Mind, Tools)
 
-1. `specs/21-hive-mind-orchestrator.md` — Architektur verstehen
+1. `specs/02-hive-mind-orchestrator.md` — Architektur verstehen
 2. `server/src/services/agents/AgentExecutor.ts` — Aktueller Agent-Loop
 3. `server/src/services/agents/ToolRegistry.ts` — Tool-Registrierung
 4. `server/src/services/agents/tools/index.ts` — Registrierte Tools
@@ -23,7 +23,7 @@ Lies immer nur so viel wie du fuer die Aufgabe brauchst.
 
 ## MCP-Integration aendern
 
-1. `specs/20-mcp-samaworkforce.md` — MCP-Architektur
+1. `specs/01-mcp-samaworkforce.md` — MCP-Architektur
 2. `server/src/services/mcp/McpClientManager.ts` — Client-Lifecycle, Tool-Discovery
 3. `server/src/services/mcp/McpOAuthClient.ts` — Token-Management
 4. `server/src/services/mcp/McpToolAdapter.ts` — MCP Tool → AgentTool Konvertierung
@@ -39,12 +39,12 @@ Lies immer nur so viel wie du fuer die Aufgabe brauchst.
 
 ## Memory-System implementieren
 
-1. `specs/23-memory-system.md` — Hindsight-Integration, 3 Ebenen
+1. `specs/04-memory-system.md` — Hindsight-Integration, 3 Ebenen
 2. `specs/00-cor7ex-vision.md` — Abschnitt "Memory-Architektur"
 
 ## Heartbeat implementieren
 
-1. `specs/24-heartbeat-engine.md` — Cron, Briefing, Panels
+1. `specs/05-heartbeat-engine.md` — Cron, Briefing, Panels
 2. `server/src/services/agents/AgentExecutor.ts` — SSE-Events als Vorlage
 
 ## RAG / Wissensdatenbank aendern

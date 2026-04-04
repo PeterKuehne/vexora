@@ -1,7 +1,7 @@
 # Spec: Heartbeat Engine
 
 **Status:** Entwurf
-**Abhaengigkeiten:** [21-hive-mind-orchestrator.md](./21-hive-mind-orchestrator.md), [23-memory-system.md](./23-memory-system.md)
+**Abhaengigkeiten:** [02-hive-mind-orchestrator.md](./02-hive-mind-orchestrator.md), [04-memory-system.md](./04-memory-system.md)
 **Bezug:** [00-cor7ex-vision.md](./00-cor7ex-vision.md) — Abschnitt "Heartbeat"
 
 ---

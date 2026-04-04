@@ -1,7 +1,7 @@
 # Spec: Expert Agent Harness
 
 **Status:** Entwurf
-**Abhaengigkeiten:** [21-hive-mind-orchestrator.md](./21-hive-mind-orchestrator.md)
+**Abhaengigkeiten:** [02-hive-mind-orchestrator.md](./02-hive-mind-orchestrator.md)
 **Bezug:** [00-cor7ex-vision.md](./00-cor7ex-vision.md) — Abschnitt "Expert Agents" + "Technische Detailentscheidungen"
 
 ---
