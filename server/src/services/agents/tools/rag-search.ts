@@ -10,9 +10,8 @@ export const ragSearchTool: AgentTool = {
   name: 'rag_search',
   description: 'Search the document knowledge base using hybrid search (keyword + semantic). Returns relevant document chunks with scores. Use this to find information in uploaded documents.',
   inputSchema: z.object({
-    query: z.string().describe('The search query - be specific with keywords or describe the concept you are looking for'),
+    query: z.string().describe('The search query - use specific keywords and domain terms for best results'),
     limit: z.number().optional().describe('Maximum number of results (default: 5, max: 15)'),
-    searchMode: z.enum(['keyword', 'semantic', 'hybrid']).optional().describe('Search mode: "keyword" (BM25-focused), "semantic" (vector-focused), or "hybrid" (balanced). Default: "hybrid"'),
   }),
   parameters: {
     type: 'object',
@@ -20,16 +19,11 @@ export const ragSearchTool: AgentTool = {
     properties: {
       query: {
         type: 'string',
-        description: 'The search query - be specific with keywords or describe the concept you are looking for',
+        description: 'The search query - use specific keywords and domain terms for best results',
       },
       limit: {
         type: 'number',
         description: 'Maximum number of results (default: 5, max: 15)',
-      },
-      searchMode: {
-        type: 'string',
-        description: 'Search mode: "keyword" (BM25-focused), "semantic" (vector-focused), or "hybrid" (balanced). Default: "hybrid"',
-        enum: ['keyword', 'semantic', 'hybrid'],
       },
     },
   },
@@ -38,12 +32,10 @@ export const ragSearchTool: AgentTool = {
     try {
       const query = args.query as string;
       const limit = Math.min((args.limit as number) || 5, 15);
-      const searchMode = (args.searchMode as string) || 'hybrid';
 
-      // Determine hybridAlpha based on search mode
-      const hybridAlpha = searchMode === 'keyword' ? 0.2
-        : searchMode === 'semantic' ? 0.8
-        : 0.3; // hybrid default (German-optimized)
+      // Always use hybrid search (alpha 0.3 = 70% BM25 keyword + 30% semantic)
+      // Optimized for German texts — keyword matching is critical for domain terms
+      const hybridAlpha = 0.3;
 
       const results = await vectorServiceV2.search({
         query,
