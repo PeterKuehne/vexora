@@ -19,6 +19,7 @@ import { ToolLoopAgent, stepCountIs, tool as aiTool } from 'ai';
 import type { Tool } from 'ai';
 import { resolveModel, getProviderOptions } from './ai-provider.js';
 import { toolRegistry } from './ToolRegistry.js';
+import { memoryService } from '../memory/index.js';
 import type {
   ExpertAgentHarness,
   Guardrail,
@@ -306,8 +307,20 @@ export function createExpertAgentTool(
           { strict: true },
         );
 
-        // 3. Build instructions from harness + guardrails
-        const instructions = buildExpertInstructions(harness);
+        // 3. Build instructions from harness + guardrails + agent memory
+        let instructions = buildExpertInstructions(harness);
+
+        // 3b. Inject Agent Memory (if Hindsight available)
+        if (memoryService.isAvailable) {
+          try {
+            const agentMemory = await memoryService.loadAgentContext(task, harness.name);
+            if (agentMemory) {
+              instructions += `\n\n## Dein gelerntes Wissen\n${agentMemory}`;
+            }
+          } catch {
+            // Agent memory recall is non-critical
+          }
+        }
 
         // 4. Create ToolLoopAgent (isolated context)
         const agent = new ToolLoopAgent({
@@ -346,6 +359,11 @@ export function createExpertAgentTool(
         }
 
         const { cleanText, panels } = extractPanels(output);
+
+        // 7. Non-blocking agent memory write
+        if (memoryService.isAvailable && output) {
+          memoryService.retainAgentMemory(harness.name, task, output.substring(0, 2000));
+        }
 
         // SSE: expert:complete (with panels)
         emitSSE({

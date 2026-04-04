@@ -41,6 +41,7 @@ import { setPIIGuard } from './services/agents/ai-middleware.js'
 import { initializeAgentSystem } from './services/agents/index.js'
 import { initializeSkillSystem } from './services/skills/index.js'
 import { expertAgentService } from './services/agents/ExpertAgentService.js'
+import { memoryService } from './services/memory/index.js'
 import { mcpClientManager } from './services/mcp/McpClientManager.js'
 
 const app = express()
@@ -276,6 +277,16 @@ httpServer.on('listening', async () => {
     await expertAgentService.seedBuiltinAgents()
   } catch (error) {
     console.warn('⚠️  Expert Agent seeding failed:', error)
+  }
+
+  // Initialize Memory System (Hindsight)
+  try {
+    const memoryConnected = await memoryService.initialize()
+    if (memoryConnected) {
+      console.log('✅ Memory system connected (Hindsight)')
+    }
+  } catch (error) {
+    console.warn('⚠️  Memory system initialization failed (non-critical):', error)
   }
 
   // Initialize MCP Client (SamaWorkforce)

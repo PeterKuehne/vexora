@@ -14,6 +14,7 @@ import { toolRegistry } from './ToolRegistry.js';
 import { agentPersistence } from './AgentPersistence.js';
 import { createExpertAgentTool } from './ExpertAgentLoader.js';
 import { expertAgentService } from './ExpertAgentService.js';
+import { memoryService } from '../memory/index.js';
 import type {
   AgentUserContext,
   AgentSSEEvent,
@@ -214,8 +215,8 @@ export class AgentExecutor {
 
       const toolNames = Object.keys(tools);
 
-      // Build system prompt (with optional skill injection from slash-command)
-      const instructions = options?.systemPrompt || await this.buildSystemPrompt(toolNames, toolContext, options?.skillSlug, expertAgents);
+      // Build system prompt with memory context (with optional skill injection from slash-command)
+      const instructions = options?.systemPrompt || await this.buildSystemPrompt(toolNames, toolContext, task.query, options?.skillSlug, expertAgents);
 
       // Build message history from all previous messages (including tool context)
       const allMessages = await agentPersistence.getMessages(task.id);
@@ -421,6 +422,12 @@ export class AgentExecutor {
         outputTokens: turnOutputTokens,
       });
 
+      // Non-blocking memory writes (Hindsight)
+      if (memoryService.isAvailable) {
+        const conversationText = `User: ${task.query}\nAssistant: ${finalAnswer}`;
+        memoryService.retainUserMemory(context.userId, conversationText, task.conversationId);
+      }
+
       const cloud = isCloudModel(model);
       const cost = cloud ? estimateCost(model, turnInputTokens, turnOutputTokens) : null;
 
@@ -519,9 +526,9 @@ export class AgentExecutor {
    * The Hive Mind is the central intelligence — it delegates to Expert Agents
    * for domain-specific tasks and synthesizes results into a unified answer.
    *
-   * Memory injection (Hindsight) is prepared as placeholder — will be filled in Spec 04.
+   * Memory injection via Hindsight: User Memory + Hive Mind Memory recalled per query.
    */
-  private async buildSystemPrompt(toolNames: string[], context: AgentUserContext, skillSlug?: string, expertAgents?: ExpertAgentHarness[]): Promise<string> {
+  private async buildSystemPrompt(toolNames: string[], context: AgentUserContext, query: string, skillSlug?: string, expertAgents?: ExpertAgentHarness[]): Promise<string> {
     const hasSkills = toolNames.includes('load_skill');
     const hasExpertAgents = expertAgents && expertAgents.length > 0;
 
@@ -644,10 +651,24 @@ Nutze agent(agentType="kb-explorer") fuer tiefgehende Recherchen die viele Suchd
       }
     }
 
-    // --- Memory Placeholders (Hindsight — Spec 04) ---
-    // TODO: Replace with hindsight.recall() when Memory System is implemented
-    // prompt += `\n\n## Ueber den User\n${userMemory || ''}`;
-    // prompt += `\n\n## Gelerntes Unternehmenswissen\n${hiveMindMemory || ''}`;
+    // --- Memory (Hindsight) ---
+    if (memoryService.isAvailable) {
+      try {
+        const { userMemory, hiveMindMemory } = await memoryService.loadHiveMindContext(
+          query, context.userId, context.tenantId
+        );
+
+        if (userMemory) {
+          prompt += `\n\n## Ueber den User\nBekannte Praeferenzen und Feedback:\n${userMemory}`;
+        }
+        if (hiveMindMemory) {
+          prompt += `\n\n## Gelerntes Unternehmenswissen\n${hiveMindMemory}`;
+        }
+      } catch (error) {
+        // Memory recall failure is non-critical
+        console.warn(`[AgentExecutor] Memory recall failed (non-critical): ${error}`);
+      }
+    }
 
     // --- Workflow ---
     prompt += `

@@ -21,6 +21,7 @@ PORTS=(
   8002   # Parser
   8003   # Presidio Analyzer
   8004   # Presidio Anonymizer
+  8888   # Hindsight Memory Server
 )
 
 stop_tunnels() {
