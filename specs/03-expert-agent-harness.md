@@ -8,371 +8,465 @@
 
 ## Zusammenfassung
 
-Das Expert Agent Harness ist das **konfigurierbare Framework** das jeden Expert Agent definiert. Eine Markdown-Datei mit YAML-Frontmatter beschreibt wer der Agent ist, was er kann, was er darf und was er proaktiv prueft. Der ExpertAgentLoader liest diese Dateien und erstellt daraus ToolLoopAgent-Instanzen.
+Expert Agents werden ueber eine **Admin-UI** erstellt, konfiguriert und verwaltet — nicht ueber Chat-Tools. Jeder Expert Agent wird in der **PostgreSQL-Datenbank** gespeichert (Single Source of Truth). Built-in Branchen-Templates werden beim Serverstart aus Markdown-Dateien in die DB geseeded.
 
-**Kernprinzip:** Deklarativ definiert (Markdown+YAML), programmatisch ausgefuehrt (ToolLoopAgent). Jeder Kunde kann seine Expert Agents konfigurieren ohne Code zu schreiben.
+Die UI ist fuer **alle User sichtbar** (eigener Navigations-Punkt), aber nur Admins koennen Agents erstellen, bearbeiten und (de)aktivieren. Jeder Agent hat einen **Character-Avatar** fuer visuelle Identitaet.
+
+**Kernprinzip:** Deklarativ konfiguriert (UI-Formular), programmatisch ausgefuehrt (ToolLoopAgent). Jeder Kunde kann seine Expert Agents konfigurieren ohne Code zu schreiben.
 
 ---
 
-## Harness-Datei Format
+## UI-Design
 
-### Vollstaendiges Beispiel
+### Navigation
 
-```markdown
----
-name: hr-expert
-description: >
-  Personalwesen und Einsatzplanung. Mitarbeiter, Qualifikationen,
-  Einsaetze, AUeG-Compliance, Zeiterfassung. Verwende diesen Agent
-  wenn es um Personal, Schichten, Einsatzplanung, Arbeitsrecht oder
-  Zeiterfassung geht.
-tools:
-  - sama_employees
-  - sama_employee
-  - sama_assignments
-  - sama_assignment
-  - sama_activeAssignments
-  - sama_assignmentsNearLimit
-  - sama_checkAssignmentOverlap
-  - sama_checkRotatingDoorClause
-  - sama_timeEntries
-  - sama_pendingApprovals
-  - sama_staffingContracts
-  - sama_createAssignment
-  - sama_createTimeEntry
-  - rag_search
-model: gpt-oss-120b
-maxSteps: 15
-guardrails:
-  roles: [ADMIN, DISPATCHER]
-  rules:
-    - "Keine Gehaltsdaten an Nicht-Admins"
-    - "Vor jedem neuen Einsatz Drehtuerklausel pruefen"
-    - "Hoechstueberlassungsdauer (18 Monate) immer pruefen"
----
+Expert Agents bekommen einen **eigenen Navigations-Punkt** in der Sidebar (wie Documents). Sichtbar fuer alle User, aber mit rollenbasierten Einschraenkungen:
 
-Du bist der HR-Experte im Hive Mind.
+| Rolle | Darf sehen | Darf erstellen/bearbeiten | Darf (de)aktivieren |
+|---|---|---|---|
+| Admin | Alle Agents | Ja | Ja |
+| Manager | Alle Agents | Nein | Nein |
+| Employee | Alle aktiven Agents | Nein | Nein |
 
-## Deine Expertise
-- Personalverwaltung und Einsatzplanung
-- Arbeitnehmerueberlassungsgesetz (AUeG) Compliance
-- Zeiterfassung und Genehmigungsworkflow
-- Mitarbeiter-Qualifikationen und Zertifizierungen
+### View 1: Uebersicht (Cards Grid)
 
-## Wichtige Regeln
-- Equal Pay Grenze (9 Monate) im Auge behalten
-- Hoechstueberlassungsdauer (18 Monate) ueberwachen
-- Drehtuerklausel (3 Monate Karenz) vor jedem neuen Einsatz pruefen
-- Zeiterfassungen: DRAFT → SIGNED → SUBMITTED → APPROVED/REJECTED
-
-## Antwortformat
-- Liefere strukturierte Panel-Daten wenn moeglich (JSON in metadata.panels)
-- Wenn du eine Rueckfrage hast, beginne mit "RUECKFRAGE:"
-- Nenne immer konkrete Zahlen und Daten, keine vagen Aussagen
+```
+┌──────────────────────────────────────────────────────────┐
+│  Expert Agents                          [+ Neuer Agent]  │
+│                                          (nur Admin)     │
+│                                                          │
+│  ┌────────────────┐ ┌────────────────┐ ┌────────────────┐│
+│  │   [Avatar]     │ │   [Avatar]     │ │   [Avatar]     ││
+│  │                │ │                │ │                ││
+│  │  hr-expert     │ │  accounting-   │ │  knowledge-    ││
+│  │                │ │  expert        │ │  expert        ││
+│  │  Personal &    │ │  Buchhaltung   │ │  Wissens-      ││
+│  │  Einsatz-      │ │  & Finanzen    │ │  datenbank     ││
+│  │  planung       │ │                │ │                ││
+│  │                │ │                │ │                ││
+│  │  12 Tools      │ │  22 Tools      │ │  3 Tools       ││
+│  │  Admin, Mgr    │ │  Admin, Mgr    │ │  Alle          ││
+│  │  🟢 Aktiv      │ │  🟢 Aktiv      │ │  🟢 Aktiv      ││
+│  │  ────────────  │ │  ────────────  │ │  ────────────  ││
+│  │  [Bearbeiten]  │ │  [Bearbeiten]  │ │  [Bearbeiten]  ││
+│  │  (nur Admin)   │ │  (nur Admin)   │ │  (nur Admin)   ││
+│  └────────────────┘ └────────────────┘ └────────────────┘│
+└──────────────────────────────────────────────────────────┘
 ```
 
-### Frontmatter-Felder
+**Card-Inhalt:**
+- Character-Avatar (Bild/Icon — Platzhalter bis echte Avatare erstellt werden)
+- Name (kebab-case Identifier)
+- Kurzbeschreibung (1-2 Zeilen, truncated)
+- Tool-Anzahl
+- Erlaubte Rollen
+- Status-Badge (Aktiv/Inaktiv)
+- Source-Badge (Built-in / Custom)
+- Bearbeiten-Button (nur fuer Admins sichtbar)
 
-| Feld | Pflicht | Typ | Beschreibung |
-|---|---|---|---|
-| `name` | Ja | string | Eindeutiger Identifier (kebab-case). Wird als Tool-Name im Hive Mind registriert. |
-| `description` | Ja | string | Wann soll der Hive Mind diesen Agent aufrufen? Entscheidend fuer die Delegation. |
-| `tools` | Ja | string[] | Liste der Tools die dieser Agent nutzen darf. Whitelist — alles andere ist blockiert. |
-| `model` | Nein | string | LLM-Modell. Default: `gpt-oss-120b` (aktuell einziges verfuegbares Modell). |
-| `maxSteps` | Nein | number | Max. Tool-Call-Schritte. Default: 15. |
-| `guardrails` | Nein | object | Zugriffskontrolle und Verhaltensregeln (siehe unten). |
+### View 2: Detail / Bearbeiten (Formular)
 
-**Body (Markdown):** Der System Prompt des Expert Agents. Definiert Rolle, Expertise, Regeln, Antwortformat.
+Beim Klick auf Card (alle User: Read-only) oder "Bearbeiten" (Admin: Edit-Mode):
 
-### Guardrails-Struktur
-
-```yaml
-guardrails:
-  # Ebene 2: Welche Rollen duerfen diesen Agent ueberhaupt nutzen?
-  roles: [ADMIN, DISPATCHER]
-
-  # Ebene 1 + 3: Verhaltensregeln (in System Prompt UND als Pre-Validation)
-  rules:
-    - "Keine Gehaltsdaten an Nicht-Admins"
-    - "Maximal 18 Monate Einsatzdauer pruefen"
+```
+┌──────────────────────────────────────────────────────────┐
+│  ← Zurueck           hr-expert           [Speichern]     │
+│                                          [Deaktivieren]  │
+│                                          [Loeschen]      │
+│                                                          │
+│  [Avatar]   Name:        [hr-expert              ]       │
+│             Beschreibung:[Personalwesen und...   ]       │
+│             Status:      [🟢 Aktiv  ▼]                   │
+│                                                          │
+│  ── Modell & Limits ───────────────────────────────────  │
+│  Modell:      [gpt-oss-120b     ▼]                       │
+│  Max Steps:   [15               ]                        │
+│                                                          │
+│  ── Zugriff (Guardrails) ──────────────────────────────  │
+│  Rollen:      [☑ Admin] [☑ Manager] [☐ Employee]        │
+│  Regeln:                                                 │
+│    [Keine Gehaltsdaten an Nicht-Admins          ] ✕      │
+│    [Drehtuerklausel pruefen (3 Monate Karenz)   ] ✕      │
+│    [Hoechstueberlassungsdauer (18 Monate)       ] ✕      │
+│    [+ Regel hinzufuegen]                                 │
+│                                                          │
+│  ── Tools (12 von 94 ausgewaehlt) ─────────────────────  │
+│  [Suche...]                                              │
+│                                                          │
+│  MCP / SamaWorkforce:                                    │
+│    [☑ sama_employees]      [☑ sama_employee]             │
+│    [☑ sama_assignments]    [☑ sama_activeAssignments]    │
+│    [☑ sama_assignmentsNearLimit]  [☐ sama_accountMoves]  │
+│    ...                                                   │
+│  Suche & Wissen:                                         │
+│    [☑ rag_search]  [☐ read_chunk]  [☐ graph_query]      │
+│  Kommunikation:                                          │
+│    [☐ send_notification]                                 │
+│                                                          │
+│  ── System Prompt (Markdown) ──────────────────────────  │
+│  [Bearbeiten] [Vorschau]                                 │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │ Du bist der HR-Experte im Hive Mind.               │  │
+│  │                                                    │  │
+│  │ ## Deine Expertise                                 │  │
+│  │ - Personalverwaltung und Einsatzplanung            │  │
+│  │ - Arbeitnehmerueberlassungsgesetz (AUeG)           │  │
+│  │ ...                                                │  │
+│  └────────────────────────────────────────────────────┘  │
+│  (Markdown-Preview mit Syntax-Highlighting)              │
+└──────────────────────────────────────────────────────────┘
 ```
 
-**Drei Enforcement-Ebenen:**
+**Formular-Felder:**
 
-| Ebene | Was | Wie | Zuverlaessigkeit |
+| Feld | Typ | Pflicht | Beschreibung |
 |---|---|---|---|
-| 1. Prompt | Rules werden in den System Prompt injiziert | LLM wird instruiert | Weich |
-| 2. Tool-Einschraenkung | `tools` Whitelist — Agent hat nur diese Tools | Deterministisch | Hart |
-| 3. Pre-Validation | `roles` wird VOR der Delegation geprueft | Code-Check | Hart |
+| `name` | Text (kebab-case) | Ja | Eindeutiger Identifier. Wird als Tool-Name im Hive Mind registriert. |
+| `description` | Textarea | Ja | Wann soll der Hive Mind diesen Agent aufrufen? |
+| `avatar` | Image/URL | Nein | Character-Avatar (Platzhalter-Icon wenn leer) |
+| `is_active` | Toggle | Ja | Aktiv/Inaktiv. Inaktive Agents werden nicht geladen. |
+| `model` | Dropdown | Ja | LLM-Modell (aktuell nur gpt-oss-120b). Default: gpt-oss-120b. |
+| `max_steps` | Number | Ja | Max. Tool-Call-Schritte pro Aufruf. Default: 15. |
+| `roles` | Checkbox-Gruppe | Nein | Welche User-Rollen duerfen diesen Agent nutzen. Leer = alle. |
+| `rules` | Dynamische Liste | Nein | Verhaltensregeln (werden in System Prompt injiziert). |
+| `tools` | Multi-Select (grouped) | Ja | Tools-Whitelist aus der ToolRegistry. |
+| `instructions` | Markdown-Editor | Ja | System Prompt. Markdown-Preview mit Syntax-Highlighting. |
 
-Rollen-Check passiert bevor der Hive Mind den Expert Agent aufruft:
+**Non-Admin View**: Gleiche Ansicht, aber alle Felder read-only, keine Buttons (Speichern/Loeschen/Deaktivieren).
+
+### View 3: Neuer Agent (leeres Formular)
+
+Identisch mit View 2, aber alle Felder leer. Defaults:
+- `model`: gpt-oss-120b
+- `max_steps`: 15
+- `is_active`: true
+- `roles`: leer (alle duerfen)
+- `tools`: leer
+
+---
+
+## Datenmodell
+
+### PostgreSQL Tabelle: `expert_agents`
+
+```sql
+CREATE TABLE IF NOT EXISTS expert_agents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID,
+    name VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    avatar_url TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    model VARCHAR(100) NOT NULL DEFAULT 'gpt-oss-120b',
+    max_steps INTEGER NOT NULL DEFAULT 15,
+    roles TEXT[] DEFAULT '{}',
+    rules TEXT[] DEFAULT '{}',
+    tools TEXT[] NOT NULL DEFAULT '{}',
+    instructions TEXT NOT NULL,
+    source VARCHAR(20) NOT NULL DEFAULT 'custom'
+        CHECK (source IN ('builtin', 'custom')),
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT unique_agent_per_tenant UNIQUE(tenant_id, name)
+);
+
+CREATE INDEX idx_expert_agents_tenant ON expert_agents(tenant_id);
+CREATE INDEX idx_expert_agents_active ON expert_agents(is_active);
+```
+
+**Warum PostgreSQL statt Dateien:**
+- Multi-Tenant Isolation (jeder Tenant sieht nur seine Agents)
+- CRUD via API (Frontend braucht keinen Filesystem-Zugriff)
+- Audit Trail (created_at, updated_at, created_by)
+- Active/Inactive als DB-Spalte
+- Versionierung moeglich (spaeter)
+- Pattern: Gleich wie `skills` Tabelle
+
+### Seeding: Built-in Templates → DB
+
+Beim Serverstart werden die Markdown-Dateien aus `server/expert-agents/*.md` in die DB geseeded — identisches Pattern wie `SkillRegistry.seedBuiltinSkills()`:
+
 ```typescript
-// Im Hive Mind, vor Delegation:
-if (harness.guardrails?.roles) {
-  if (!harness.guardrails.roles.includes(context.userRole)) {
-    return "Du hast keine Berechtigung fuer diesen Bereich.";
+async seedBuiltinAgents(agents: ExpertAgentHarness[]): Promise<void> {
+  for (const agent of agents) {
+    await db.query(`
+      INSERT INTO expert_agents (tenant_id, name, description, model, max_steps,
+        roles, rules, tools, instructions, source)
+      VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8, 'builtin')
+      ON CONFLICT (tenant_id, name) DO UPDATE SET
+        description = EXCLUDED.description,
+        model = EXCLUDED.model,
+        max_steps = EXCLUDED.max_steps,
+        roles = EXCLUDED.roles,
+        rules = EXCLUDED.rules,
+        tools = EXCLUDED.tools,
+        instructions = EXCLUDED.instructions,
+        updated_at = NOW()
+      WHERE expert_agents.source = 'builtin'
+    `, [agent.name, agent.description, agent.model, agent.maxSteps,
+        agent.guardrails?.roles || [], agent.guardrails?.rules || [],
+        agent.tools, agent.instructions]);
   }
 }
 ```
 
+**Wichtig:** `ON CONFLICT ... WHERE source = 'builtin'` — nur Built-in Agents werden ueberschrieben. Custom Agents (vom Admin erstellt) bleiben unberuehrt.
+
 ---
 
-## ExpertAgentLoader
+## Tools: Woher kommen sie?
 
-### Quellen (Prioritaet hoch → niedrig)
+### Verfuegbare Tools
 
-| Quelle | Pfad | Zweck |
+Die Tool-Liste im Expert Agent Formular zeigt **alle registrierten Tools** aus der ToolRegistry:
+
+| Quelle | Beispiele | Wie sie erscheinen |
 |---|---|---|
-| Tenant-spezifisch | `server/expert-agents/{tenantId}/*.md` | Kundenspezifische Agents |
-| Built-in | `server/expert-agents/*.md` | Branchen-Template Agents |
-| DB (spaeter) | Tabelle `expert_agents` | Dynamisch erstellte Agents |
+| Built-in (15 Tools) | rag_search, graph_query, send_notification | Immer verfuegbar |
+| MCP (79 Tools) | sama_employees, sama_accountMoves | Verfuegbar wenn MCP-Server verbunden |
 
-Bei Namenskollision gewinnt die hoehere Prioritaet (Tenant ueberschreibt Built-in).
+### Kategorisierung (automatisch)
 
-### Interface
+Tools werden in der UI nach Prefix/Typ gruppiert:
 
-```typescript
-interface ExpertAgentHarness {
-  name: string;
-  description: string;
-  tools: string[];
-  model: string;
-  maxSteps: number;
-  guardrails?: {
-    roles?: string[];
-    rules?: string[];
-  };
-  instructions: string;   // Markdown Body = System Prompt
-  filePath: string;        // Woher geladen
-}
+| Kategorie | Prefix/Regel | Beispiele |
+|---|---|---|
+| MCP / SamaWorkforce | `sama_*` | sama_employees, sama_accountMoves |
+| Suche & Wissen | rag_search, read_chunk, graph_query | - |
+| Skills | load_skill, list_skills | - |
+| Kommunikation | send_notification | - |
+| Datenbank | sql_query | - |
 
-class ExpertAgentLoader {
-  // Alle Harness-Dateien eines Tenants laden
-  loadAll(tenantId?: string): ExpertAgentHarness[];
+### Neue Tools hinzufuegen
 
-  // Einzelnen Agent laden
-  load(name: string, tenantId?: string): ExpertAgentHarness | null;
+Expert Agents waehlen aus **vorhandenen** Tools. Neue Tools entstehen durch:
 
-  // Neuen Agent speichern (vom Hive Mind erstellt, Admin bestaetigt)
-  save(harness: ExpertAgentHarness, tenantId: string): void;
-}
+| Bedarf | Loesung | Wer |
+|---|---|---|
+| Bestehendes System anbinden | MCP-Server konfigurieren (neuer Endpoint in .env) | Admin (Config) |
+| Einfache API-Calls | HTTP-Tool Template (spaeter) | Admin (UI) |
+| Komplexe Logik | Python-Script via `run_script` | Entwickler |
+| Komplett neues Tool | Entwickler schreibt Code, deployed | Entwickler |
+
+Kein Tool-Builder im Agent-Editor — Tools sind Infrastruktur, keine Agent-Konfiguration.
+
+---
+
+## API Endpoints
+
+### Expert Agent CRUD
+
+```
+GET    /api/expert-agents              → Alle Agents (gefiltert nach Tenant + Rolle)
+GET    /api/expert-agents/:id          → Einzelner Agent (Detail)
+POST   /api/expert-agents              → Neuen Agent erstellen (Admin only)
+PUT    /api/expert-agents/:id          → Agent bearbeiten (Admin only)
+PATCH  /api/expert-agents/:id/toggle   → Aktiv/Inaktiv toggle (Admin only)
+DELETE /api/expert-agents/:id          → Agent loeschen (Admin only)
 ```
 
-### Parsing
+### Verfuegbare Tools
+
+```
+GET    /api/expert-agents/available-tools  → Alle Tools aus ToolRegistry
+                                            [{ name, description, source, category }]
+```
+
+### Responses
+
+**GET /api/expert-agents:**
+```json
+[
+  {
+    "id": "uuid",
+    "name": "hr-expert",
+    "description": "Personalwesen und Einsatzplanung...",
+    "avatarUrl": null,
+    "isActive": true,
+    "model": "gpt-oss-120b",
+    "maxSteps": 15,
+    "roles": ["Admin", "Manager"],
+    "rules": ["Keine Gehaltsdaten an Nicht-Admins"],
+    "tools": ["sama_employees", "sama_assignments", "rag_search"],
+    "instructions": "Du bist der HR-Experte...",
+    "source": "builtin",
+    "toolCount": 12,
+    "createdAt": "2026-04-04T10:00:00Z",
+    "updatedAt": "2026-04-04T10:00:00Z"
+  }
+]
+```
+
+---
+
+## Guardrails
+
+### Struktur (in DB)
+
+```
+roles TEXT[]    → Welche Rollen duerfen diesen Agent nutzen (leer = alle)
+rules TEXT[]    → Verhaltensregeln als Array von Strings
+```
+
+### Drei Enforcement-Ebenen
+
+| Ebene | Was | Wie | Zuverlaessigkeit |
+|---|---|---|---|
+| 1. Prompt | Rules werden in den System Prompt injiziert | LLM wird instruiert | Weich |
+| 2. Tool-Einschraenkung | `tools` Array — Agent hat nur diese Tools | Deterministisch | Hart |
+| 3. Pre-Validation | `roles` wird VOR der Delegation geprueft | Code-Check | Hart |
+
+### Rollen-Check
 
 ```typescript
-// Pseudocode — kompatibel mit bestehendem SubagentLoader Pattern
-function parseHarnessFile(filePath: string): ExpertAgentHarness {
-  const content = fs.readFileSync(filePath, 'utf-8');
-  const { data: frontmatter, content: body } = parseYamlFrontmatter(content);
-
-  return {
-    name: frontmatter.name,
-    description: frontmatter.description,
-    tools: frontmatter.tools || [],
-    model: frontmatter.model || DEFAULT_AGENT_CONFIG.defaultModel,
-    maxSteps: frontmatter.maxSteps || 15,
-    guardrails: frontmatter.guardrails,
-    instructions: body.trim(),
-    filePath,
-  };
+// In createExpertAgentTool(), vor der Delegation:
+if (harness.roles.length > 0 && !harness.roles.includes(context.userRole)) {
+  return `Zugriff verweigert: ${harness.name} erfordert Rolle ${harness.roles.join(' oder ')}.`;
 }
 ```
 
 ---
 
-## Expert Agent Erstellung durch den Hive Mind
+## Character-Avatare
 
-### Flow: Admin beschreibt → Hive Mind erstellt → Admin aktiviert
+Jeder Expert Agent hat einen optionalen **Character-Avatar** fuer visuelle Identitaet in der UI.
+
+### Phase 1 (jetzt)
+- Platzhalter-Icons basierend auf Agent-Typ (z.B. Stethoskop fuer HR, Taschenrechner fuer Accounting)
+- Oder generierte Initialen-Badges (wie User-Avatare)
+
+### Phase 2 (spaeter)
+- Echte Character-Bilder (KI-generiert oder manuell erstellt)
+- `avatar_url` Feld in der DB
+- Upload im Agent-Editor
+
+---
+
+## ExpertAgentLoader: Migration File → DB
+
+### Bisheriger Flow (Spec 02)
 
 ```
-1. Admin: "Ich brauche einen Experten fuer die Buchhaltung"
-
-2. Hive Mind analysiert:
-   → Verfuegbare Tools scannen (sama_accountMoves, sama_payments, ...)
-   → Passende Guardrails vorschlagen (Rollen, Regeln)
-   → System Prompt generieren (Domain-Wissen, Regeln, Format)
-
-3. Hive Mind praesentiert Entwurf:
-   "Vorschlag: Buchhaltungs-Expert
-    - 14 Tools (Rechnungen, Zahlungen, Mahnwesen, Reports)
-    - Rollen: ACCOUNTANT, ADMIN
-    - Regeln: Nur gebuchte Rechnungen aendern, Mahnfristen einhalten
-    Soll ich ihn aktivieren?"
-
-4. Admin: "Ja, aber fuege Zugriff auf Bilanzreports hinzu"
-
-5. Hive Mind: Passt Harness an → Speichert als Markdown-Datei
-   → ExpertAgentLoader laedt neu → Hive Mind Prompt aktualisiert
+Startup → Lese server/expert-agents/*.md → Parse → In-Memory Cache → createExpertAgentTool()
 ```
 
-### Technisch: Hive Mind nutzt ein internes Tool
+### Neuer Flow (Spec 03)
+
+```
+Startup:
+  1. Lese server/expert-agents/*.md (Templates)
+  2. Seed in DB (UPSERT, nur builtin-source ueberschreiben)
+  3. Ab jetzt: DB ist Single Source of Truth
+
+Request (runTurn):
+  1. Lade aktive Agents aus DB (WHERE is_active = true AND tenant_id = ?)
+  2. createExpertAgentTool() fuer jeden Agent
+  3. Registriere als Hive Mind Tools
+```
+
+### ExpertAgentService (ersetzt ExpertAgentLoader teilweise)
 
 ```typescript
-const createExpertAgentTool: AgentTool = {
-  name: 'create_expert_agent',
-  description: 'Erstelle einen neuen Expert Agent. Nur fuer Admins.',
-  requiredRoles: ['ADMIN'],
-  inputSchema: z.object({
-    name: z.string(),
-    description: z.string(),
-    tools: z.array(z.string()),
-    guardrails: z.object({
-      roles: z.array(z.string()).optional(),
-      rules: z.array(z.string()).optional(),
-    }).optional(),
-    instructions: z.string(),
-  }),
+class ExpertAgentService {
+  // DB-Operationen
+  async getAll(tenantId?: string): Promise<ExpertAgentRecord[]>;
+  async getById(id: string): Promise<ExpertAgentRecord | null>;
+  async create(data: CreateExpertAgentInput, userId: string): Promise<ExpertAgentRecord>;
+  async update(id: string, data: UpdateExpertAgentInput): Promise<ExpertAgentRecord>;
+  async toggleActive(id: string): Promise<ExpertAgentRecord>;
+  async delete(id: string): Promise<void>;
 
-  async execute(args, context) {
-    // Harness-Datei schreiben
-    const harness = buildHarnessMarkdown(args);
-    expertAgentLoader.save(harness, context.tenantId);
-    return { output: `Expert Agent "${args.name}" erstellt und aktiviert.` };
-  },
-};
+  // Tool-Listing
+  async getAvailableTools(): Promise<ToolInfo[]>;
+
+  // Seeding
+  async seedBuiltinAgents(): Promise<void>;
+
+  // Fuer AgentExecutor: Aktive Agents als Harness laden
+  async loadActiveHarnesses(tenantId?: string): Promise<ExpertAgentHarness[]>;
+}
 ```
 
 ---
 
 ## Starter Expert Agents (Branchen-Template: Personaldienstleister)
 
-### hr-expert.md
+Die drei Markdown-Dateien in `server/expert-agents/` bleiben als Templates bestehen und werden beim Start in die DB geseeded:
 
-```markdown
----
-name: hr-expert
-description: >
-  Personalwesen und Einsatzplanung. Mitarbeiter, Qualifikationen,
-  Einsaetze, AUeG-Compliance, Zeiterfassung.
-tools:
-  - sama_employees
-  - sama_employee
-  - sama_assignments
-  - sama_assignment
-  - sama_activeAssignments
-  - sama_assignmentsNearLimit
-  - sama_checkAssignmentOverlap
-  - sama_checkRotatingDoorClause
-  - sama_timeEntries
-  - sama_pendingApprovals
-  - sama_staffingContracts
-  - sama_createAssignment
-  - sama_createTimeEntry
-  - rag_search
-model: gpt-oss-120b
-maxSteps: 15
-guardrails:
-  roles: [ADMIN, DISPATCHER]
----
-
-Du bist der HR-Experte. Dein Wissen umfasst Personalverwaltung,
-Einsatzplanung und AUeG-Compliance.
-
-[... vollstaendiger System Prompt ...]
-```
-
-### accounting-expert.md
-
-```markdown
----
-name: accounting-expert
-description: >
-  Buchhaltung, Rechnungen, Zahlungen, Mahnwesen, Reports und
-  Finanzauswertungen. Verwende diesen Agent fuer alles was mit
-  Geld, Rechnungen, Zahlungen oder Finanzen zu tun hat.
-tools:
-  - sama_accountMoves
-  - sama_accountMove
-  - sama_accounts
-  - sama_payments
-  - sama_payment
-  - sama_billingRates
-  - sama_agedReceivable
-  - sama_profitAndLoss
-  - sama_revenueReport
-  - sama_createAccountMove
-  - sama_postAccountMove
-  - sama_generateInvoice
-  - sama_createPayment
-  - sama_confirmPayment
-  - rag_search
-model: gpt-oss-120b
-maxSteps: 15
-guardrails:
-  roles: [ADMIN, ACCOUNTANT]
----
-
-Du bist der Buchhaltungs-Experte. Dein Wissen umfasst Rechnungswesen,
-Zahlungsverkehr, Mahnwesen und Finanzreporting.
-
-[... vollstaendiger System Prompt ...]
-```
-
-### knowledge-expert.md
-
-```markdown
----
-name: knowledge-expert
-description: >
-  Firmenwissen und Dokumente. Recherche in der Wissensdatenbank,
-  Vertragsanalyse, Fachfragen zu Arbeitsrecht, AUeG, Compliance.
-  Verwende diesen Agent fuer Wissensfragen und Dokumentenrecherche.
-tools:
-  - rag_search
-  - read_chunk
-  - graph_query
-model: gpt-oss-120b
-maxSteps: 10
-guardrails:
-  roles: [ADMIN, DISPATCHER, ACCOUNTANT, EMPLOYEE]
----
-
-Du bist der Wissens-Experte. Du durchsuchst die Wissensdatenbank
-und beantwortest Fachfragen basierend auf Unternehmensdokumenten.
-
-[... vollstaendiger System Prompt ...]
-```
+| Template | Domain | Tools | Rollen |
+|---|---|---|---|
+| `hr-expert.md` | Personal, Einsaetze, AUeG, Zeiterfassung | 12 sama_* + rag_search | Admin, Manager |
+| `accounting-expert.md` | Rechnungen, Zahlungen, Mahnwesen, Reports | 22 sama_* + rag_search | Admin, Manager |
+| `knowledge-expert.md` | Wissensdatenbank, Dokumente, Vertraege | rag_search, read_chunk, graph_query | Alle |
 
 ---
 
-## Kompatibilitaet mit bestehendem System
+## Implementierung
 
-### Migration von SubagentLoader
+### Phase 1: DB + API (Backend)
 
-| Bestehendes Feature | Expert Agent Equivalent |
-|---|---|
-| `server/agents/*.md` | `server/expert-agents/*.md` (neuer Pfad) |
-| `SubagentLoader.loadAll()` | `ExpertAgentLoader.loadAll()` |
-| `agent` Tool | Expert Agent Tools (pro Agent ein Tool) |
-| Frontmatter: `tools: rag_search, read_chunk` | Frontmatter: `tools: [rag_search, read_chunk]` (Array statt CSV) |
-| Frontmatter: `maxSteps: 8` | Frontmatter: `maxSteps: 8` (identisch) |
-| Kein Guardrails | `guardrails:` Block (neu) |
-| Kein Memory | `memory:` Scope (spaeter, Spec 23) |
-| Kein Heartbeat | `heartbeat:` Cron (spaeter, Spec 24) |
+1. Migration: `expert_agents` Tabelle erstellen
+2. `ExpertAgentService.ts`: CRUD + Seeding + loadActiveHarnesses()
+3. API Routes: `/api/expert-agents` (CRUD + available-tools)
+4. `AgentExecutor.ts`: Von ExpertAgentLoader auf ExpertAgentService umstellen
+5. Seeding beim Startup: Markdown-Templates → DB
 
-### Was bleibt
+### Phase 2: UI (Frontend)
 
-- Bestehende Subagents (`kb-explorer`, etc.) funktionieren weiter
-- SubagentLoader wird nicht sofort entfernt
-- Expert Agents und Subagents koexistieren waehrend der Migration
-- Expert Agents ersetzen Subagents schrittweise
+1. Navigation: Neuer Sidebar-Punkt "Agents"
+2. `ExpertAgentsPage.tsx`: Cards Grid mit Agent-Uebersicht
+3. `ExpertAgentCard.tsx`: Card-Komponente mit Avatar, Name, Stats
+4. `ExpertAgentDetail.tsx`: Formular (Create/Edit/View)
+5. Markdown-Editor mit Preview fuer System Prompt
+6. Tool-Selector mit Kategorien und Suche
+7. Rollen-basierte Sichtbarkeit (Admin: edit, andere: read-only)
+
+### Phase 3: Polish
+
+1. Character-Avatare (Platzhalter-Icons)
+2. Tool-Kategorisierung im Selector
+3. Validierung (Name-Format, Pflichtfelder, Tool-Existenz)
 
 ---
 
 ## Dateien
 
-### Neue Dateien:
-1. `server/src/services/agents/ExpertAgentLoader.ts` — Laedt + parst Harness-Dateien
-2. `server/expert-agents/hr-expert.md` — HR Expert Agent
-3. `server/expert-agents/accounting-expert.md` — Buchhaltungs Expert Agent
-4. `server/expert-agents/knowledge-expert.md` — Wissens Expert Agent
-5. `server/src/services/agents/tools/create-expert-agent.ts` — Tool fuer Admin Agent-Erstellung
+### Neue Dateien (Backend)
 
-### Modifizierte Dateien:
-1. `server/src/services/agents/AgentExecutor.ts` — Expert Agent Tools laden + registrieren
-2. `server/src/services/agents/tools/index.ts` — Expert Agent Tools statt direkter MCP-Tools
-3. `server/src/services/agents/types.ts` — ExpertAgentHarness Interface
+| Datei | Zweck |
+|---|---|
+| `server/src/migrations/019_expert_agents.sql` | DB-Tabelle |
+| `server/src/services/agents/ExpertAgentService.ts` | CRUD, Seeding, Harness-Loading |
+| `server/src/routes/expert-agents.ts` | API Endpoints |
+
+### Neue Dateien (Frontend)
+
+| Datei | Zweck |
+|---|---|
+| `src/pages/ExpertAgentsPage.tsx` | Uebersicht mit Cards Grid |
+| `src/components/ExpertAgentCard.tsx` | Einzelne Card-Komponente |
+| `src/components/ExpertAgentDetail.tsx` | Detail/Edit Formular |
+| `src/components/ExpertAgentToolSelector.tsx` | Tool Multi-Select mit Kategorien |
+| `src/lib/expert-agents-api.ts` | API Client Funktionen |
+
+### Modifizierte Dateien
+
+| Datei | Aenderung |
+|---|---|
+| `server/src/services/agents/AgentExecutor.ts` | loadActiveHarnesses() statt loadExpertAgents() |
+| `server/src/services/agents/index.ts` | ExpertAgentService exportieren |
+| `server/src/index.ts` | ExpertAgentService initialisieren + Seeding |
+| `src/components/NavigationLinks.tsx` | Neuer "Agents" Link |
+| `src/App.tsx` (oder Router) | Neue Route /agents |
+
+### Unveraendert (aus Spec 02)
+
+| Datei | Warum |
+|---|---|
+| `server/src/services/agents/ExpertAgentLoader.ts` | Bleibt fuer Markdown-Parsing (Seeding) |
+| `server/expert-agents/*.md` | Bleiben als Templates |
+| `server/src/services/agents/types.ts` | ExpertAgentHarness Interface bleibt |
 
 ---
 
@@ -380,19 +474,23 @@ und beantwortest Fachfragen basierend auf Unternehmensdokumenten.
 
 | Test | Erwartung |
 |---|---|
-| Harness-Datei wird korrekt geparst | Frontmatter + Body getrennt, alle Felder gelesen |
-| Expert Agent wird als Tool registriert | `toolRegistry.getTool('hr-expert')` existiert |
-| Guardrails: Rolle blockiert | EMPLOYEE kann hr-expert nicht aufrufen → Fehlermeldung |
-| Guardrails: Tool-Whitelist | hr-expert kann `sama_payments` nicht aufrufen |
-| Guardrails: Rules im Prompt | Expert Agent System Prompt enthaelt die Regeln |
-| Admin erstellt neuen Agent | Harness-Datei wird geschrieben, Hive Mind Prompt aktualisiert |
-| Tenant-Override | Tenant-spezifische Datei ueberschreibt Built-in |
+| Seeding beim Start | 3 Built-in Agents in DB, Log: "Seeded 3 expert agents" |
+| GET /api/expert-agents | Liste aller Agents mit Tool-Count |
+| POST /api/expert-agents | Neuer Agent in DB, sofort im Hive Mind verfuegbar |
+| PUT /api/expert-agents/:id | Aenderungen gespeichert, naechster Request nutzt neue Config |
+| PATCH toggle | Agent deaktiviert → nicht mehr im Hive Mind |
+| DELETE | Agent geloescht (nur custom, nicht builtin) |
+| GET available-tools | 94 Tools mit Name, Description, Category |
+| Non-Admin sieht Cards | Read-only, kein Bearbeiten-Button |
+| Admin erstellt Agent | Formular → Speichern → Card erscheint → sofort nutzbar im Chat |
+| Hive Mind nutzt DB-Agents | Chat-Anfrage → Expert Agent aus DB wird aufgerufen |
 
 ---
 
 ## Offene Punkte (spaetere Specs)
 
-- **Memory-Feld** im Harness: Wie Agent Memory geladen/gespeichert wird → Spec 23
-- **Heartbeat-Feld** im Harness: Proaktive Pruefungen pro Agent → Spec 24
-- **Skills-Feld** im Harness: Vorgeladene Skills pro Agent → Spec 21 (Tool-Skalierung Stufe 2)
-- **Multi-Tenant Isolation**: Pfad-basiert vs DB-basiert → Spec 25
+- **Memory-Feld**: Wie Agent Memory geladen/gespeichert wird → Spec 04 (Hindsight)
+- **Heartbeat-Feld**: Proaktive Pruefungen pro Agent → Spec 05
+- **Character-Avatar Generator**: KI-generierte Avatare → eigenes Feature
+- **Multi-Tenant Isolation**: RLS Policies fuer expert_agents → Spec 06
+- **Versionierung**: Aenderungshistorie pro Agent → spaeter

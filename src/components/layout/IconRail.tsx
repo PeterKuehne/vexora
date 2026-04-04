@@ -10,13 +10,14 @@ import {
   Zap,
   FileText,
   Link2,
+  Users,
   Settings,
   User,
   LogOut,
 } from 'lucide-react';
 import { useTheme } from '../../contexts';
 
-export type WorkspaceSection = 'tasks' | 'skills' | 'documents' | 'knowledge';
+export type WorkspaceSection = 'tasks' | 'skills' | 'documents' | 'agents' | 'knowledge';
 
 interface IconRailProps {
   activeSection: WorkspaceSection;
@@ -38,6 +39,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'tasks', icon: Bot, label: 'Tasks' },
   { id: 'skills', icon: Zap, label: 'Skills' },
   { id: 'documents', icon: FileText, label: 'Dokumente' },
+  { id: 'agents', icon: Users, label: 'Expert Agents' },
   { id: 'knowledge', icon: Link2, label: 'Wissen', disabled: true, tooltip: 'Kommt bald' },
 ];
 
