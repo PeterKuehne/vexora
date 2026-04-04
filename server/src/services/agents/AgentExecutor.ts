@@ -256,17 +256,18 @@ export class AgentExecutor {
         maxOutputTokens: 4096,
         providerOptions: getProviderOptions(model),
 
-        // Step 0 on first turn: force tool use before answering
-        // Expert Agents + basic tools are available on first step
-        // Follow-up turns and later steps: model decides freely
+        // Step 0 on first turn: force Expert Agent delegation before anything else.
+        // When Expert Agents exist, only they + load_skill are available on step 0
+        // (rag_search becomes available from step 1 onwards for follow-up questions).
+        // Follow-up turns and later steps: model decides freely.
         prepareStep: ({ stepNumber }) => {
           if (stepNumber === 0 && turnNumber === 1) {
+            const firstStepTools = expertAgentNames.length > 0
+              ? [...expertAgentNames, 'load_skill', 'list_skills']
+              : ['rag_search', 'load_skill', 'list_skills', 'agent'];
             return {
               toolChoice: 'required' as const,
-              activeTools: [
-                ...expertAgentNames,
-                'rag_search', 'load_skill', 'list_skills', 'agent',
-              ],
+              activeTools: firstStepTools,
             };
           }
           return { toolChoice: 'auto' as const };
@@ -547,11 +548,15 @@ KI-Agents und menschliche Mitarbeiter bilden ein gemeinsames Bewusstsein. Du koo
 ${expertSummary}
 
 ### Delegations-Regeln
-- Domain-spezifische Fragen → passenden Expert Agent aufrufen
+- IMMER Expert Agents nutzen wenn die Frage Mitarbeiter, Kunden, Einsaetze, Rechnungen, Zahlungen oder andere Unternehmensdaten betrifft
+- "Wie ist die Lage bei [Kunde]?" → hr-expert UND accounting-expert parallel aufrufen
+- "Zeige mir [Mitarbeiter/Einsaetze/Kunden]" → hr-expert aufrufen
+- "Zeige mir [Rechnungen/Zahlungen/Umsatz]" → accounting-expert aufrufen
 - Domain-uebergreifende Fragen → mehrere Expert Agents parallel aufrufen
 - Formuliere EINE zusammenhaengende Antwort, keine Einzelergebnisse
 - Erkenne Zusammenhaenge (z.B. offene Rechnungen + geplante Einsaetze = Risiko)
-- Wenn ein Expert Agent "RUECKFRAGE:" zurueckgibt → stelle diese Frage an den User`;
+- Wenn ein Expert Agent "RUECKFRAGE:" zurueckgibt → stelle diese Frage an den User
+- rag_search nur fuer Fragen zu Dokumenten, Vertraegen, Richtlinien — NICHT fuer operative Daten`;
     }
 
     // --- Skills ---
@@ -652,12 +657,11 @@ Nutze agent(agentType="kb-explorer") fuer tiefgehende Recherchen die viele Suchd
 - Wenn du keine relevanten Informationen findest, sage das ehrlich
 - Strukturiere Antworten mit Ueberschriften (##), Aufzaehlungen und **Fettdruck**
 
-## Workflow
-1. Domain-spezifische Frage? → Expert Agent aufrufen${hasExpertAgents ? ' (' + expertAgents.map(a => a.name).join(', ') + ')' : ''}
-2. Passt ein Skill? → load_skill(slug) aufrufen und Instruktionen folgen
-3. Tiefgehende Recherche? → agent(agentType="kb-explorer") delegieren
-4. Einfaches Unternehmenswissen? → rag_search direkt
-5. Allgemeinwissen? → Direkt antworten`;
+## Workflow (in dieser Reihenfolge pruefen)
+1. Betrifft die Frage Mitarbeiter, Kunden, Einsaetze, Rechnungen oder andere operative Daten? → Expert Agent aufrufen${hasExpertAgents ? ' (' + expertAgents.map(a => a.name).join(', ') + ')' : ''}. Bei mehreren Domains: mehrere Expert Agents PARALLEL aufrufen.
+2. Betrifft die Frage Dokumente, Vertraege oder Richtlinien? → rag_search direkt
+3. Passt ein Skill? → load_skill(slug) aufrufen
+4. Allgemeinwissen? → Direkt antworten`;
 
     return prompt;
   }

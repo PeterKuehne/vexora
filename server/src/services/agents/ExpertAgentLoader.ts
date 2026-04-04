@@ -210,7 +210,8 @@ function buildExpertInstructions(harness: ExpertAgentHarness): string {
 ## Tool-Nutzung
 - Nutze rag_search NUR fuer Dokumente und Unternehmenswissen (Vertraege, Richtlinien, Handbuecher)
 - Nutze rag_search NICHT fuer Mitarbeiter, Kunden, Einsaetze oder andere Stammdaten — dafuer gibt es die sama_* Tools
-- Suche NIEMALS nach UUIDs oder IDs in rag_search`;
+- Suche NIEMALS nach UUIDs oder IDs in rag_search
+- Wenn ein Tool leere Ergebnisse liefert: NICHT den gleichen Call wiederholen — leere Ergebnisse sind eine gueltige Antwort ("keine Daten vorhanden")`;
 
   return instructions;
 }
