@@ -20,6 +20,9 @@ dist-ssr
 # Playwright MCP
 .playwright-mcp
 
+# Open Source Research
+openscr
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
