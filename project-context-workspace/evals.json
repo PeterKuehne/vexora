@@ -1,0 +1,39 @@
+{
+  "skill_name": "project-context",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Was ist das fuer ein Projekt? Mach dich mit der Codebase vertraut.",
+      "expected_output": "Claude liest die Vision-Spec, scannt das Backend und Frontend, und gibt einen strukturierten Ueberblick ueber Cor7ex: Hive Mind, Agent-System, MCP, Infrastruktur.",
+      "files": [],
+      "assertions": [
+        {"text": "Liest specs/00_COR7EX_VISION.md oder erwaehnt die Vision", "type": "qualitative"},
+        {"text": "Erwaehnt das Agent-System (AgentExecutor, ToolLoopAgent)", "type": "qualitative"},
+        {"text": "Erwaehnt die Infrastruktur (Weaviate, Neo4j, Hetzner)", "type": "qualitative"},
+        {"text": "Gibt einen strukturierten Ueberblick (nicht nur Dateiliste)", "type": "qualitative"}
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Ich moechte das Agent-System aendern. Welche Dateien muss ich lesen und in welcher Reihenfolge?",
+      "expected_output": "Claude nutzt references/reading-order.md und gibt die Lesereihenfolge fuer Agent-System-Aenderungen: AgentExecutor → ToolRegistry → Tools → types.ts",
+      "files": [],
+      "assertions": [
+        {"text": "Referenziert AgentExecutor.ts als Kerndatei", "type": "qualitative"},
+        {"text": "Nennt ToolRegistry.ts", "type": "qualitative"},
+        {"text": "Gibt eine klare Reihenfolge vor (nicht nur eine Liste)", "type": "qualitative"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Ich bin neu im Projekt. Gibt es Fallen oder Dinge die nicht offensichtlich sind?",
+      "expected_output": "Claude nutzt references/gotchas.md und erklaert die wichtigsten Gotchas: SSH-Tunnel, prepareStep, Zwei PostgreSQL-Instanzen, Weaviate vs Memory Trennung.",
+      "files": [],
+      "assertions": [
+        {"text": "Erwaehnt SSH-Tunnel als Voraussetzung", "type": "qualitative"},
+        {"text": "Erwaehnt die Trennung Weaviate (RAG) vs Memory", "type": "qualitative"},
+        {"text": "Nennt mindestens 3 verschiedene Gotchas", "type": "qualitative"}
+      ]
+    }
+  ]
+}

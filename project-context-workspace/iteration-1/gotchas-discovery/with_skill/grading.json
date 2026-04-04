@@ -1,0 +1,9 @@
+{
+  "eval_id": 2,
+  "run_type": "with_skill",
+  "expectations": [
+    {"text": "Erwaehnt SSH-Tunnel als Voraussetzung", "passed": true, "evidence": "SSH-Tunnel-Abhaengigkeit als Gotcha #1 dokumentiert"},
+    {"text": "Erwaehnt die Trennung Weaviate (RAG) vs Memory", "passed": true, "evidence": "Gotcha #8: Weaviate/Neo4j sind NICHT fuer Memory"},
+    {"text": "Nennt mindestens 3 verschiedene Gotchas", "passed": true, "evidence": "13 Gotchas dokumentiert, alle aus der Skill-Referenz"}
+  ]
+}

@@ -1,3 +1,0 @@
-Test Document: Protokoll-Meeting.pdf
-This is a test PDF document for document search functionality testing.
-Content specific to: Protokoll-Meeting

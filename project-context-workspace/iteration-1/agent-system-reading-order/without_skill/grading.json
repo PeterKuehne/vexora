@@ -1,0 +1,9 @@
+{
+  "eval_id": 1,
+  "run_type": "without_skill",
+  "expectations": [
+    {"text": "Referenziert AgentExecutor.ts als Kerndatei", "passed": true, "evidence": "AgentExecutor.ts als Herzstuck identifiziert"},
+    {"text": "Nennt ToolRegistry.ts", "passed": true, "evidence": "ToolRegistry erwaehnt"},
+    {"text": "Gibt eine klare Reihenfolge vor (nicht nur eine Liste)", "passed": true, "evidence": "23 Dateien in 7 Phasen, aber massiver Overhead: 67k Tokens, 37 Tool-Calls um die gleiche Info zu finden"}
+  ]
+}

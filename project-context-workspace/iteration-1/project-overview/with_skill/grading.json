@@ -1,0 +1,10 @@
+{
+  "eval_id": 0,
+  "run_type": "with_skill",
+  "expectations": [
+    {"text": "Liest specs/00_COR7EX_VISION.md oder erwaehnt die Vision", "passed": true, "evidence": "Agent las die Vision-Spec und beschreibt Hive Mind, Expert Agents, Memory, Heartbeat"},
+    {"text": "Erwaehnt das Agent-System (AgentExecutor, ToolLoopAgent)", "passed": true, "evidence": "Beschreibt AgentExecutor als Kern mit ToolLoopAgent, multi-turn SSE"},
+    {"text": "Erwaehnt die Infrastruktur (Weaviate, Neo4j, Hetzner)", "passed": true, "evidence": "Dokumentiert VectorServiceV2 (Weaviate), GraphService (Neo4j), MCP Client, Redis"},
+    {"text": "Gibt einen strukturierten Ueberblick (nicht nur Dateiliste)", "passed": true, "evidence": "5-Schritt Workflow befolgt, strukturierter Bericht mit Key Findings"}
+  ]
+}

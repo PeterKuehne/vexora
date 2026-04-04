@@ -1,0 +1,10 @@
+{
+  "eval_id": 0,
+  "run_type": "without_skill",
+  "expectations": [
+    {"text": "Liest specs/00_COR7EX_VISION.md oder erwaehnt die Vision", "passed": true, "evidence": "Agent fand die Specs und beschreibt die Hive Mind Vision"},
+    {"text": "Erwaehnt das Agent-System (AgentExecutor, ToolLoopAgent)", "passed": true, "evidence": "Beschreibt ToolLoopAgent, 16 tools, multi-turn SSE"},
+    {"text": "Erwaehnt die Infrastruktur (Weaviate, Neo4j, Hetzner)", "passed": true, "evidence": "Beschreibt Weaviate, Neo4j, Redis, Hetzner, Presidio"},
+    {"text": "Gibt einen strukturierten Ueberblick (nicht nur Dateiliste)", "passed": true, "evidence": "Strukturierter Bericht mit 6 Kategorien, aber 85 Tool-Calls und 240s noetig"}
+  ]
+}

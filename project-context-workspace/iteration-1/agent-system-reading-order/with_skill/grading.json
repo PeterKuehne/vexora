@@ -1,0 +1,9 @@
+{
+  "eval_id": 1,
+  "run_type": "with_skill",
+  "expectations": [
+    {"text": "Referenziert AgentExecutor.ts als Kerndatei", "passed": true, "evidence": "AgentExecutor.ts als Punkt 2 in der 7-Dateien Reihenfolge"},
+    {"text": "Nennt ToolRegistry.ts", "passed": true, "evidence": "ToolRegistry.ts als Punkt 3"},
+    {"text": "Gibt eine klare Reihenfolge vor (nicht nur eine Liste)", "passed": true, "evidence": "7 Dateien in nummerierter Reihenfolge mit Erklaerung warum diese Reihenfolge"}
+  ]
+}

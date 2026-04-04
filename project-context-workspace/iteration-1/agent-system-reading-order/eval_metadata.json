@@ -1,0 +1,10 @@
+{
+  "eval_id": 1,
+  "eval_name": "agent-system-reading-order",
+  "prompt": "Ich moechte das Agent-System aendern. Welche Dateien muss ich lesen und in welcher Reihenfolge?",
+  "assertions": [
+    {"text": "Referenziert AgentExecutor.ts als Kerndatei", "type": "qualitative"},
+    {"text": "Nennt ToolRegistry.ts", "type": "qualitative"},
+    {"text": "Gibt eine klare Reihenfolge vor (nicht nur eine Liste)", "type": "qualitative"}
+  ]
+}

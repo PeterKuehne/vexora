@@ -1,0 +1,10 @@
+{
+  "eval_id": 2,
+  "eval_name": "gotchas-discovery",
+  "prompt": "Ich bin neu im Projekt. Gibt es Fallen oder Dinge die nicht offensichtlich sind?",
+  "assertions": [
+    {"text": "Erwaehnt SSH-Tunnel als Voraussetzung", "type": "qualitative"},
+    {"text": "Erwaehnt die Trennung Weaviate (RAG) vs Memory", "type": "qualitative"},
+    {"text": "Nennt mindestens 3 verschiedene Gotchas", "type": "qualitative"}
+  ]
+}

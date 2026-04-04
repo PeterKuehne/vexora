@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "skill_name": "project-context",
+    "skill_path": "/Users/peter/Coding/Projekte-samaritano/qwen-chat/.claude/skills/project-context",
+    "executor_model": "claude-opus-4-6",
+    "analyzer_model": "claude-opus-4-6",
+    "timestamp": "2026-04-04T08:30:00Z",
+    "evals_run": ["project-overview", "agent-system-reading-order", "gotchas-discovery"],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_name": "project-overview",
+      "with_skill": {"pass_rate": 1.0, "time_seconds": 132.5, "tokens": 44580, "assertions_passed": 4, "assertions_total": 4},
+      "without_skill": {"pass_rate": 1.0, "time_seconds": 240.1, "tokens": 69371, "assertions_passed": 4, "assertions_total": 4}
+    },
+    {
+      "eval_name": "agent-system-reading-order",
+      "with_skill": {"pass_rate": 1.0, "time_seconds": 82.2, "tokens": 24357, "assertions_passed": 3, "assertions_total": 3},
+      "without_skill": {"pass_rate": 1.0, "time_seconds": 160.5, "tokens": 66888, "assertions_passed": 3, "assertions_total": 3}
+    },
+    {
+      "eval_name": "gotchas-discovery",
+      "with_skill": {"pass_rate": 1.0, "time_seconds": 105.9, "tokens": 21584, "assertions_passed": 3, "assertions_total": 3},
+      "without_skill": {"pass_rate": 0.33, "time_seconds": 395.7, "tokens": 99208, "assertions_passed": 1, "assertions_total": 3}
+    }
+  ],
+  "run_summary": {
+    "with_skill": {"pass_rate_mean": 1.0, "time_mean": 106.9, "tokens_mean": 30174},
+    "without_skill": {"pass_rate_mean": 0.78, "time_mean": 265.4, "tokens_mean": 78489},
+    "delta": {
+      "pass_rate": "+0.22 (22% more assertions passed)",
+      "time_seconds": "-158.5s (60% faster)",
+      "tokens": "-48315 (62% fewer tokens)"
+    }
+  },
+  "notes": [
+    "Skill provides 60% average time reduction and 62% token savings",
+    "Gotchas eval shows strongest differentiation: skill guides to architecture-level pitfalls while baseline finds code-level bugs",
+    "Baseline gotchas found real bugs (DocumentService race condition, input sanitization) that skill-guided run did not — different value propositions",
+    "With-skill runs are focused and efficient; without-skill runs explore broadly but expensively"
+  ]
+}

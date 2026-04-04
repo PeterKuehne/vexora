@@ -1,0 +1,11 @@
+{
+  "eval_id": 0,
+  "eval_name": "project-overview",
+  "prompt": "Was ist das fuer ein Projekt? Mach dich mit der Codebase vertraut.",
+  "assertions": [
+    {"text": "Liest specs/00_COR7EX_VISION.md oder erwaehnt die Vision", "type": "qualitative"},
+    {"text": "Erwaehnt das Agent-System (AgentExecutor, ToolLoopAgent)", "type": "qualitative"},
+    {"text": "Erwaehnt die Infrastruktur (Weaviate, Neo4j, Hetzner)", "type": "qualitative"},
+    {"text": "Gibt einen strukturierten Ueberblick (nicht nur Dateiliste)", "type": "qualitative"}
+  ]
+}
