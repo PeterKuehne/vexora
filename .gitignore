@@ -21,7 +21,7 @@ dist-ssr
 .playwright-mcp
 
 # Open Source Research
-openscr
+opensrc
 
 # Editor directories and files
 .vscode/*
