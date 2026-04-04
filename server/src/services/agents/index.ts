@@ -8,6 +8,8 @@ export { agentExecutor } from './AgentExecutor.js';
 export type { SSEEmitter } from './AgentExecutor.js';
 export { resolveModel, parseModelString, hasProvider, isCloudModel, getProviderOptions, getCloudModels } from './ai-provider.js';
 export { loadExpertAgents, getExpertAgent, listExpertAgents, clearExpertAgentCache, createExpertAgentTool } from './ExpertAgentLoader.js';
+export { expertAgentService } from './ExpertAgentService.js';
+export type { ExpertAgentRecord, CreateExpertAgentInput, UpdateExpertAgentInput, ToolInfo } from './ExpertAgentService.js';
 export { setPIIGuard, createGuardedModel, ensurePIIGuardAvailable, maskMessages, unmaskContent } from './ai-middleware.js';
 export type {
   AgentTool,

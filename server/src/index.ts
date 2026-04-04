@@ -35,10 +35,12 @@ import usageRoutes from './routes/usage.js'
 import agentRoutes from './routes/agents.js'
 import agentEvalRoutes from './routes/agent-evaluation.js'
 import skillRoutes from './routes/skills.js'
+import expertAgentRoutes from './routes/expert-agents.js'
 import { PIIGuard } from './services/llm/PIIGuard.js'
 import { setPIIGuard } from './services/agents/ai-middleware.js'
 import { initializeAgentSystem } from './services/agents/index.js'
 import { initializeSkillSystem } from './services/skills/index.js'
+import { expertAgentService } from './services/agents/ExpertAgentService.js'
 import { mcpClientManager } from './services/mcp/McpClientManager.js'
 
 const app = express()
@@ -111,6 +113,7 @@ app.use('/api/admin/usage', adminRateLimiter, usageRoutes)
 app.use('/api/agents', generalRateLimiter, agentRoutes)
 app.use('/api/agent-eval', adminRateLimiter, agentEvalRoutes)
 app.use('/api/skills', generalRateLimiter, skillRoutes)
+app.use('/api/expert-agents', generalRateLimiter, expertAgentRoutes)
 
 // ============================================
 // Health & Root
@@ -266,6 +269,13 @@ httpServer.on('listening', async () => {
     console.log('✅ Skill system initialized')
   } catch (error) {
     console.warn('⚠️  Skill system initialization failed:', error)
+  }
+
+  // Seed Expert Agents (Built-in Templates → DB)
+  try {
+    await expertAgentService.seedBuiltinAgents()
+  } catch (error) {
+    console.warn('⚠️  Expert Agent seeding failed:', error)
   }
 
   // Initialize MCP Client (SamaWorkforce)

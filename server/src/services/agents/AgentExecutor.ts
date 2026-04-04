@@ -12,7 +12,8 @@ import type { ModelMessage } from '@ai-sdk/provider-utils';
 import { resolveModel, getProviderOptions, isCloudModel, estimateCost } from './ai-provider.js';
 import { toolRegistry } from './ToolRegistry.js';
 import { agentPersistence } from './AgentPersistence.js';
-import { loadExpertAgents, createExpertAgentTool } from './ExpertAgentLoader.js';
+import { createExpertAgentTool } from './ExpertAgentLoader.js';
+import { expertAgentService } from './ExpertAgentService.js';
 import type {
   AgentUserContext,
   AgentSSEEvent,
@@ -184,8 +185,8 @@ export class AgentExecutor {
       const useStrictTools = isCloudModel(model);
       const tools = toolRegistry.getAISDKTools(toolContext, options?.allowedTools, loadedSkills, { strict: useStrictTools });
 
-      // Load Expert Agent harnesses and create dynamic tools for the Hive Mind
-      const expertAgents = loadExpertAgents(context.tenantId);
+      // Load active Expert Agents from DB and create dynamic tools for the Hive Mind
+      const expertAgents = await expertAgentService.loadActiveHarnesses(context.tenantId);
       const expertAgentNames: string[] = [];
       for (const harness of expertAgents) {
         tools[harness.name] = createExpertAgentTool(harness, toolContext, emitSSE);
