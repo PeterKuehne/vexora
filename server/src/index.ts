@@ -42,7 +42,9 @@ import { initializeAgentSystem } from './services/agents/index.js'
 import { initializeSkillSystem } from './services/skills/index.js'
 import { expertAgentService } from './services/agents/ExpertAgentService.js'
 import { memoryService } from './services/memory/index.js'
+import { heartbeatEngine } from './services/heartbeat/index.js'
 import { mcpClientManager } from './services/mcp/McpClientManager.js'
+import heartbeatRoutes from './routes/heartbeat.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -115,6 +117,7 @@ app.use('/api/agents', generalRateLimiter, agentRoutes)
 app.use('/api/agent-eval', adminRateLimiter, agentEvalRoutes)
 app.use('/api/skills', generalRateLimiter, skillRoutes)
 app.use('/api/expert-agents', generalRateLimiter, expertAgentRoutes)
+app.use('/api/heartbeat', generalRateLimiter, heartbeatRoutes)
 
 // ============================================
 // Health & Root
@@ -297,6 +300,14 @@ httpServer.on('listening', async () => {
     }
   } catch (error) {
     console.warn('⚠️  MCP Client initialization failed (non-critical):', error)
+  }
+
+  // Initialize Heartbeat Engine (after MCP Client)
+  try {
+    await heartbeatEngine.initialize(mcpClientManager, io)
+    console.log('✅ Heartbeat Engine initialized')
+  } catch (error) {
+    console.warn('⚠️  Heartbeat Engine initialization failed (non-critical):', error)
   }
 })
 
