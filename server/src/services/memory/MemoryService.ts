@@ -172,10 +172,16 @@ class MemoryServiceImpl {
         this.safeRecall(hiveBankId, query, memoryConfig.hiveMindRecallMaxTokens),
       ]);
 
-      return {
-        userMemory: this.formatRecallResults(userResults),
-        hiveMindMemory: this.formatRecallResults(hiveResults),
-      };
+      const userMemory = this.formatRecallResults(userResults);
+      const hiveMindMemory = this.formatRecallResults(hiveResults);
+
+      const userCount = userResults?.results?.length || 0;
+      const hiveCount = hiveResults?.results?.length || 0;
+      if (userCount > 0 || hiveCount > 0) {
+        console.log(`[Memory] Recalled ${userCount} user memories, ${hiveCount} hive mind memories`);
+      }
+
+      return { userMemory, hiveMindMemory };
     } catch (error) {
       console.warn(`[Memory] loadHiveMindContext failed (non-critical): ${error}`);
       return { userMemory: '', hiveMindMemory: '' };
@@ -192,6 +198,10 @@ class MemoryServiceImpl {
 
     try {
       const results = await this.safeRecall(bankId, query, memoryConfig.agentRecallMaxTokens);
+      const count = results?.results?.length || 0;
+      if (count > 0) {
+        console.log(`[Memory] Recalled ${count} agent memories for ${agentName}`);
+      }
       return this.formatRecallResults(results);
     } catch (error) {
       console.warn(`[Memory] loadAgentContext failed for ${agentName} (non-critical): ${error}`);
