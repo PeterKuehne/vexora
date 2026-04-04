@@ -11,6 +11,7 @@ import {
 import { AgentTaskSidebar } from './components/AgentTaskSidebar';
 import { AgentTaskDetail } from './components/AgentTaskDetail';
 import { LoginPage, AdminUsersPage, AdminSystemSettingsPage, AuditLogsPage, DocumentsPage, DocumentsPageEmbedded, ProfilePage } from './pages';
+import { ExpertAgentsPage } from './pages/ExpertAgentsPage';
 import {
   ThemeProvider,
   SettingsProvider,
@@ -43,6 +44,10 @@ function ChatApp() {
 
     if (activeSection === 'skills') {
       return <SkillDetail />;
+    }
+
+    if (activeSection === 'agents') {
+      return <ExpertAgentsPage />;
     }
 
     return null;
