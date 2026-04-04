@@ -12,6 +12,7 @@ import { AgentTaskSidebar } from './components/AgentTaskSidebar';
 import { AgentTaskDetail } from './components/AgentTaskDetail';
 import { LoginPage, AdminUsersPage, AdminSystemSettingsPage, AuditLogsPage, DocumentsPage, DocumentsPageEmbedded, ProfilePage } from './pages';
 import { ExpertAgentsPage } from './pages/ExpertAgentsPage';
+import { HeartbeatPage } from './pages/HeartbeatPage';
 import {
   ThemeProvider,
   SettingsProvider,
@@ -48,6 +49,10 @@ function ChatApp() {
 
     if (activeSection === 'agents') {
       return <ExpertAgentsPage />;
+    }
+
+    if (activeSection === 'heartbeat') {
+      return <HeartbeatPage />;
     }
 
     return null;

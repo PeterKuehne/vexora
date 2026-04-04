@@ -12,7 +12,7 @@ import { useTheme } from '../../contexts';
 import type { WorkspaceSection } from './IconRail';
 
 // Sections that use full-width content (no sidebar)
-const FULL_WIDTH_SECTIONS: WorkspaceSection[] = ['documents', 'agents'];
+const FULL_WIDTH_SECTIONS: WorkspaceSection[] = ['documents', 'agents', 'heartbeat'];
 
 interface WorkspaceSidebarProps {
   activeSection: WorkspaceSection;

@@ -16,6 +16,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { Markdown } from './Markdown';
 import { ChatInput } from './ChatInput';
 import {
+  Activity,
   Bot,
   Lightbulb,
   CheckCircle2,
@@ -42,6 +43,7 @@ import {
   FlaskConical,
 } from 'lucide-react';
 import { cn } from '../utils';
+import { fetchBriefing, type HeartbeatBriefing } from '../lib/heartbeat-api';
 
 // ── Reasoning Block (Claude-style "Thinking") ──
 function ReasoningBlock({ text, isDark, isStreaming }: { text: string; isDark: boolean; isStreaming?: boolean }) {
@@ -367,6 +369,20 @@ export function AgentTaskDetail() {
 
   const task = activeTaskId ? tasks.find(t => t.id === activeTaskId) : null;
 
+  // Briefing state
+  const [briefing, setBriefing] = useState<HeartbeatBriefing | null>(null);
+  const briefingFetched = useRef(false);
+
+  // Fetch briefing once when no task is active
+  useEffect(() => {
+    if (!task && !briefingFetched.current) {
+      briefingFetched.current = true;
+      fetchBriefing()
+        .then(b => { if (b.hasBriefing) setBriefing(b); })
+        .catch(() => {});
+    }
+  }, [task]);
+
   // Show button only when user scrolls UP and is not at the bottom
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -421,16 +437,54 @@ export function AgentTaskDetail() {
   if (!task) {
     return (
       <div className="flex flex-col h-full">
-        <div className="flex-1 flex items-center justify-center">
-          <div className={cn('text-center px-6 max-w-md', isDark ? 'text-white/30' : 'text-gray-400')}>
-            <Bot size={40} className="mx-auto mb-4 opacity-40" />
-            <h3 className={cn('text-base font-medium mb-2', isDark ? 'text-white/60' : 'text-gray-600')}>
-              Neue Aufgabe starten
-            </h3>
-            <p className="text-sm leading-relaxed">
-              Durchsuche Dokumente, nutze Skills und löse mehrstufige Aufgaben in einer Konversation.
-            </p>
-          </div>
+        <div className="flex-1 flex items-center justify-center overflow-y-auto">
+          {briefing ? (
+            // ── Briefing Display ──
+            <div className="w-full max-w-3xl mx-auto px-6 py-8">
+              <div className={cn(
+                'rounded-2xl border p-6',
+                isDark ? 'bg-white/[0.02] border-white/[0.06]' : 'bg-white border-gray-200'
+              )}>
+                <div className="flex items-center gap-2 mb-4">
+                  <Activity size={18} className={isDark ? 'text-emerald-400' : 'text-emerald-600'} />
+                  <span className={cn('text-xs font-bold uppercase tracking-wider', isDark ? 'text-emerald-400' : 'text-emerald-600')}>
+                    Heartbeat Briefing
+                  </span>
+                  <span className={cn('text-[10px]', isDark ? 'text-white/20' : 'text-gray-400')}>
+                    {briefing.resultCount} Meldung{briefing.resultCount !== 1 ? 'en' : ''}
+                  </span>
+                </div>
+                <div className={cn('prose prose-sm max-w-none', isDark ? 'prose-invert' : '')}>
+                  <Markdown content={briefing.text} />
+                </div>
+                {briefing.results.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {briefing.results.map(r => (
+                      <span key={r.id} className={cn(
+                        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs',
+                        r.priority === 'critical' ? 'bg-red-500/10 text-red-400' :
+                        r.priority === 'warning' ? 'bg-amber-500/10 text-amber-400' :
+                        isDark ? 'bg-white/[0.05] text-white/50' : 'bg-gray-100 text-gray-600'
+                      )}>
+                        {r.icon} {r.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            // ── Empty State ──
+            <div className={cn('text-center px-6 max-w-md', isDark ? 'text-white/30' : 'text-gray-400')}>
+              <Bot size={40} className="mx-auto mb-4 opacity-40" />
+              <h3 className={cn('text-base font-medium mb-2', isDark ? 'text-white/60' : 'text-gray-600')}>
+                Neue Aufgabe starten
+              </h3>
+              <p className="text-sm leading-relaxed">
+                Durchsuche Dokumente, nutze Skills und löse mehrstufige Aufgaben in einer Konversation.
+              </p>
+            </div>
+          )}
         </div>
         <div className="shrink-0">
           <div className="p-4 max-w-4xl mx-auto w-full">
