@@ -6,7 +6,7 @@ Lies immer nur so viel wie du fuer die Aufgabe brauchst.
 
 ## Agent-System aendern (Expert Agent, Hive Mind, Tools)
 
-1. `specs/21_HIVE_MIND_ORCHESTRATOR_SPEC.md` — Architektur verstehen
+1. `specs/21-hive-mind-orchestrator.md` — Architektur verstehen
 2. `server/src/services/agents/AgentExecutor.ts` — Aktueller Agent-Loop
 3. `server/src/services/agents/ToolRegistry.ts` — Tool-Registrierung
 4. `server/src/services/agents/tools/index.ts` — Registrierte Tools
@@ -23,7 +23,7 @@ Lies immer nur so viel wie du fuer die Aufgabe brauchst.
 
 ## MCP-Integration aendern
 
-1. `specs/20_MCP_SAMAWORKFORCE_SPEC.md` — MCP-Architektur
+1. `specs/20-mcp-samaworkforce.md` — MCP-Architektur
 2. `server/src/services/mcp/McpClientManager.ts` — Client-Lifecycle, Tool-Discovery
 3. `server/src/services/mcp/McpOAuthClient.ts` — Token-Management
 4. `server/src/services/mcp/McpToolAdapter.ts` — MCP Tool → AgentTool Konvertierung
@@ -35,16 +35,16 @@ Lies immer nur so viel wie du fuer die Aufgabe brauchst.
 1. `server/skills/` — Bestehende Skills als Vorlage
 2. `server/src/services/skills/SkillLoader.ts` — Wie Skills geladen werden
 3. `server/src/services/skills/SkillRegistry.ts` — Skill-Verwaltung
-4. `specs/19_SKILL_CREATOR_V2_SPEC.md` — Skill-System Spec
+4. `specs/archive/19_SKILL_CREATOR_V2_SPEC.md` — Skill-System Spec
 
 ## Memory-System implementieren
 
-1. `specs/23_MEMORY_SYSTEM_SPEC.md` — Hindsight-Integration, 3 Ebenen
-2. `specs/00_COR7EX_VISION.md` — Abschnitt "Memory-Architektur"
+1. `specs/23-memory-system.md` — Hindsight-Integration, 3 Ebenen
+2. `specs/00-cor7ex-vision.md` — Abschnitt "Memory-Architektur"
 
 ## Heartbeat implementieren
 
-1. `specs/24_HEARTBEAT_ENGINE_SPEC.md` — Cron, Briefing, Panels
+1. `specs/24-heartbeat-engine.md` — Cron, Briefing, Panels
 2. `server/src/services/agents/AgentExecutor.ts` — SSE-Events als Vorlage
 
 ## RAG / Wissensdatenbank aendern

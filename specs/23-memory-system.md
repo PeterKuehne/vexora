@@ -1,8 +1,8 @@
 # Spec: Memory System
 
 **Status:** Entwurf
-**Abhaengigkeiten:** [22_EXPERT_AGENT_HARNESS_SPEC.md](./22_EXPERT_AGENT_HARNESS_SPEC.md)
-**Bezug:** [00_COR7EX_VISION.md](./00_COR7EX_VISION.md) — Abschnitt "Memory-Architektur"
+**Abhaengigkeiten:** [22-expert-agent-harness.md](./22-expert-agent-harness.md)
+**Bezug:** [00-cor7ex-vision.md](./00-cor7ex-vision.md) — Abschnitt "Memory-Architektur"
 **Analyse:** [memory/analysis_memory_systems.md](../memory/analysis_memory_systems.md) — Deep-Dive Zep vs Mem0 vs Letta + Hindsight + Backboard
 
 ---

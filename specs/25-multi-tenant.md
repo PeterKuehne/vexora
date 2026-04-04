@@ -1,8 +1,8 @@
 # Spec: Multi-Tenant
 
 **Status:** Entwurf
-**Abhaengigkeiten:** [21](./21_HIVE_MIND_ORCHESTRATOR_SPEC.md), [22](./22_EXPERT_AGENT_HARNESS_SPEC.md), [23](./23_MEMORY_SYSTEM_SPEC.md), [24](./24_HEARTBEAT_ENGINE_SPEC.md)
-**Bezug:** [00_COR7EX_VISION.md](./00_COR7EX_VISION.md) — Abschnitt "Multi-Tenant"
+**Abhaengigkeiten:** [21](./21-hive-mind-orchestrator.md), [22](./22-expert-agent-harness.md), [23](./23-memory-system.md), [24](./24-heartbeat-engine.md)
+**Bezug:** [00-cor7ex-vision.md](./00-cor7ex-vision.md) — Abschnitt "Multi-Tenant"
 
 ---
 

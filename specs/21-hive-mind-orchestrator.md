@@ -2,7 +2,7 @@
 
 **Status:** Entwurf
 **Abhaengigkeiten:** Keine (erste Implementierung)
-**Bezug:** [00_COR7EX_VISION.md](./00_COR7EX_VISION.md) — Abschnitt "Technische Architektur"
+**Bezug:** [00-cor7ex-vision.md](./00-cor7ex-vision.md) — Abschnitt "Technische Architektur"
 
 ---
 

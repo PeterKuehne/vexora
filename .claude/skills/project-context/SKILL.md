@@ -30,7 +30,7 @@ und React-Frontend.
 ### Schritt 1: Projekt-Grundlagen
 
 Lies die Vision und Architektur:
-- `specs/00_COR7EX_VISION.md` — Vision, Hive Mind, Expert Agents, Memory, Heartbeat
+- `specs/00-cor7ex-vision.md` — Vision, Hive Mind, Expert Agents, Memory, Heartbeat
 - `specs/` — Alle technischen Specs (21-25)
 
 ### Schritt 2: Backend-Struktur
