@@ -30,6 +30,8 @@ router.get('/briefing', authenticateToken, asyncHandler(async (req: Authenticate
 
   const results = await heartbeatEngine.getUndeliveredResults(userId, userRole);
 
+  console.log(`[Heartbeat] Briefing requested by ${userName}: ${results.length} undelivered results`);
+
   const briefing = await generateBriefing(results, userName, userId);
 
   // Mark as delivered

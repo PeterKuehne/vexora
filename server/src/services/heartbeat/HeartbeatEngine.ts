@@ -450,6 +450,7 @@ class HeartbeatEngineImpl {
         cron: '30 7 * * 1-5',
         config: {
           tool: 'sama_expiredCertifications',
+          selections: '{ employeeId expiryDate }',
           threshold: { field: 'length', operator: 'gt', value: 0 },
         },
         icon: '📋',
