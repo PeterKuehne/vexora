@@ -42,7 +42,7 @@ export function WorkspaceLayout({
   const { isDark } = useTheme();
   const [activeSection, setActiveSection] = useState<WorkspaceSection>(() => {
     const saved = localStorage.getItem('cor7ex-active-section');
-    if (saved && ['tasks', 'skills', 'documents', 'agents', 'knowledge'].includes(saved)) {
+    if (saved && ['tasks', 'skills', 'documents', 'agents', 'heartbeat', 'knowledge'].includes(saved)) {
       return saved as WorkspaceSection;
     }
     return defaultSection;
