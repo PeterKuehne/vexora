@@ -27,9 +27,9 @@ Das Command Center ist die **intelligente Startseite** von Cor7ex — der erste 
 
 ## Warum kein Dashboard?
 
-### Der Disponent um 6 Uhr morgens
+### Der Disponent morgens
 
-Der Disponent ist die **zentrale Drehscheibe** des Personaldienstleisters. Er betreut 40-80 Pflegekraefte, jongliert mehrere Kunden gleichzeitig und startet den Tag mit Krisenmodus (Krankmeldungen ab 5:30 Uhr).
+Der Disponent ist die **zentrale Drehscheibe** des Personaldienstleisters. Er betreut 40-80 Pflegekraefte, jongliert mehrere Kunden gleichzeitig und muss taeglich Fristen, Zeiterfassungen und Einsaetze im Blick behalten.
 
 Er braucht **nicht**:
 - Balkendiagramme ueber Umsatz
@@ -37,16 +37,17 @@ Er braucht **nicht**:
 - 12 KPI-Kacheln die er anstarrt
 
 Er braucht:
-- "3 Krankmeldungen. Fruehschicht Klinikum X unbesetzt."
-- "Thomas Schmidt ist verfuegbar und hat Fruehschicht-Praeferenz."
-- [Zuweisen] [Spaeter] [Kunde informieren]
+- "ASG-004 endet in 26 Tagen. Verlaengerung mit Klinikum Bielefeld klaeren."
+- "3 Zeiterfassungen warten auf deine Genehmigung."
+- "Alexander Esau erreicht in 2 Monaten die Equal-Pay-Grenze bei Test Traeger."
+- [Genehmigen] [Verlaengern] [Details]
 
-### Der Geschaeftsfuehrer um 8 Uhr
+### Der Geschaeftsfuehrer
 
 Der GF braucht nicht dieselbe Ansicht. Er braucht:
-- Finanz-Ueberblick (offene Rechnungen, Umsatz-Trend)
+- Finanz-Ueberblick (offene Rechnungen, Faelligkeiten)
 - Compliance-Status (AUeG-Risiken, Equal Pay)
-- Strategische Kennzahlen (Auslastung, Fluktuation)
+- Einsatz-Ueberblick (wie viele aktiv, abgelaufene Status-Probleme)
 
 **Gleicher Hive Mind, gleiche Datenbasis — aber die Perspektive, die Sprache, die Prioritaeten sind pro Rolle anders.** (Vision-Spec, Abschnitt "Der User")
 
@@ -66,22 +67,23 @@ Das Command Center besteht aus drei vertikalen Bereichen:
 │  │  BRIEFING (LLM-generiert, personalisiert)             │  │
 │  │                                                        │  │
 │  │  Guten Morgen Lisa. Hier dein Ueberblick:             │  │
-│  │  2 Krankmeldungen heute. Klinikum X: Fruehschicht     │  │
-│  │  unbesetzt, Thomas Schmidt waere verfuegbar.          │  │
+│  │  3 Zeiterfassungen warten auf deine Genehmigung.      │  │
 │  │  ASG-004 endet in 26 Tagen — Verlaengerung klaeren.  │  │
-│  │  Alle Zeiterfassungen von gestern sind genehmigt.     │  │
+│  │  Alexander Esau naehert sich der Equal-Pay-Grenze     │  │
+│  │  bei Test Traeger. 2 Rechnungen offen (1.812 EUR).    │  │
 │  └────────────────────────────────────────────────────────┘  │
 │                                                              │
 │  ┌──────────────────┐  ┌──────────────────┐                 │
-│  │ ⚠️ HANDLUNGSBEDARF│  │ 💰 FINANZEN      │                 │
+│  │ ⏱️ ZEITERFASSUNG  │  │ 💰 FINANZEN      │                 │
 │  │                  │  │                  │                 │
-│  │ Fruehschicht     │  │ 2 Rechnungen     │                 │
-│  │ Klinikum X       │  │ offen            │                 │
-│  │ 07:00 unbesetzt  │  │ 1.812 EUR        │                 │
-│  │                  │  │                  │                 │
-│  │ Thomas Schmidt ✓ │  │ Faellig:         │                 │
-│  │ [Zuweisen]       │  │ 09.04 (459 EUR)  │                 │
-│  │ [Spaeter]        │  │ 13.04 (1.353 EUR)│                 │
+│  │ 3 warten auf     │  │ 2 Rechnungen     │                 │
+│  │ Genehmigung      │  │ offen            │                 │
+│  │                  │  │ 1.812 EUR        │                 │
+│  │ Sarah Mueller    │  │                  │                 │
+│  │ Thomas Schmidt   │  │ Faellig:         │                 │
+│  │ Julia Becker     │  │ 09.04 (459 EUR)  │                 │
+│  │ [Alle genehmigen]│  │ 13.04 (1.353 EUR)│                 │
+│  │ [Pruefen]        │  │ [Mahnung senden] │                 │
 │  └──────────────────┘  └──────────────────┘                 │
 │                                                              │
 │  ┌──────────────────┐  ┌──────────────────┐                 │
@@ -111,7 +113,7 @@ Ein LLM-generierter Text der alle Heartbeat-Ergebnisse zu einem natuerlichen Mor
 - Wird beim Oeffnen generiert (1 LLM-Call)
 - Nutzt Heartbeat-Ergebnisse + User Memory
 - Kritische Punkte zuerst
-- Erkennt Zusammenhaenge ("Klinikum X: offene Rechnungen UND unbesetzte Schicht")
+- Erkennt Zusammenhaenge ("Klinikum X: offene Rechnungen UND Einsatz endet bald")
 - Maximal 3-5 Saetze
 
 #### 2. Action Cards (Mitte)
@@ -148,25 +150,27 @@ Klick auf eine Action Card oeffnet den Chat mit Kontext:
 
 **Prioritaet:** Operative Handlungsfaehigkeit
 
-| Card | Datenquelle | Quick Actions |
-|------|------------|---------------|
-| Krankmeldungen / Ausfaelle | Heartbeat: offene Schichten | Zuweisen, Kunde informieren |
-| AUeG-Compliance | Heartbeat: assignmentsNearLimit | Details, Rotation planen |
-| Einsaetze die bald enden | Heartbeat: Einsatz-Ende < 30 Tage | Verlaengern, Abschliessen |
-| Zeiterfassungen | Heartbeat: pendingApprovals | Genehmigen, Ablehnen |
-| Unbesetzte Schichten | Heartbeat: offene Anforderungen | Kraft zuweisen |
+| Card | Datenquelle (MCP Tool) | Quick Actions |
+|------|------------------------|---------------|
+| Zeiterfassungen genehmigen | `sama_pendingApprovals` | Alle genehmigen, Pruefen |
+| AUeG-Compliance (18 Mon.) | `sama_assignmentsNearLimit` | Details, Rotation planen |
+| Equal-Pay-Grenze (9 Mon.) | `sama_employeesNearEqualPay` | Details, Verguetung pruefen |
+| Einsaetze die bald enden | `sama_activeAssignments` (Ende < 30 Tage) | Verlaengern, Abschliessen |
+| Abgelaufene Einsaetze (ACTIVE) | `sama_activeAssignments` (Ende < heute) | Status korrigieren |
+| Zertifizierungen ablaufend | `sama_certificationsExpiringSoon` | Mitarbeiter informieren |
+| AUeV-Vertraege | `sama_staffingContracts` (Status pruefen) | Verlaengern, Kuendigen |
 
 ### Geschaeftsfuehrung (Admin)
 
 **Prioritaet:** Strategischer Ueberblick + Finanzen
 
-| Card | Datenquelle | Quick Actions |
-|------|------------|---------------|
-| Offene Rechnungen | Heartbeat: accountMoves (NOT_PAID) | Mahnung, Details |
-| Umsatz-Trend | Heartbeat: revenueReport | Bericht anzeigen |
-| Compliance-Status | Heartbeat: assignmentsNearLimit + Equal Pay | Details |
-| Mitarbeiter-Ueberblick | Heartbeat: aktive Einsaetze | Alle anzeigen |
-| Abgelaufene Zertifizierungen | Heartbeat: expiredCertifications | Mitarbeiter kontaktieren |
+| Card | Datenquelle (MCP Tool) | Quick Actions |
+|------|------------------------|---------------|
+| Offene Rechnungen | `sama_accountMoves` (paymentState: NOT_PAID) | Mahnung senden, Details |
+| Faelligkeitsbericht | `sama_agedReceivable` | Bericht anzeigen |
+| Compliance-Status | `sama_assignmentsNearLimit` + `sama_employeesNearEqualPay` | Details |
+| Aktive Einsaetze | `sama_activeAssignments` | Alle anzeigen |
+| Abgelaufene Zertifizierungen | `sama_expiredCertifications` | Mitarbeiter kontaktieren |
 
 ### Alle Rollen
 
@@ -253,16 +257,14 @@ GET /api/command-center/home
 
 ```
 ┌──────────────────────────────────────┐
-│ ⚠️ HANDLUNGSBEDARF          warning  │
+│ ⚠️ EINSATZ ENDET BALD       warning  │
 │                                      │
-│ Fruehschicht Klinikum X              │
-│ 07:00 Uhr — unbesetzt               │
+│ ASG-004 — Sarah Mueller              │
+│ Universitaets-Klinikum Bielefeld     │
+│ Endet am 30.04.2026 (in 26 Tagen)   │
 │                                      │
-│ Verfuegbar:                          │
-│ • Thomas Schmidt (Frueh-Praef.)      │
-│ • Julia Becker (keine Praef.)        │
-│                                      │
-│ [Zuweisen]  [Kunde informieren]      │
+│ [Verlaengern]  [Abschliessen]        │
+│ [Details]                            │
 └──────────────────────────────────────┘
 ```
 
@@ -324,12 +326,14 @@ Quick Actions auf Cards loesen Chat-Konversationen aus — der Hive Mind fuehrt 
 
 | Action | Was passiert |
 |--------|-------------|
-| [Zuweisen] | Chat: "Weise Thomas Schmidt der Fruehschicht bei Klinikum X am [Datum] zu" → hr-expert |
-| [Kunde informieren] | Chat: "Informiere Klinikum X dass die Fruehschicht am [Datum] nicht besetzt werden kann" → send_notification |
 | [Verlaengern] | Chat: "Verlaengere den Einsatz ASG-004 um 3 Monate" → hr-expert |
+| [Abschliessen] | Chat: "Schliesse den Einsatz ASG-001 ab und setze den Status auf COMPLETED" → hr-expert |
+| [Alle genehmigen] | Chat: "Genehmige alle ausstehenden Zeiterfassungen" → hr-expert |
 | [Mahnung senden] | Chat: "Erstelle eine Zahlungserinnerung fuer Rechnung RE-2026-000001" → accounting-expert |
 | [Details] | Chat: "Zeige mir Details zu [Thema]" → passender Expert Agent |
 | [Compliance-Bericht] | Chat: "Erstelle einen vollstaendigen AUeG-Compliance-Bericht" → hr-expert |
+| [Verguetung pruefen] | Chat: "Pruefe die Equal-Pay-Situation fuer Alexander Esau bei Test Traeger" → hr-expert |
+| [Mitarbeiter informieren] | Chat: "Informiere [Name] dass Zertifizierung [X] bald ablaeuft" → send_notification |
 
 **Prinzip:** Das Command Center ist der Startpunkt. Die Ausfuehrung passiert im Chat ueber den Hive Mind.
 
@@ -408,6 +412,32 @@ Der User wechselt zwischen Command Center und Chat durch:
 | Heartbeat laeuft | Neue Cards erscheinen beim naechsten Oeffnen |
 | Memory lernt | Cards werden nach Nutzung priorisiert |
 | Kein Heartbeat-Ergebnis | "Alles im gruenen Bereich" Briefing |
+
+---
+
+## Generik: Branchenunabhaengig
+
+Das Command Center ist **nicht personaldienstleister-spezifisch**. Alles was angezeigt wird kommt aus konfigurierbaren Quellen:
+
+| Komponente | Woher kommen die Daten? | Branchenabhaengig? |
+|------------|------------------------|-------------------|
+| Briefing-Text | LLM + Heartbeat-Ergebnisse | Nein — Text wird generiert |
+| Action Cards | Heartbeat-Definitionen (pro Tenant) | Nein — Card-Typ ist generisch |
+| Quick Actions | Heartbeat-Config → Expert Agent Prompt | Nein — Prompt ist konfigurierbar |
+| Rollen-Filter | UserRole (Admin/Manager/Employee) | Nein — universelle Rollen |
+| Card-Icons/Prioritaet | Heartbeat-Definition (icon, priority) | Nein — frei konfigurierbar |
+
+**Beispiel: Autohaus**
+
+Ein Autohaus-Tenant haette andere Heartbeats und Expert Agents:
+
+| Heartbeat | Tool | Card |
+|-----------|------|------|
+| Fahrzeuge > 90 Tage auf Hof | `erp_vehicleStandtime` | ⚠️ "3 Fahrzeuge stehen seit > 90 Tagen. [Preis senken] [Details]" |
+| Leasing laeuft aus | `erp_leasingContracts` | 📋 "5 Leasingvertraege enden in 30 Tagen. [Kunden kontaktieren]" |
+| Werkstatt-Auslastung | `erp_workshopCapacity` | 👥 "Werkstatt naechste Woche zu 95% ausgelastet. [Termine verschieben]" |
+
+**Gleiche UI, gleiche Card-Typen, gleicher Code — andere Heartbeats und Expert Agents.**
 
 ---
 
