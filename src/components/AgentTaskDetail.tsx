@@ -42,7 +42,6 @@ import {
   FlaskConical,
 } from 'lucide-react';
 import { cn } from '../utils';
-import { CommandCenter } from './CommandCenter';
 
 // ── Reasoning Block (Claude-style "Thinking") ──
 function ReasoningBlock({ text, isDark, isStreaming }: { text: string; isDark: boolean; isStreaming?: boolean }) {
@@ -418,11 +417,21 @@ export function AgentTaskDetail() {
     }
   }, [task, sendMessage]);
 
-  // ── No task selected → Command Center ──
+  // ── No task selected ──
   if (!task) {
     return (
       <div className="flex flex-col h-full">
-        <CommandCenter onAction={handleNewTask} />
+        <div className="flex-1 flex items-center justify-center">
+          <div className={cn('text-center px-6 max-w-md', isDark ? 'text-white/30' : 'text-gray-400')}>
+            <Bot size={40} className="mx-auto mb-4 opacity-40" />
+            <h3 className={cn('text-base font-medium mb-2', isDark ? 'text-white/60' : 'text-gray-600')}>
+              Neue Aufgabe starten
+            </h3>
+            <p className="text-sm leading-relaxed">
+              Durchsuche Dokumente, nutze Skills und loese mehrstufige Aufgaben in einer Konversation.
+            </p>
+          </div>
+        </div>
         <div className="shrink-0">
           <div className="p-4 max-w-4xl mx-auto w-full">
             <ChatInput onSend={handleNewTask} placeholder="Aufgabe eingeben..." />
