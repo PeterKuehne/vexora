@@ -45,6 +45,7 @@ import { memoryService } from './services/memory/index.js'
 import { heartbeatEngine } from './services/heartbeat/index.js'
 import { mcpClientManager } from './services/mcp/McpClientManager.js'
 import heartbeatRoutes from './routes/heartbeat.js'
+import commandCenterRoutes from './routes/command-center.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -118,6 +119,7 @@ app.use('/api/agent-eval', adminRateLimiter, agentEvalRoutes)
 app.use('/api/skills', generalRateLimiter, skillRoutes)
 app.use('/api/expert-agents', generalRateLimiter, expertAgentRoutes)
 app.use('/api/heartbeat', generalRateLimiter, heartbeatRoutes)
+app.use('/api/command-center', generalRateLimiter, commandCenterRoutes)
 
 // ============================================
 // Health & Root
