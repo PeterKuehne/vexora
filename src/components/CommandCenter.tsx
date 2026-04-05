@@ -97,35 +97,6 @@ export function CommandCenter({ onAction }: CommandCenterProps) {
           </div>
         )}
 
-        {/* Recent Conversations */}
-        {hasRecentTasks && (
-          <div className="mb-6">
-            <h3 className={cn('text-xs font-bold uppercase tracking-wider mb-3', isDark ? 'text-white/30' : 'text-gray-400')}>
-              Letzte Konversationen
-            </h3>
-            <div className="space-y-1">
-              {homeData!.recentTasks.slice(0, 3).map(task => (
-                <button
-                  key={task.id}
-                  onClick={() => onAction(task.query)}
-                  className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors',
-                    isDark
-                      ? 'text-white/50 hover:text-white/80 hover:bg-white/[0.03]'
-                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                  )}
-                >
-                  <MessageSquare size={14} className="shrink-0 opacity-40" />
-                  <span className="text-sm truncate">{task.query}</span>
-                  <span className={cn('text-[10px] shrink-0 ml-auto', isDark ? 'text-white/20' : 'text-gray-300')}>
-                    {formatTimeAgo(task.createdAt)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Empty State (no cards, no briefing) */}
         {!hasCards && !hasBriefing && (
           <div className={cn('text-center py-12', isDark ? 'text-white/20' : 'text-gray-300')}>

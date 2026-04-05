@@ -5,7 +5,7 @@
  * Heartbeat-Definition — nicht hardcoded per Branche.
  */
 
-import type { HeartbeatResult } from '../heartbeat/HeartbeatEngine.js';
+import type { HeartbeatResult, DataQueryConfig } from '../heartbeat/HeartbeatEngine.js';
 
 export interface ActionCardAction {
   label: string;
@@ -54,13 +54,8 @@ export function buildCards(results: HeartbeatResult[]): ActionCard[] {
       summary = String(data);
     }
 
-    // Build generic actions based on heartbeat name
-    const actions: ActionCardAction[] = [
-      {
-        label: 'Details',
-        prompt: `Zeige mir Details zu: ${result.name || 'Heartbeat-Ergebnis'}`,
-      },
-    ];
+    // Build contextual actions based on heartbeat name and data
+    const actions: ActionCardAction[] = buildActionsForResult(result, isArray ? count : 0);
 
     return {
       id: result.id,
@@ -74,4 +69,40 @@ export function buildCards(results: HeartbeatResult[]): ActionCard[] {
       createdAt: result.createdAt instanceof Date ? result.createdAt.toISOString() : String(result.createdAt),
     };
   });
+}
+
+/**
+ * Build contextual Quick Actions based on the heartbeat name and result data.
+ * These actions generate prompts that the Hive Mind will execute via Expert Agents.
+ */
+function buildActionsForResult(result: HeartbeatResult, count: number): ActionCardAction[] {
+  const name = (result.name || '').toLowerCase();
+  const actions: ActionCardAction[] = [];
+
+  // Match by heartbeat name patterns (generic, not industry-specific)
+  if (name.includes('rechnung') || name.includes('invoice') || name.includes('payment')) {
+    if (count > 0) {
+      actions.push({ label: 'Mahnung senden', prompt: `Erstelle Zahlungserinnerungen fuer die ${count} offenen Rechnungen` });
+    }
+    actions.push({ label: 'Analyse', prompt: `Analysiere die offenen Rechnungen und zeige Faelligkeiten` });
+  } else if (name.includes('compliance') || name.includes('aueg') || name.includes('fristen') || name.includes('limit')) {
+    actions.push({ label: 'Compliance-Bericht', prompt: `Erstelle einen vollstaendigen Compliance-Bericht` });
+    if (count > 0) {
+      actions.push({ label: 'Rotation planen', prompt: `Plane Rotationen fuer die ${count} betroffenen Einsaetze` });
+    }
+  } else if (name.includes('zertifizierung') || name.includes('certification')) {
+    actions.push({ label: 'Mitarbeiter informieren', prompt: `Informiere die betroffenen Mitarbeiter ueber ablaufende Zertifizierungen` });
+  } else if (name.includes('einsatz') || name.includes('assignment')) {
+    actions.push({ label: 'Alle anzeigen', prompt: `Zeige mir alle aktiven Einsaetze mit Status` });
+  } else if (name.includes('zeiterfassung') || name.includes('approval')) {
+    actions.push({ label: 'Alle genehmigen', prompt: `Genehmige alle ausstehenden Zeiterfassungen` });
+    actions.push({ label: 'Pruefen', prompt: `Zeige mir die ausstehenden Zeiterfassungen im Detail` });
+  }
+
+  // Always add a generic "Analysieren" action as fallback
+  if (actions.length === 0) {
+    actions.push({ label: 'Analysieren', prompt: `Analysiere die Ergebnisse von: ${result.name}` });
+  }
+
+  return actions;
 }
